@@ -98,3 +98,16 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .note .react-flow__handle { opacity: 0; }
 .reactflow-app .note-add { position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%); width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: #fff; color: var(--color-dark-green-600); font-weight: 700; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .15s; }
 .reactflow-app .note:hover .note-add { opacity: 1; }
+/* Selected WIP note: pulsing electric-green glow; its arrows light up too. */
+.reactflow-app .react-flow__node.selected .note {
+  border-color: var(--color-electric-green-900); border-top-color: var(--color-electric-green-700);
+  animation: note-glow 1.4s ease-in-out infinite alternate;
+}
+@keyframes note-glow {
+  from { box-shadow: 0 0 0 2px var(--color-electric-green-700), 0 0 8px 2px color-mix(in srgb, var(--color-electric-green-700) 50%, transparent); }
+  to { box-shadow: 0 0 0 3px var(--color-electric-green-700), 0 0 26px 8px color-mix(in srgb, var(--color-electric-green-700) 80%, transparent); }
+}
+.reactflow-app .react-flow__edge.lit path { stroke: var(--color-electric-green-900); stroke-width: 2.5; }
+@media (prefers-reduced-motion: reduce) {
+  .reactflow-app .react-flow__node.selected .note { animation: none; box-shadow: 0 0 0 3px var(--color-electric-green-700), 0 0 18px 6px color-mix(in srgb, var(--color-electric-green-700) 70%, transparent); }
+}

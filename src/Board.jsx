@@ -62,6 +62,7 @@ export function Board({ isRef, colorOf, onRef }) {
   const [notes, setNotes] = useState(null);
   const [error, setError] = useState(null);
   const [fresh, setFresh] = useState(null);
+  const [selected, setSelected] = useState(null);
   const { getNode } = useReactFlow();
 
   // Reloaded on focus too: board.json may have changed in another tab or by the agent meanwhile.
@@ -102,6 +103,7 @@ export function Board({ isRef, colorOf, onRef }) {
     position: { x: n.x, y: n.y },
     dragHandle: '.note-title',
     style: { width: NOTE_W },
+    selected: n.id === selected,
     data: {
       ...n, isRef, colorOf, onRef, fresh: n.id === fresh,
       onChange: (p) => update(n.id, p), onDelete: () => remove(n.id), onAddRelated: () => add(n.id),
@@ -109,6 +111,7 @@ export function Board({ isRef, colorOf, onRef }) {
   }));
   const edges = notes.filter((n) => n.from).map((n) => ({
     id: `${n.from}>${n.id}`, source: n.from, target: n.id, type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed },
+    className: selected && (n.id === selected || n.from === selected) ? 'lit' : undefined,
   }));
 
   return (
@@ -125,6 +128,8 @@ export function Board({ isRef, colorOf, onRef }) {
           return c ? { ...n, x: c.position.x, y: c.position.y } : n;
         }));
       }}
+      onNodeClick={(_, n) => setSelected(n.id)}
+      onPaneClick={() => setSelected(null)}
       zoomOnDoubleClick={false}
       nodesConnectable={false}
       minZoom={0.1}
