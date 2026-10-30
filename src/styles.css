@@ -94,3 +94,7 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .note.editing input { font-weight: 700; border-bottom: 1px solid var(--color-neutral-200); }
 .reactflow-app .board-msg { padding: 20px; color: var(--color-neutral-500); }
 .reactflow-app .board-error { margin-left: 10px; font-size: 12px; color: #9b1c1c; }
+.reactflow-app .note { position: relative; }
+.reactflow-app .note .react-flow__handle { opacity: 0; }
+.reactflow-app .note-add { position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%); width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: #fff; color: var(--color-dark-green-600); font-weight: 700; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.reactflow-app .note:hover .note-add { opacity: 1; }

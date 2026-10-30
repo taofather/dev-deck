@@ -1,7 +1,7 @@
 // WIP board page (src/content/wip/wip.js): free-positioned notes, edited in place and saved
 // through agent-bridge.mjs (GET/PUT /wip). Only works under `npm run dev`, the bridge is local.
 import { useEffect, useState } from 'react';
-import { ReactFlow, Background, Controls, Panel } from '@xyflow/react';
+import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, useReactFlow } from '@xyflow/react';
 
 const BRIDGE = 'http://127.0.0.1:5182/wip';
 const NOTE_W = 320;
@@ -24,7 +24,8 @@ function Body({ text, isRef, colorOf, onRef }) {
 }
 
 function Note({ data }) {
-  const [draft, setDraft] = useState(null);
+  // A note just created by a + button opens straight into edit mode.
+  const [draft, setDraft] = useState(data.fresh ? { title: data.title, body: data.body } : null);
   const commit = () => {
     data.onChange({ title: draft.title.trim() || 'Untitled', body: draft.body });
     setDraft(null);
@@ -44,11 +45,14 @@ function Note({ data }) {
   }
   return (
     <div className="note" onDoubleClick={() => setDraft({ title: data.title, body: data.body })}>
+      <Handle type="target" position={Position.Top} isConnectable={false} />
       <div className="note-title">
         {data.title}
         <button className="nodrag" title="Delete note" onClick={() => confirm(`Delete "${data.title}"?`) && data.onDelete()}>✕</button>
       </div>
       <Body text={data.body} isRef={data.isRef} colorOf={data.colorOf} onRef={data.onRef} />
+      <button className="note-add nodrag" title="Add related note" onClick={data.onAddRelated}>+</button>
+      <Handle type="source" position={Position.Bottom} isConnectable={false} />
     </div>
   );
 }
@@ -57,15 +61,21 @@ const nodeTypes = { note: Note };
 export function Board({ isRef, colorOf, onRef }) {
   const [notes, setNotes] = useState(null);
   const [error, setError] = useState(null);
+  const [fresh, setFresh] = useState(null);
+  const { getNode } = useReactFlow();
 
+  // Reloaded on focus too: board.json may have changed in another tab or by the agent meanwhile.
   useEffect(() => {
-    fetch(BRIDGE)
+    const load = () => fetch(BRIDGE)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`bridge answered ${r.status}`))))
       .then((b) => setNotes(b.notes))
       .catch((e) => setError(`${e.message}. The WIP board needs the local bridge: npm run dev.`));
+    load();
+    addEventListener('focus', load);
+    return () => removeEventListener('focus', load);
   }, []);
 
-  // ponytail: last write wins; an agent edit to board.json while the board is open is overwritten on the next save.
+  // ponytail: last write wins; two tabs editing at the same moment still overwrite each other (add a version check if that bites).
   const save = (next) => {
     setNotes(next);
     fetch(BRIDGE, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: next }) })
@@ -73,10 +83,17 @@ export function Board({ isRef, colorOf, onRef }) {
       .catch((e) => setError(e.message));
   };
   const update = (id, patch) => save(notes.map((n) => (n.id === id ? { ...n, ...patch } : n)));
-  const add = () => {
-    const x = notes.length ? Math.max(...notes.map((n) => n.x)) + NOTE_W + 40 : 0;
-    save([...notes, { id: crypto.randomUUID(), title: 'New note', body: '', x, y: 0 }]);
+  // A related note (from: parent id) goes under its parent, right of the siblings already there.
+  const add = (from) => {
+    const id = crypto.randomUUID();
+    const parent = notes.find((n) => n.id === from);
+    const pos = parent
+      ? { x: parent.x + notes.filter((n) => n.from === from).length * (NOTE_W + 40), y: parent.y + (getNode(from)?.measured?.height ?? 120) + 60 }
+      : { x: notes.length ? Math.max(...notes.map((n) => n.x)) + NOTE_W + 40 : 0, y: 0 };
+    setFresh(id);
+    save([...notes, { id, title: 'New note', body: '', ...pos, ...(parent && { from }) }]);
   };
+  const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, ...n }) => (from === id ? n : { ...n, from })));
 
   if (!notes) return <div className="board-msg">{error ?? 'Loading…'}</div>;
   const nodes = notes.map((n) => ({
@@ -85,13 +102,20 @@ export function Board({ isRef, colorOf, onRef }) {
     position: { x: n.x, y: n.y },
     dragHandle: '.note-title',
     style: { width: NOTE_W },
-    data: { ...n, isRef, colorOf, onRef, onChange: (p) => update(n.id, p), onDelete: () => save(notes.filter((o) => o.id !== n.id)) },
+    data: {
+      ...n, isRef, colorOf, onRef, fresh: n.id === fresh,
+      onChange: (p) => update(n.id, p), onDelete: () => remove(n.id), onAddRelated: () => add(n.id),
+    },
+  }));
+  const edges = notes.filter((n) => n.from).map((n) => ({
+    id: `${n.from}>${n.id}`, source: n.from, target: n.id, type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed },
   }));
 
   return (
     <ReactFlow
       fitView
       nodes={nodes}
+      edges={edges}
       nodeTypes={nodeTypes}
       onNodeDragStop={(_, node) => update(node.id, { x: Math.round(node.position.x), y: Math.round(node.position.y) })}
       onNodesChange={(changes) => {
@@ -108,7 +132,7 @@ export function Board({ isRef, colorOf, onRef }) {
       <Background gap={20} />
       <Controls />
       <Panel position="top-left">
-        <button className="focus-toggle" onClick={add}>+ Note</button>
+        <button className="focus-toggle" onClick={() => add()}>+ Note</button>
         {error && <span className="board-error">{error}</span>}
       </Panel>
     </ReactFlow>
