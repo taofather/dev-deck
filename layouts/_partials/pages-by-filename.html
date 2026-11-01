@@ -1,0 +1,8 @@
+{{- /* File name → page, for Obsidian shortest-path links. Ambiguous names map to false. */ -}}
+{{- $byName := dict -}}
+{{- range $p := site.Pages -}}
+  {{- with $p.File -}}
+    {{- $byName = merge $byName (dict .LogicalName (cond (isset $byName .LogicalName) false $p)) -}}
+  {{- end -}}
+{{- end -}}
+{{- return $byName -}}

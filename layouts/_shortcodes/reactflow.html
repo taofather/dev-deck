@@ -1,0 +1,2 @@
+{{- /* Embeds the React Flow app at a route: {{< reactflow "#/recurring-tenders" >}}, optional height. */ -}}
+<iframe class="reactflow-frame" src="{{ printf "%s?embed%s" ("diagrams/" | relURL) (.Get 0) | safeURL }}" style="width: 100%; height: {{ .Get 1 | default "640px" }}; border: 1px solid var(--color-neutral-200); border-radius: 6px;" loading="lazy"></iframe>

@@ -1,0 +1,30 @@
+/* Chat panel for agent-chat.js; colors from docs/assets/consentio.css. */
+.agent-chat { position: fixed; right: 16px; bottom: 16px; z-index: 100; font-family: var(--font-sans); font-size: 14px; }
+.agent-chat-toggle {
+  width: 48px; height: 48px; border-radius: 50%; border: 0; cursor: pointer; font-size: 22px;
+  background: var(--color-dark-green-600); color: #fff; box-shadow: 0 2px 8px rgb(0 0 0 / .25);
+}
+.agent-chat-panel {
+  display: none; flex-direction: column; position: absolute; right: 0; bottom: 60px;
+  width: min(420px, calc(100vw - 32px)); height: min(560px, 70vh);
+  background: #fff; color: var(--color-neutral-900); border: 1px solid var(--color-neutral-200);
+  border-radius: 10px; box-shadow: 0 4px 20px rgb(0 0 0 / .2); overflow: hidden;
+}
+.agent-chat.open .agent-chat-panel { display: flex; }
+.agent-chat-panel header {
+  display: flex; justify-content: space-between; padding: 8px 12px; font-weight: 600;
+  background: var(--color-dark-green-600); color: #fff;
+}
+.agent-chat-panel header button { background: none; border: 0; color: inherit; cursor: pointer; font-size: 16px; }
+.agent-chat-log { flex: 1; overflow-y: auto; margin: 0; padding: 10px; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.agent-chat-log li { padding: 6px 10px; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 90%; }
+.agent-chat-log .user { align-self: flex-end; background: var(--color-dark-green-50); }
+.agent-chat-log .agent { align-self: flex-start; background: var(--color-neutral-50); }
+.agent-chat-log .tool { align-self: flex-start; font-family: var(--font-mono); font-size: 12px; color: var(--color-neutral-500); padding: 2px 10px; }
+.agent-chat-log .error { align-self: flex-start; background: #fde8e8; color: #9b1c1c; }
+.agent-chat-panel form { border-top: 1px solid var(--color-neutral-200); }
+.agent-chat-panel textarea { width: 100%; border: 0; padding: 10px; resize: none; font: inherit; background: transparent; color: inherit; outline: none; }
+html.dark .agent-chat-panel { background: var(--color-neutral-900); color: var(--color-neutral-50); border-color: var(--color-neutral-700); }
+html.dark .agent-chat-log .user { background: var(--color-dark-green-700); }
+html.dark .agent-chat-log .agent { background: var(--color-neutral-700); }
+html.dark .agent-chat-log .tool { color: var(--color-neutral-200); }

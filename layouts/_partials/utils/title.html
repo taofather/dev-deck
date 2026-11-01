@@ -1,0 +1,15 @@
+{{- /* Overrides Hextra: like MkDocs, front matter title, then the first H1, then the file name. */ -}}
+{{- $title := .Title -}}
+{{- if and (not $title) .File -}}
+  {{- with findRESubmatch `(?m)^# +(.+?)\s*$` .RawContent 1 -}}
+    {{- $title = index (index . 0) 1 | $.RenderString | plainify | htmlUnescape -}}
+  {{- end -}}
+{{- end -}}
+{{- if not $title -}}
+  {{- if and .IsSection .File -}}
+    {{- $title = path.Base .File.Dir | strings.FirstUpper -}}
+  {{- else if .File -}}
+    {{- $title = .File.BaseFileName -}}
+  {{- end -}}
+{{- end -}}
+{{- return $title -}}

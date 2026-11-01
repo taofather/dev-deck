@@ -1,0 +1,2 @@
+{{- /* True when the markdown brings its own H1, so the layout must not print the title again. */ -}}
+{{- return (gt (len (findRE `(?m)^# ` .RawContent 1)) 0) -}}

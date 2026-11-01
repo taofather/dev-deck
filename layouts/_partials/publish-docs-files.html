@@ -1,0 +1,6 @@
+{{- /* Publishes every non-markdown file of docs/ (images, json, standalone .html) at its source path. */ -}}
+{{- range resources.Match "docs/**" -}}
+  {{- if not (or (strings.HasSuffix .Name ".md") (strings.HasSuffix .Name ".DS_Store")) -}}
+    {{- (resources.Copy (strings.TrimPrefix "/docs/" (printf "/%s" (strings.TrimPrefix "/" .Name))) .).Publish -}}
+  {{- end -}}
+{{- end -}}

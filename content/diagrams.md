@@ -1,0 +1,4 @@
+---
+title: Diagrams
+layout: diagrams
+---

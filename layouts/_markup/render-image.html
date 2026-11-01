@@ -1,0 +1,9 @@
+{{- $dest := partial "resolve-dest.html" . -}}
+{{- with .Title -}}
+  <figure>
+    <img src="{{ $dest | safeURL }}" title="{{ . }}" alt="{{ $.PlainText }}" loading="lazy" />
+    <figcaption>{{ . }}</figcaption>
+  </figure>
+{{- else -}}
+  <img src="{{ $dest | safeURL }}" alt="{{ .PlainText }}" loading="lazy" />
+{{- end -}}

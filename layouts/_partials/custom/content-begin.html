@@ -1,0 +1,12 @@
+{{- /* Front matter `reactflow: ["#/doc/page/entity", ...]` (or a single string) links React Flow routes, each named by its route. */ -}}
+{{- with .Params.reactflow -}}
+  <p class="reactflow-links">Diagrams:
+    {{- range $i, $r := cond (reflect.IsSlice .) . (slice .) }}{{ if $i }},{{ end }} <a href="{{ "diagrams/" | relURL }}{{ $r }}">{{ strings.TrimPrefix "#/" $r }}</a>{{ end -}}
+  </p>
+{{- end -}}
+{{- /* Front matter `labels: [a, b]` (or a single string) renders as chips above the content. */ -}}
+{{- with .Params.labels -}}
+  <p class="doc-labels">
+    {{- range cond (reflect.IsSlice .) . (slice .) }}<span>{{ . }}</span>{{ end -}}
+  </p>
+{{- end -}}

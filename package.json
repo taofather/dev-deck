@@ -1,0 +1,20 @@
+{
+  "name": "dev-deck",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch --mode development & node agent-bridge.mjs & hugo server --port 5180 --noHTTPCache",
+    "dev:diagrams": "vite --port 5179",
+    "build": "vite build && hugo --gc --minify"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^1.1.4",
+    "@xyflow/react": "^12.3.6",
+    "@zenuml/core": "^4.11.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
+}

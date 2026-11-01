@@ -1,0 +1,22 @@
+{{- /* Resolves a markdown link or image destination written for Obsidian (relative to the
+       source file) to a site URL. Pages go through GetPage; other files are served from
+       docs/ at their source path (static mount). Context: the render hook context. */ -}}
+{{- $dest := .Destination -}}
+{{- $url := urls.Parse $dest -}}
+{{- if and $dest (not $url.Scheme) (not (hasPrefix $dest "/")) (not (hasPrefix $dest "#")) .PageInner.File -}}
+  {{- $suffix := "" -}}
+  {{- with $url.RawQuery }}{{ $suffix = printf "?%s" . }}{{ end -}}
+  {{- with $url.Fragment }}{{ $suffix = printf "%s#%s" $suffix . }}{{ end -}}
+  {{- $file := path.Join .PageInner.File.Dir $url.Path -}}
+  {{- if strings.HasSuffix $url.Path ".md" -}}
+    {{- /* Relative to the file first, then by unique file name (Obsidian shortest-path links). */ -}}
+    {{- with or (.PageInner.GetPage (printf "/%s" $file)) (index (partialCached "pages-by-filename.html" .) (path.Base $url.Path)) -}}
+      {{- $dest = printf "%s%s" .RelPermalink $suffix -}}
+    {{- else -}}
+      {{- warnf "%s: broken link %s" .PageInner.File.Path $url.Path -}}
+    {{- end -}}
+  {{- else if fileExists (printf "docs/%s" $file) -}}
+    {{- $dest = printf "%s%s" (relURL (replace $file " " "%20")) $suffix -}}
+  {{- end -}}
+{{- end -}}
+{{- return $dest -}}

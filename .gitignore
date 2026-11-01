@@ -1,0 +1,42 @@
+# dependencies
+/node_modules
+/dist
+
+# WIP folder is a temporary area, rendered but pending to organize.
+/docs/_WIP
+
+# Local settings (personal overrides)
+settings.local.json
+.claude/settings.local.json
+CLAUDE.local.md
+
+# MCP environment variables (contains secrets)
+mcp.env
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Test artifacts
+/tmp/
+*.log
+
+# obsidian
+.obsidian/
+
+# hugo
+/public
+/resources
+.hugo_build.lock
+
+# WIP board notes (src/content/wip/wip.js), personal like docs/_WIP.
+/src/content/wip/board.json

@@ -1,0 +1,58 @@
+/* Deck theme, shared by Hugo (layouts/_partials/custom/head-end.html) and React Flow (import in src/main.jsx). */
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  --color-dark-green-50: #e0edec;
+  --color-dark-green-100: #c3e0de;
+  --color-dark-green-200: #a5ccc9;
+  --color-dark-green-600: #184c47;
+  --color-dark-green-700: #05312d;
+
+  --color-electric-green-100: #e7fbce;
+  --color-electric-green-700: #a3ea34;
+  --color-electric-green-900: #71ac18;
+
+  --color-neutral-50: #f6f7f9;
+  --color-neutral-200: #cbd2d9;
+  --color-neutral-500: #56616e;
+  --color-neutral-700: #323d47;
+  --color-neutral-900: #10151a;
+
+  --font-sans: "Manrope", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* ---------- Hugo Hextra ---------- */
+
+/* Hextra derives its accent color from these. Dark green, lighter in dark mode. */
+:root { --primary-hue: 174deg; --primary-saturation: 52%; --primary-lightness: 25%; }
+html.dark { --primary-lightness: 55%; }
+
+body { font-family: var(--font-sans); }
+code, kbd, pre { font-family: var(--font-mono); }
+
+/* White header so the colored logo stays readable, as on the theme's slides. */
+html:not(.dark) .hextra-nav-container-blur { background-color: #fff; }
+.hextra-nav-container { border-bottom: 3px solid var(--color-dark-green-600); }
+
+html:not(.dark) .content h1 {
+  color: var(--color-dark-green-600);
+  font-weight: 800;
+  border-bottom: 4px solid var(--color-dark-green-600);
+  padding-bottom: 0.4em;
+}
+html:not(.dark) .content h2 { color: var(--color-neutral-700); font-weight: 600; }
+html:not(.dark) .content h3 { color: var(--color-neutral-500); font-weight: 500; }
+html:not(.dark) .content strong { color: var(--color-dark-green-600); }
+.content a:hover { color: var(--color-electric-green-900); }
+.content li::marker { color: var(--color-dark-green-600); }
+
+.content table th { background-color: var(--color-dark-green-600); color: #fff; }
+
+.reactflow-links { margin: 0 0 1rem; font-size: 0.8rem; font-weight: 700; }
+.reactflow-links a { font-family: var(--font-mono); color: var(--color-dark-green-600); }
+.doc-labels { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1rem; }
+.doc-labels span {
+  font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; padding: 0.15em 0.7em; border-radius: 999px;
+  background: var(--color-dark-green-50); color: var(--color-dark-green-700); border: 1px solid var(--color-dark-green-600);
+}

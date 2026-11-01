@@ -1,0 +1,20 @@
+{{- /* Every docs/ folder holding markdown becomes a section, so the sidebar mirrors the
+       folder tree with no _index.md files to maintain (as MkDocs did without `nav:`). */ -}}
+{{- $dirs := dict -}}
+{{- range resources.Match "docs/**.md" -}}
+  {{- if eq (path.Base .Name) "index.md" -}}
+    {{- warnf "%s: index.md makes its folder a single page and hides the other files; rename it to _index.md" .Name -}}
+  {{- end -}}
+  {{- $acc := "" -}}
+  {{- range split (path.Dir (strings.TrimPrefix "docs/" (strings.TrimPrefix "/" .Name))) "/" -}}
+    {{- if ne . "." -}}
+      {{- $acc = path.Join $acc . -}}
+      {{- $dirs = merge $dirs (dict $acc .) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- range $dir, $name := $dirs -}}
+  {{- if not (fileExists (printf "docs/%s/_index.md" $dir)) -}}
+    {{- $.AddPage (dict "path" (lower $dir) "kind" "section" "title" (strings.FirstUpper $name)) -}}
+  {{- end -}}
+{{- end -}}

@@ -1,0 +1,8 @@
+<link rel="stylesheet" href="{{ "assets/consentio.css" | relURL }}" />
+{{- partialCached "publish-docs-files.html" . }}
+{{- /* Agent chat (agent-bridge.mjs): local `hugo server` only, never in a build. */ -}}
+{{- if hugo.IsServer }}
+  {{- with .File }}{{ if eq .Ext "md" }}<meta name="agent-source" content="{{ .Filename }}" />{{ end }}{{ end }}
+  {{- with resources.Get "agent-chat.css" }}<link rel="stylesheet" href="{{ .RelPermalink }}" />{{ end }}
+  {{- with resources.Get "agent-chat.js" }}<script type="module" src="{{ .RelPermalink }}"></script>{{ end }}
+{{- end }}

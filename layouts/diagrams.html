@@ -1,0 +1,27 @@
+{{- /* React Flow app under the Hextra navbar. Vite builds dist/assets/index.{js,css} (fixed names,
+       see vite.config.js); ?v busts the browser cache on each site build. */ -}}
+{{ define "main" }}
+  {{- $v := now.Unix -}}
+  {{- /* ?embed (the reactflow shortcode's iframe): no navbar, the host page already has one. */}}
+  <script>if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('reactflow-embed');</script>
+  {{- /* Diagram doc id → the docs page that links to it, for the sidebar back link. Later passes
+         overwrite earlier ones: any page, then a page in a domains/infrastructure family section, then that section's index. */}}
+  {{- $family := slice "domains" "infrastructure" "example" -}}
+  {{- $homes := dict -}}
+  {{- range $pass := slice 0 1 2 -}}
+    {{- range $p := site.Pages -}}
+      {{- with $p.Params.reactflow -}}
+        {{- range cond (reflect.IsSlice .) . (slice .) -}}
+          {{- $id := index (split (strings.TrimPrefix "#/" .) "/") 0 -}}
+          {{- if or (eq $pass 0) (and (in $family $p.Section) (or (eq $pass 1) $p.IsSection)) -}}
+            {{- $homes = merge $homes (dict $id $p.RelPermalink) -}}
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end }}
+  <script>window.reactflowHomes = {{ $homes | jsonify | safeJS }};</script>
+  <div id="root" class="reactflow-app"></div>
+  <link rel="stylesheet" href="{{ "diagrams/assets/index.css" | relURL }}?v={{ $v }}" />
+  <script type="module" src="{{ "diagrams/assets/index.js" | relURL }}?v={{ $v }}"></script>
+{{ end }}
