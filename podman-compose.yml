@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  dev-deck:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dev-deck
+    working_dir: /app
+    volumes:
+      - .:/app:z
+    ports:
+      - "5180:5180"
+      - "5182:5182"
+      - "5179:5179"
+    environment:
+      - NODE_ENV=development
+    command: sh -c "npm install && npm run dev"
