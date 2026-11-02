@@ -7,7 +7,7 @@ import '../docs/assets/consentio.css';
 import './styles.css';
 
 import { docs } from './content/index.js';
-import { Board } from './Board.jsx';
+import { Board, NoteAside } from './Board.jsx';
 
 // Colors follow AGENTS.md: blue frontend, red backend, purple database.
 const DIMENSIONS = {
@@ -25,6 +25,7 @@ const DIMENSIONS = {
 const dimOf = (id) =>
   Object.keys(DIMENSIONS).find((d) => DIMENSIONS[d].prefixes.includes(id?.split('-')[0])) ?? 'step';
 const isRef = (id) => dimOf(id) !== 'step';
+const colorOf = (id) => DIMENSIONS[dimOf(id)].color;
 
 // Entities and relations are shared by all docs: the same id in two docs is the same thing.
 const entityDocs = (entity) =>
@@ -359,6 +360,8 @@ function App() {
   const [route, setRoute] = useState(parseHash);
   const [hidden, setHidden] = useState(new Set());
   const [focus, setFocus] = useState(false);
+  // Filled by the WIP Board so the aside can show the selected note.
+  const [boardNotes, setBoardNotes] = useState([]);
   useEffect(() => {
     const onHash = () => setRoute(parseHash());
     addEventListener('hashchange', onHash);
@@ -366,6 +369,8 @@ function App() {
   }, []);
 
   const { doc, page, entity } = route;
+  // On the WIP board the route entity is either a note id or a DSL ref clicked inside a note.
+  const note = page.board && boardNotes.find((n) => n.id === entity);
   // The Home section stays reachable as the default page, the back link replaces it in the sidebar.
   const sections = [...new Set(doc.pages.map((p) => p.section))].filter((s) => s !== 'Home');
   // Filled by layouts/diagrams.html from the reactflow-* front matter; absent under `npm run dev:diagrams`.
@@ -409,7 +414,8 @@ function App() {
         <div className="canvas">
           {page.board ? (
             <ReactFlowProvider>
-              <Board isRef={isRef} colorOf={(id) => DIMENSIONS[dimOf(id)].color} onRef={(id) => go(doc.id, page.id, id)} />
+              <Board isRef={isRef} colorOf={colorOf} onRef={(id) => go(doc.id, page.id, id)}
+                selected={entity} onSelect={(id) => go(doc.id, page.id, id)} onNotes={setBoardNotes} />
             </ReactFlowProvider>
           ) : page.sequence ? (
             <Sequence doc={doc} page={page} entity={entity} hidden={hidden} />
@@ -424,7 +430,12 @@ function App() {
           {next && <a onClick={() => go(doc.id, next.id)}>{next.title} →</a>}
         </footer>
       </main>
-      <Panel doc={doc} page={page} entity={entity} />
+      {note ? (
+        <NoteAside note={note} notes={boardNotes} isRef={isRef} colorOf={colorOf}
+          onRef={(id) => go(doc.id, page.id, id)} onSelect={(id) => go(doc.id, page.id, id)} />
+      ) : (
+        <Panel doc={doc} page={page} entity={entity} />
+      )}
     </div>
   );
 }

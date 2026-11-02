@@ -58,11 +58,12 @@ function Note({ data }) {
 }
 const nodeTypes = { note: Note };
 
-export function Board({ isRef, colorOf, onRef }) {
+// The selected note lives in the route (#/doc/page/<note id>) like any entity, so App passes it in and
+// renders NoteAside for it; onNotes hands App the notes that aside reads.
+export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes }) {
   const [notes, setNotes] = useState(null);
   const [error, setError] = useState(null);
   const [fresh, setFresh] = useState(null);
-  const [selected, setSelected] = useState(null);
   const { getNode } = useReactFlow();
 
   // Reloaded on focus too: board.json may have changed in another tab or by the agent meanwhile.
@@ -75,6 +76,9 @@ export function Board({ isRef, colorOf, onRef }) {
     addEventListener('focus', load);
     return () => removeEventListener('focus', load);
   }, []);
+  useEffect(() => {
+    if (notes) onNotes(notes);
+  }, [notes, onNotes]);
 
   // ponytail: last write wins; two tabs editing at the same moment still overwrite each other (add a version check if that bites).
   const save = (next) => {
@@ -92,6 +96,7 @@ export function Board({ isRef, colorOf, onRef }) {
       ? { x: parent.x + notes.filter((n) => n.from === from).length * (NOTE_W + 40), y: parent.y + (getNode(from)?.measured?.height ?? 120) + 60 }
       : { x: notes.length ? Math.max(...notes.map((n) => n.x)) + NOTE_W + 40 : 0, y: 0 };
     setFresh(id);
+    onSelect(id);
     save([...notes, { id, title: 'New note', body: '', ...pos, ...(parent && { from }) }]);
   };
   const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, ...n }) => (from === id ? n : { ...n, from })));
@@ -128,8 +133,8 @@ export function Board({ isRef, colorOf, onRef }) {
           return c ? { ...n, x: c.position.x, y: c.position.y } : n;
         }));
       }}
-      onNodeClick={(_, n) => setSelected(n.id)}
-      onPaneClick={() => setSelected(null)}
+      onNodeClick={(_, n) => onSelect(n.id)}
+      onPaneClick={() => onSelect(null)}
       zoomOnDoubleClick={false}
       nodesConnectable={false}
       minZoom={0.1}
@@ -141,5 +146,22 @@ export function Board({ isRef, colorOf, onRef }) {
         {error && <span className="board-error">{error}</span>}
       </Panel>
     </ReactFlow>
+  );
+}
+
+// Right-hand aside for the selected note: its full body plus the notes it is related to.
+export function NoteAside({ note, notes, isRef, colorOf, onRef, onSelect }) {
+  const parent = notes.find((n) => n.id === note.from);
+  const children = notes.filter((n) => n.from === note.id);
+  const link = (n) => <li key={n.id}><a onClick={() => onSelect(n.id)}>{n.title}</a></li>;
+  return (
+    <aside className="panel">
+      <div className="badge" style={{ background: 'var(--color-dark-green-600)' }}>WIP note</div>
+      <h2 className="note-aside-title">{note.title}</h2>
+      {note.body ? <Body text={note.body} isRef={isRef} colorOf={colorOf} onRef={onRef} /> : <p className="muted">Empty note.</p>}
+      {parent && <><h3>Related to ↑</h3><ul>{link(parent)}</ul></>}
+      {children.length > 0 && <><h3>Related notes ↓</h3><ul>{children.map(link)}</ul></>}
+      <p className="muted">Double-click the note on the board to edit it.</p>
+    </aside>
   );
 }

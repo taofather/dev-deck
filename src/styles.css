@@ -111,3 +111,5 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .reactflow-app .react-flow__node.selected .note { animation: none; box-shadow: 0 0 0 3px var(--color-electric-green-700), 0 0 18px 6px color-mix(in srgb, var(--color-electric-green-700) 70%, transparent); }
 }
+.reactflow-app .panel .note-aside-title { font-family: var(--font-sans); font-size: 18px; word-break: normal; }
+.reactflow-app .panel .note-body { padding: 0; font-size: 14px; cursor: auto; }
