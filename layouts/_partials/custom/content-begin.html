@@ -4,9 +4,11 @@
     {{- range $i, $r := cond (reflect.IsSlice .) . (slice .) }}{{ if $i }},{{ end }} <a href="{{ "diagrams/" | relURL }}{{ $r }}">{{ strings.TrimPrefix "#/" $r }}</a>{{ end -}}
   </p>
 {{- end -}}
-{{- /* Front matter `labels: [a, b]` (or a single string) renders as chips above the content. */ -}}
-{{- with .Params.labels -}}
-  <p class="doc-labels">
-    {{- range cond (reflect.IsSlice .) . (slice .) }}<span>{{ . }}</span>{{ end -}}
+{{- /* Front matter `tags: [a, b]` and `entities: [DBT-Orders, ...]` render as chips linking to their term pages. */ -}}
+{{- range $tax := slice "tags" "entities" -}}
+  {{- with $.GetTerms $tax }}
+  <p class="doc-labels doc-{{ $tax }}">
+    {{- range . }}<a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>{{ end -}}
   </p>
+  {{- end -}}
 {{- end -}}

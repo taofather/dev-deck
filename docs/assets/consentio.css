@@ -52,7 +52,10 @@ html:not(.dark) .content strong { color: var(--color-dark-green-600); }
 .reactflow-links { margin: 0 0 1rem; font-size: 0.8rem; font-weight: 700; }
 .reactflow-links a { font-family: var(--font-mono); color: var(--color-dark-green-600); }
 .doc-labels { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1rem; }
-.doc-labels span {
+.doc-labels a {
+  text-decoration: none;
   font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; padding: 0.15em 0.7em; border-radius: 999px;
   background: var(--color-dark-green-50); color: var(--color-dark-green-700); border: 1px solid var(--color-dark-green-600);
 }
+.doc-labels a:hover { background: var(--color-dark-green-100); }
+.doc-entities a { border-style: dashed; }
