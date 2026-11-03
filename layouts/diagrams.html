@@ -21,6 +21,8 @@
     {{- end -}}
   {{- end }}
   <script>window.reactflowHomes = {{ $homes | jsonify | safeJS }};</script>
+  {{- /* Hextra's menu.js expects its sidebar on every page and throws without one; this page has none. */}}
+  <aside class="hextra-sidebar-container" hidden></aside>
   <div id="root" class="reactflow-app"></div>
   <link rel="stylesheet" href="{{ "diagrams/assets/index.css" | relURL }}?v={{ $v }}" />
   <script type="module" src="{{ "diagrams/assets/index.js" | relURL }}?v={{ $v }}"></script>

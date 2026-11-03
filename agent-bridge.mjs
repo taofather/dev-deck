@@ -5,16 +5,14 @@
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { readFile, rename, writeFile } from 'node:fs/promises';
 import { LinearClient } from '@linear/sdk';
+import { loadNotes, migrateBodies, saveBody, saveNotes } from './wip-notes.mjs';
 
 const PORT = 5182;
 // Any site open in the browser can reach 127.0.0.1; only the dev site may drive an agent that writes files.
 const ORIGINS = ['http://localhost:5180', 'http://127.0.0.1:5180'];
 const TOOLS = 'Read,Edit,Write,Glob,Grep';
 const KEEP_MS = 10 * 60 * 1000;
-// WIP board notes (src/Board.jsx). Outside the Vite module graph and Hugo mounts: saving reloads nothing.
-const BOARD = `${import.meta.dirname}/src/content/wip/board.json`;
 // Linear personal API key (linear.app/consentio/settings/account/security), from the env or the gitignored .env.
 if (existsSync(`${import.meta.dirname}/.env`)) process.loadEnvFile(`${import.meta.dirname}/.env`);
 const linear = process.env.LINEAR_API_KEY && new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
@@ -31,8 +29,9 @@ const CYCLE_ISSUES = `query {
     }
   }
 }`;
-const isNote = (n) => n && typeof n.id === 'string' && typeof n.title === 'string' && typeof n.body === 'string'
-  && Number.isFinite(n.x) && Number.isFinite(n.y);
+// WIP board notes (src/Board.jsx): layout in board.json, bodies in docs/_WIP/board pages (wip-notes.mjs).
+const isNote = (n) => n && typeof n.id === 'string' && typeof n.title === 'string' && Number.isFinite(n.x) && Number.isFinite(n.y);
+const json = (res, data) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
 
 function readBody(req, done) {
   let body = '';
@@ -121,18 +120,20 @@ createServer((req, res) => {
   }
 
   if (url.pathname === '/wip' && req.method === 'GET') {
-    return readFile(BOARD, 'utf8')
-      .catch((err) => (err.code === 'ENOENT' ? '{"notes":[]}' : Promise.reject(err)))
-      .then((json) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(json))
-      .catch((err) => res.writeHead(500).end(err.message));
+    return loadNotes().then((notes) => json(res, { notes })).catch((err) => res.writeHead(500).end(err.message));
   }
   if (url.pathname === '/wip' && req.method === 'PUT') {
     return readBody(req, (board) => {
       if (!Array.isArray(board?.notes) || !board.notes.every(isNote)) return res.writeHead(400).end();
-      // Write then rename: a crash mid-write never leaves a truncated board.json.
-      writeFile(`${BOARD}.tmp`, `${JSON.stringify({ notes: board.notes }, null, 2)}\n`)
-        .then(() => rename(`${BOARD}.tmp`, BOARD))
-        .then(() => res.writeHead(204).end())
+      saveNotes(board.notes).then(() => res.writeHead(204).end()).catch((err) => res.writeHead(500).end(err.message));
+    });
+  }
+  // One note's body, saved to its docs/_WIP/board page (the aside editor in src/Board.jsx).
+  if (url.pathname === '/wip/body' && req.method === 'PUT') {
+    return readBody(req, (b) => {
+      if (typeof b?.id !== 'string' || typeof b.body !== 'string') return res.writeHead(400).end();
+      saveBody(b.id, b.body)
+        .then((page) => (page ? json(res, { page }) : res.writeHead(404).end('no such note')))
         .catch((err) => res.writeHead(500).end(err.message));
     });
   }
@@ -156,3 +157,6 @@ createServer((req, res) => {
     res.writeHead(202).end();
   });
 }).listen(PORT, '0.0.0.0', () => console.log(`agent bridge on http://0.0.0.0:${PORT}`));
+
+migrateBodies().then((n) => n && console.log(`moved ${n} WIP note bodies to docs/_WIP/board`))
+  .catch((err) => console.error('WIP body migration failed:', err.message));

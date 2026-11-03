@@ -1,7 +1,7 @@
 // WIP board page (src/content/wip/wip.js): free-positioned notes, edited in place and saved
 // through agent-bridge.mjs (GET/PUT /wip). Only works under `npm run dev`, the bridge is local.
 import { useEffect, useState } from 'react';
-import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, useReactFlow } from '@xyflow/react';
+import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, useReactFlow, useConnection } from '@xyflow/react';
 
 const BRIDGE = 'http://127.0.0.1:5182/wip';
 const NOTE_W = 320;
@@ -33,11 +33,16 @@ function Status({ linear, state }) {
   );
 }
 
-function Note({ data }) {
-  // A note just created by a + button opens straight into edit mode.
-  const [draft, setDraft] = useState(data.fresh ? { title: data.title, body: data.body } : null);
+function Note({ id, data }) {
+  // While a link is dragged from another note, this note turns into a drop zone (React Flow "easy connect").
+  const dragging = useConnection((c) => c.inProgress && c.fromNode.id !== id);
+  // Click-to-link (data.linkTarget) gets the same outline as a dragged link.
+  const droppable = dragging || data.linkTarget;
+  // The node edits its title only; the body lives in a docs/_WIP/board page, edited from NoteAside.
+  // A note just created by a + button opens straight into title editing.
+  const [draft, setDraft] = useState(data.fresh ? data.title : null);
   const commit = () => {
-    data.onChange({ title: draft.title.trim() || 'Untitled', body: draft.body });
+    data.onChange({ title: draft.trim() || 'Untitled' });
     setDraft(null);
   };
   const keys = (e) => {
@@ -47,24 +52,31 @@ function Note({ data }) {
   if (draft) {
     return (
       <div className="note editing" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && commit()} onKeyDown={keys}>
-        <input className="nodrag" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
-        <textarea className="nodrag nowheel" autoFocus rows={Math.max(6, draft.body.split('\n').length + 1)}
-          value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
+        <input className="nodrag" autoFocus value={draft} onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && commit()} />
       </div>
     );
   }
   return (
-    <div className="note" style={data.state && { borderTopColor: data.state.color }}
-      onDoubleClick={() => setDraft({ title: data.title, body: data.body })}>
-      <Handle type="target" position={Position.Top} isConnectable={false} />
+    <div className={['note', droppable && 'droppable', data.linkSource && 'linking'].filter(Boolean).join(' ')} style={data.state && { borderTopColor: data.state.color }}
+      onDoubleClick={() => setDraft(data.title)}>
+      <Handle id="in" type="target" position={Position.Top} isConnectable={false} />
+      <Handle id="link-in" type="target" position={Position.Left} isConnectable={false} />
+      {dragging && <Handle id="drop" type="target" position={Position.Left} className="note-drop" isConnectableStart={false} />}
       <div className="note-title">
-        {data.title}
+        <span className="note-title-text">{data.title}</span>
+        {data.page && <a className="nodrag note-page" href={data.page} title="Open its WIP page">📄</a>}
         <button className="nodrag" title="Delete note" onClick={() => confirm(`Delete "${data.title}"?`) && data.onDelete()}>✕</button>
       </div>
       {data.linear && <Status linear={data.linear} state={data.state} />}
-      <Body text={data.body} isRef={data.isRef} colorOf={data.colorOf} onRef={data.onRef} />
       <button className="note-add nodrag" title="Add related note" onClick={data.onAddRelated}>+</button>
-      <Handle type="source" position={Position.Bottom} isConnectable={false} />
+      <Handle id="link" type="source" position={Position.Right} className="note-link" isConnectableEnd={false}
+        title="Click, then click another note to link them (or drag onto it)"
+        onClick={(e) => {
+          e.stopPropagation();
+          data.onStartLink();
+        }}>→</Handle>
+      <Handle id="out" type="source" position={Position.Bottom} isConnectable={false} />
     </div>
   );
 }
@@ -74,11 +86,19 @@ const nodeTypes = { note: Note };
 // renders NoteAside for it; onNotes hands App the notes that aside reads.
 const stateOf = (note, issues) => note.linear && (issues?.find((i) => i.identifier === note.linear.id)?.state ?? note.linear.state);
 
-// issues: the sidebar's Linear cycle issues. addIssueRef: App's handle to add a note for one of them.
-export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issues, addIssueRef }) {
+// issues: the sidebar's Linear cycle issues. apiRef: App's handle on addIssue (sidebar +) and saveBody (aside editor).
+export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issues, apiRef }) {
   const [notes, setNotes] = useState(null);
   const [error, setError] = useState(null);
   const [fresh, setFresh] = useState(null);
+  // Click-to-link: the note whose → was clicked; the next note clicked becomes the link target.
+  const [linkFrom, setLinkFrom] = useState(null);
+  useEffect(() => {
+    if (!linkFrom) return;
+    const esc = (e) => e.key === 'Escape' && setLinkFrom(null);
+    addEventListener('keydown', esc);
+    return () => removeEventListener('keydown', esc);
+  }, [linkFrom]);
   const { getNode, setCenter, getZoom } = useReactFlow();
 
   // Reloaded on focus too: board.json may have changed in another tab or by the agent meanwhile.
@@ -125,10 +145,32 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
     save([...notes, { id, title: issue.title, body: '', x, y: 0, linear }]);
     setCenter(x + NOTE_W / 2, 100, { zoom: getZoom(), duration: 400 });
   };
+  // The body goes to the note's docs/_WIP/board page; Hugo then rebuilds and livereloads this page.
+  const saveBody = (id, body) => fetch(`${BRIDGE}/body`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, body }),
+  })
+    // An empty 404 is a bridge older than this route: it needs a restart of npm run dev.
+    .then((r) => (r.ok ? r.json() : r.text().then((t) => Promise.reject(new Error(t || (r.status === 404
+      ? 'The bridge predates note pages: restart npm run dev.' : `save failed: ${r.status}`))))))
+    .then(({ page }) => setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, body, page } : n))));
   useEffect(() => {
-    if (addIssueRef) addIssueRef.current = notes ? addIssue : null;
+    if (apiRef) apiRef.current = notes ? { addIssue, saveBody } : null;
   });
-  const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, ...n }) => (from === id ? n : { ...n, from })));
+  const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, links, ...n }) => ({
+    ...n,
+    ...(from !== id && from && { from }),
+    ...(links?.some((t) => t !== id) && { links: links.filter((t) => t !== id) }),
+  })));
+  // links: free associations between notes, besides the from (parent) hierarchy. Stored on the source note.
+  const link = ({ source, target }) => {
+    const s = notes.find((n) => n.id === source);
+    if (source === target || s.links?.includes(target)) return;
+    update(source, { links: [...(s.links ?? []), target] });
+  };
+  const unlink = (source, target) => {
+    const links = notes.find((n) => n.id === source).links.filter((t) => t !== target);
+    update(source, { links: links.length ? links : undefined });
+  };
 
   if (!notes) return <div className="board-msg">{error ?? 'Loading…'}</div>;
   const nodes = notes.map((n) => ({
@@ -141,12 +183,22 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
     data: {
       ...n, isRef, colorOf, onRef, fresh: n.id === fresh, state: stateOf(n, issues),
       onChange: (p) => update(n.id, p), onDelete: () => remove(n.id), onAddRelated: () => add(n.id),
+      onStartLink: () => setLinkFrom(linkFrom === n.id ? null : n.id),
+      linkSource: linkFrom === n.id, linkTarget: !!linkFrom && linkFrom !== n.id,
     },
   }));
-  const edges = notes.filter((n) => n.from).map((n) => ({
-    id: `${n.from}>${n.id}`, source: n.from, target: n.id, type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed },
-    className: selected && (n.id === selected || n.from === selected) ? 'lit' : undefined,
-  }));
+  const lit = (a, b) => selected && (a === selected || b === selected);
+  const ids = new Set(notes.map((n) => n.id));
+  const edges = [
+    ...notes.filter((n) => n.from).map((n) => ({
+      id: `${n.from}>${n.id}`, source: n.from, target: n.id, sourceHandle: 'out', targetHandle: 'in',
+      type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed }, className: lit(n.id, n.from) ? 'lit' : undefined,
+    })),
+    ...notes.flatMap((n) => (n.links ?? []).filter((t) => ids.has(t)).map((t) => ({
+      id: `${n.id}~${t}`, source: n.id, target: t, sourceHandle: 'link', targetHandle: 'link-in', data: { link: true },
+      type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed }, className: lit(n.id, t) ? 'link lit' : 'link',
+    }))),
+  ];
 
   return (
     <ReactFlow
@@ -162,16 +214,24 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
           return c ? { ...n, x: c.position.x, y: c.position.y } : n;
         }));
       }}
-      onNodeClick={(_, n) => onSelect(n.id)}
-      onPaneClick={() => onSelect(null)}
+      onNodeClick={(_, n) => {
+        if (!linkFrom) return onSelect(n.id);
+        link({ source: linkFrom, target: n.id });
+        setLinkFrom(null);
+      }}
+      onPaneClick={() => (linkFrom ? setLinkFrom(null) : onSelect(null))}
+      connectOnClick={false}
       zoomOnDoubleClick={false}
-      nodesConnectable={false}
+      onConnect={link}
+      connectionLineStyle={{ strokeDasharray: '6 4', strokeWidth: 2 }}
+      onEdgeClick={(_, e) => e.data?.link && confirm('Remove this link?') && unlink(e.source, e.target)}
       minZoom={0.1}
     >
       <Background gap={20} />
       <Controls />
       <Panel position="top-left">
         <button className="focus-toggle" onClick={() => add()}>+ Note</button>
+        {linkFrom && <span className="board-hint">Click a note to link it · Esc to cancel</span>}
         {error && <span className="board-error">{error}</span>}
       </Panel>
     </ReactFlow>
@@ -179,7 +239,23 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
 }
 
 // Right-hand aside for the selected note: its full body plus the notes it is related to.
-export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect }) {
+export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody }) {
+  const [draft, setDraft] = useState(null);
+  const [saving, setSaving] = useState(null);
+  // Another note selected: drop the unsaved draft of the previous one.
+  useEffect(() => {
+    setDraft(null);
+    setSaving(null);
+  }, [note.id]);
+  const save = () => {
+    setSaving('Saving…');
+    onSaveBody(note.id, draft)
+      .then(() => {
+        setDraft(null);
+        setSaving(null);
+      })
+      .catch((e) => setSaving(e.message));
+  };
   const parent = notes.find((n) => n.id === note.from);
   const children = notes.filter((n) => n.from === note.id);
   const link = (n) => <li key={n.id}><a onClick={() => onSelect(n.id)}>{n.title}</a></li>;
@@ -188,10 +264,31 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
       <div className="badge" style={{ background: 'var(--color-dark-green-600)' }}>WIP note</div>
       <h2 className="note-aside-title">{note.title}</h2>
       {note.linear && <Status linear={note.linear} state={stateOf(note, issues)} />}
-      {note.body ? <Body text={note.body} isRef={isRef} colorOf={colorOf} onRef={onRef} /> : <p className="muted">Empty note.</p>}
+      {draft !== null ? (
+        <div className="note-editor">
+          <textarea autoFocus rows={Math.max(10, draft.split('\n').length + 2)} value={draft} onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setDraft(null);
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) save();
+            }} />
+          <div className="note-editor-bar">
+            <button className="focus-toggle" onClick={save} disabled={saving === 'Saving…'}>Save ⌘↵</button>
+            <button className="focus-toggle" onClick={() => setDraft(null)}>Cancel</button>
+            {saving && <span className="board-error">{saving}</span>}
+          </div>
+        </div>
+      ) : (
+        <>
+          {note.body ? <Body text={note.body} isRef={isRef} colorOf={colorOf} onRef={onRef} /> : <p className="muted">Empty note.</p>}
+          <div className="note-editor-bar">
+            <button className="focus-toggle" onClick={() => setDraft(note.body ?? '')}>✎ Edit</button>
+            {note.page && <a href={note.page}>📄 WIP page</a>}
+          </div>
+        </>
+      )}
       {parent && <><h3>Related to ↑</h3><ul>{link(parent)}</ul></>}
       {children.length > 0 && <><h3>Related notes ↓</h3><ul>{children.map(link)}</ul></>}
-      <p className="muted">Double-click the note on the board to edit it.</p>
+      <p className="muted">Double-click the note on the board to rename it. The body is saved as Markdown in docs/_WIP/board.</p>
     </aside>
   );
 }

@@ -379,7 +379,7 @@ function App() {
   const [boardNotes, setBoardNotes] = useState([]);
   // Linear cycle issues from the board sidebar; the Board registers its add-note function here.
   const [issues, setIssues] = useState(null);
-  const addIssueRef = useRef(null);
+  const apiRef = useRef(null);
   useEffect(() => {
     const onHash = () => setRoute(parseHash());
     addEventListener('hashchange', onHash);
@@ -416,7 +416,7 @@ function App() {
           </div>
         ))}
         {page.board ? (
-          <CycleIssues onIssues={setIssues} onAdd={(i) => addIssueRef.current?.(i)}
+          <CycleIssues onIssues={setIssues} onAdd={(i) => apiRef.current?.addIssue(i)}
             onBoard={new Set(boardNotes.map((n) => n.linear?.id).filter(Boolean))} />
         ) : (
           <>
@@ -442,7 +442,7 @@ function App() {
             <ReactFlowProvider>
               <Board isRef={isRef} colorOf={colorOf} onRef={(id) => go(doc.id, page.id, id)}
                 selected={entity} onSelect={(id) => go(doc.id, page.id, id)} onNotes={setBoardNotes}
-                issues={issues} addIssueRef={addIssueRef} />
+                issues={issues} apiRef={apiRef} />
             </ReactFlowProvider>
           ) : page.sequence ? (
             <Sequence doc={doc} page={page} entity={entity} hidden={hidden} />
@@ -458,7 +458,8 @@ function App() {
         </footer>
       </main>
       {note ? (
-        <NoteAside note={note} notes={boardNotes} issues={issues} isRef={isRef} colorOf={colorOf}
+        <NoteAside note={note} notes={boardNotes} issues={issues}
+          onSaveBody={(id, body) => apiRef.current?.saveBody(id, body) ?? Promise.reject(new Error('Board not loaded'))} isRef={isRef} colorOf={colorOf}
           onRef={(id) => go(doc.id, page.id, id)} onSelect={(id) => go(doc.id, page.id, id)} />
       ) : (
         <Panel doc={doc} page={page} entity={entity} />

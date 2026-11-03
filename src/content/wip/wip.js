@@ -1,6 +1,7 @@
 // WIP board: editable notes, one per topic in progress. Rendered by src/Board.jsx.
-// Notes live in src/content/wip/board.json (gitignored like docs/_WIP), read and written at runtime
-// through agent-bridge.mjs, so editing does not rebuild the bundle or livereload the page.
+// Note bodies are Markdown pages in docs/_WIP/board (wip-notes.mjs); the aside edits them.
+// Layout and links live in src/content/wip/board.json (gitignored like docs/_WIP), read and written at runtime
+// through agent-bridge.mjs: moving or linking notes reloads nothing, saving a body livereloads (Hugo page).
 
 export const id = 'wip';
 export const title = 'WIP';

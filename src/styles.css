@@ -142,3 +142,22 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .linear-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .reactflow-app .linear-labels span { border: 1px solid; border-radius: 8px; padding: 0 6px; font-size: 11px; }
 .reactflow-app .linear .board-error { margin-left: 0; }
+
+/* Link handle: hover a note, drag its → onto another note (src/Board.jsx links). */
+.reactflow-app .note .react-flow__handle.note-link { opacity: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: #fff; color: var(--color-dark-green-600); font-size: 13px; font-weight: 700; cursor: crosshair; transition: opacity .15s; }
+.reactflow-app .note:hover .react-flow__handle.note-link { opacity: 1; }
+.reactflow-app .note .react-flow__handle.note-link:hover { background: var(--color-dark-green-600); color: #fff; }
+.reactflow-app .note .react-flow__handle.note-drop { position: absolute; inset: 0; width: 100%; height: 100%; top: 0; left: 0; transform: none; border: 0; border-radius: 6px; background: transparent; opacity: 1; }
+.reactflow-app .note.droppable { outline: 2px dashed var(--color-dark-green-600); outline-offset: 3px; }
+.reactflow-app .react-flow__edge.link path.react-flow__edge-path { stroke-dasharray: 6 4; stroke: var(--color-dark-green-600); cursor: pointer; }
+.reactflow-app .react-flow__edge.link.lit path.react-flow__edge-path { stroke: var(--color-electric-green-900); stroke-width: 2.5; }
+.reactflow-app .note.linking .react-flow__handle.note-link { opacity: 1; background: var(--color-dark-green-600); color: #fff; }
+.reactflow-app .note.droppable { cursor: copy; }
+.reactflow-app .board-hint { margin-left: 10px; padding: 3px 8px; border-radius: 4px; background: var(--color-dark-green-50); color: var(--color-dark-green-700); font-size: 12px; font-weight: 600; }
+/* WIP note body editor in the aside; the body is a docs/_WIP/board page (wip-notes.mjs). */
+.reactflow-app .note-title-text { flex: 1; }
+.reactflow-app .note-page { text-decoration: none; }
+.reactflow-app .note-editor textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: 13px/1.45 ui-monospace, monospace; resize: vertical; }
+.reactflow-app .note-editor-bar { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+.reactflow-app .note-editor-bar .focus-toggle { float: none; }
+.reactflow-app .note-editor-bar .board-error { margin-left: 0; }
