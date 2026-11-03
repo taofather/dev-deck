@@ -54,13 +54,24 @@ function newFileName(note) {
   }
 }
 
+// claude_sessions front matter, one flow mapping per line so it stays greppable and hand-editable:
+//   - { id: <uuid>, name: "<note title>", started: "<ISO time>", origin: board | attached }
+const SESSION_LINE = /^ {2}- \{ id: ([0-9a-f-]{36}), name: ("(?:[^"\\]|\\.)*"), started: "?([^",}\s]+)"?, origin: (\w+) \}$/gm;
+const sessionsOf = (fm) => [...fm.matchAll(SESSION_LINE)].map(([, id, name, started, origin]) => ({ id, name: JSON.parse(name), started, origin }));
+const withSessions = (fm, sessions) => [
+  fm.replace(/^claude_sessions:.*\n?(?: {2}- .*\n?)*/m, '').trimEnd(),
+  'claude_sessions:',
+  ...sessions.map((s) => `  - { id: ${s.id}, name: ${JSON.stringify(s.name)}, started: "${s.started}", origin: ${s.origin} }`),
+].join('\n');
+
 // Writes the note's page: keeps any extra front matter of an existing page, refreshes its title.
-async function writePage(note, body, page) {
+// edit: optional front matter transform (claude_sessions).
+async function writePage(note, body, page, edit = (fm) => fm) {
   await mkdir(DIR, { recursive: true });
   const title = `title: ${JSON.stringify(note.title)}`;
-  const fm = page
+  const fm = edit(page
     ? (/^title:.*$/m.test(page.fm) ? page.fm.replace(/^title:.*$/m, title) : `${title}\n${page.fm}`)
-    : [title, `board: ${note.id}`, note.linear && `linear: ${note.linear.url}`, 'tags: [wip]'].filter(Boolean).join('\n');
+    : [title, `board: ${note.id}`, note.linear && `linear: ${note.linear.url}`, 'tags: [wip]'].filter(Boolean).join('\n'));
   const file = page?.file ?? newFileName(note);
   await writeAtomic(`${DIR}/${file}`, `---\n${fm}\n---\n\n${(body ?? page?.body ?? '').trimEnd()}\n`);
   return file;
@@ -71,7 +82,10 @@ export async function loadNotes() {
   const [{ notes }, pages] = await Promise.all([readBoard(), scan()]);
   return notes.map((n) => {
     const p = pages.get(n.id);
-    return { ...n, title: p?.title ?? n.title, body: p?.body ?? n.body ?? '', page: p ? pageUrl(p.file) : null };
+    return {
+      ...n, title: p?.title ?? n.title, body: p?.body ?? n.body ?? '', page: p ? pageUrl(p.file) : null,
+      sessions: p ? sessionsOf(p.fm) : [],
+    };
   });
 }
 
@@ -82,7 +96,7 @@ export async function saveNotes(notes) {
     const p = pages.get(n.id);
     if (p && p.title !== n.title) await writePage(n, undefined, p);
   }
-  await writeBoard(notes.map(({ body, page, ...n }) => n));
+  await writeBoard(notes.map(({ body, page, sessions, ...n }) => n));
 }
 
 // PUT /wip/body: writes one note's body to its page, creating the page on first save.
@@ -90,6 +104,23 @@ export async function saveBody(id, body) {
   const note = (await readBoard()).notes.find((n) => n.id === id);
   if (!note) return null;
   return pageUrl(await writePage(note, body, (await scan()).get(id)));
+}
+
+// Records a Claude session on the note's page (created if needed); an id already listed is left as is.
+export async function addSession(id, session) {
+  const note = (await readBoard()).notes.find((n) => n.id === id);
+  if (!note) return null;
+  const page = (await scan()).get(id);
+  const sessions = page ? sessionsOf(page.fm) : [];
+  if (sessions.some((s) => s.id === session.id)) return pageUrl(page.file);
+  return pageUrl(await writePage(note, undefined, page, (fm) => withSessions(fm, [...sessions, session])));
+}
+
+// What a new session is told about its note: title, page file, Linear ticket and body.
+export async function noteContext(id) {
+  const note = (await readBoard()).notes.find((n) => n.id === id);
+  const page = note && (await scan()).get(id);
+  return note && { note, file: page && `${DIR}/${page.file}`, body: page?.body ?? '' };
 }
 
 // One-time move of the bodies still stored in board.json into pages; board.json is backed up first.

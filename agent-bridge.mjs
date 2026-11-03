@@ -6,7 +6,10 @@ import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { LinearClient } from '@linear/sdk';
-import { loadNotes, migrateBodies, saveBody, saveNotes } from './wip-notes.mjs';
+import { randomUUID } from 'node:crypto';
+import { relative } from 'node:path';
+import { addSession, loadNotes, migrateBodies, noteContext, saveBody, saveNotes } from './wip-notes.mjs';
+import { AGENT_ROOT, isSessionId, listSessions, transcript } from './claude-sessions.mjs';
 
 const PORT = 5182;
 // Any site open in the browser can reach 127.0.0.1; only the dev site may drive an agent that writes files.
@@ -48,7 +51,8 @@ function readBody(req, done) {
 // ponytail: in-memory runs, lost on bridge restart; the panel reports it and starts over.
 const runs = new Map();
 
-function start(id, msg) {
+// Runs `claude <args>` in cwd as run <id>, buffering its stream-json events for /stream.
+function start(id, args, cwd) {
   const run = { events: [], done: false, listeners: new Set() };
   runs.set(id, run);
   const emit = (ev) => {
@@ -63,11 +67,8 @@ function start(id, msg) {
     setTimeout(() => runs.delete(id), KEEP_MS);
   };
 
-  const prompt = `[User is viewing ${msg.page}${msg.file ? `; source file: ${msg.file}` : ''}]\n\n${msg.message}`;
-  const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose',
-    '--permission-mode', 'acceptEdits', '--allowedTools', TOOLS];
-  if (/^[\w-]+$/.test(msg.sid ?? '')) args.push('--resume', msg.sid);
-  const child = spawn('claude', args, { cwd: import.meta.dirname, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn('claude', [...args, '--output-format', 'stream-json', '--verbose',
+    '--permission-mode', 'acceptEdits', '--allowedTools', TOOLS], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let buf = '';
   child.stdout.on('data', (chunk) => {
@@ -98,6 +99,7 @@ function start(id, msg) {
   child.stderr.on('data', (c) => (stderr += c));
   child.on('error', (err) => finish(err.message));
   child.on('close', (code) => finish(code ? stderr.trim() || `claude exited with ${code}` : undefined));
+  return emit;
 }
 
 createServer((req, res) => {
@@ -148,12 +150,67 @@ createServer((req, res) => {
       .catch((err) => res.writeHead(502).end(err.message));
   }
 
+  // Claude sessions of WIP notes (src/Sessions.jsx): they run in AGENT_ROOT, so `claude --resume <id>` works from there.
+  if (url.pathname === '/wip/sessions' && req.method === 'GET') {
+    return listSessions().then((sessions) => json(res, { root: AGENT_ROOT, sessions })).catch((err) => res.writeHead(500).end(err.message));
+  }
+  if (url.pathname === '/wip/session' && req.method === 'GET') {
+    return transcript(url.searchParams.get('id'))
+      .then((log) => (log ? json(res, { log }) : res.writeHead(400).end()))
+      .catch((err) => res.writeHead(500).end(err.message));
+  }
+  if (url.pathname === '/wip/session/attach' && req.method === 'POST') {
+    return readBody(req, (b) => {
+      if (typeof b?.note !== 'string' || !isSessionId(b.id) || typeof b.name !== 'string') return res.writeHead(400).end();
+      addSession(b.note, { id: b.id, name: b.name, started: new Date().toISOString(), origin: 'attached' })
+        .then((page) => (page ? json(res, { page }) : res.writeHead(404).end('no such note')))
+        .catch((err) => res.writeHead(500).end(err.message));
+    });
+  }
+  if (url.pathname === '/wip/chat' && req.method === 'POST') {
+    return readBody(req, async (b) => {
+      if (typeof b?.note !== 'string' || typeof b.message !== 'string' || !b.message.trim()
+        || !/^[\w-]+$/.test(b.run ?? '') || runs.has(b.run) || (b.session && !isSessionId(b.session))) {
+        return res.writeHead(400).end();
+      }
+      try {
+        const ctx = await noteContext(b.note);
+        if (!ctx) return res.writeHead(404).end('no such note');
+        let args;
+        if (b.session) {
+          args = ['-p', b.message, '--resume', b.session];
+        } else {
+          // A new session: its id goes into the note before claude starts, so it is tracked even if the run fails.
+          const session = randomUUID();
+          await addSession(b.note, { id: session, name: ctx.note.title, started: new Date().toISOString(), origin: 'board' });
+          const intro = [
+            `[WIP note "${ctx.note.title}" from the dev-deck board.`,
+            ctx.file ? `Its page, where its notes live: ${ctx.file}.` : 'It has no page yet.',
+            ctx.note.linear ? `Linear ticket: ${ctx.note.linear.url}.` : '',
+            ']', ctx.body ? `\nNote body:\n${ctx.body}\n` : '',
+          ].filter(Boolean).join(' ');
+          args = ['-p', `${intro}\n\n${b.message}`, '--session-id', session, '--name', ctx.note.title];
+          b.newSession = session;
+        }
+        // dev-deck outside AGENT_ROOT: the agent still needs to reach the note page.
+        if (relative(AGENT_ROOT, import.meta.dirname).startsWith('..')) args.push('--add-dir', import.meta.dirname);
+        const emit = start(b.run, args, AGENT_ROOT);
+        if (b.newSession) emit({ session: b.newSession });
+        res.writeHead(202).end();
+      } catch (err) {
+        res.writeHead(500).end(err.message);
+      }
+    });
+  }
+
+  // Page chat panel (assets/agent-chat.js): runs in dev-deck.
   if (req.method !== 'POST' || url.pathname !== '/chat') return res.writeHead(404).end();
   readBody(req, (msg) => {
     if (typeof msg?.message !== 'string' || !msg.message.trim() || !/^[\w-]+$/.test(msg.run ?? '') || runs.has(msg.run)) {
       return res.writeHead(400).end();
     }
-    start(msg.run, msg);
+    const prompt = `[User is viewing ${msg.page}${msg.file ? `; source file: ${msg.file}` : ''}]\n\n${msg.message}`;
+    start(msg.run, ['-p', prompt, ...(/^[\w-]+$/.test(msg.sid ?? '') ? ['--resume', msg.sid] : [])], import.meta.dirname);
     res.writeHead(202).end();
   });
 }).listen(PORT, '0.0.0.0', () => console.log(`agent bridge on http://0.0.0.0:${PORT}`));

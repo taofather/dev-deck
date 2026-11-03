@@ -161,3 +161,25 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .note-editor-bar { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
 .reactflow-app .note-editor-bar .focus-toggle { float: none; }
 .reactflow-app .note-editor-bar .board-error { margin-left: 0; }
+/* Claude sessions of a WIP note (src/Sessions.jsx). */
+.reactflow-app .note-sessions { font-size: 11px; font-weight: 600; color: var(--color-neutral-500); white-space: nowrap; }
+.reactflow-app .sessions .session-list, .reactflow-app .sessions .session-picker { list-style: none; padding: 0; margin: 6px 0; }
+.reactflow-app .session-list li { padding: 8px 10px; margin-bottom: 6px; border: 1px solid var(--color-neutral-200); border-radius: 6px; }
+.reactflow-app .session-list li.current { border-color: var(--color-dark-green-600); }
+.reactflow-app .session-name { font-weight: 600; font-size: 13px; }
+.reactflow-app .session-when { font-size: 12px; }
+.reactflow-app .session-actions { display: flex; gap: 6px; margin-top: 6px; }
+.reactflow-app .session-actions .focus-toggle, .reactflow-app .session-chat-head .focus-toggle { float: none; }
+.reactflow-app .session-picker { max-height: 240px; overflow-y: auto; border: 1px solid var(--color-neutral-200); border-radius: 6px; padding: 4px 8px; }
+.reactflow-app .session-picker li { padding: 3px 0; font-size: 13px; }
+.reactflow-app .session-chat { border: 1px solid var(--color-neutral-200); border-radius: 6px; padding: 8px; margin: 8px 0; }
+.reactflow-app .session-chat-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.reactflow-app .session-chat-head .focus-toggle { margin-left: auto; }
+.reactflow-app .session-log { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.reactflow-app .session-log .msg { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; padding: 6px 8px; border-radius: 6px; }
+.reactflow-app .session-log .msg.user { background: var(--color-dark-green-50); align-self: flex-end; max-width: 90%; }
+.reactflow-app .session-log .msg.agent { background: var(--color-neutral-100, #f4f4f4); }
+.reactflow-app .session-log .msg.tool { font: 11px ui-monospace, monospace; color: var(--color-neutral-500); padding: 0 8px; }
+.reactflow-app .session-log .msg.error { color: #9b1c1c; }
+.reactflow-app .session-chat textarea { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: inherit; font-size: 13px; resize: vertical; }
+.reactflow-app .session-hint { font-size: 11px; margin: 4px 0 0; }

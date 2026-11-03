@@ -1,6 +1,7 @@
 // WIP board page (src/content/wip/wip.js): free-positioned notes, edited in place and saved
 // through agent-bridge.mjs (GET/PUT /wip). Only works under `npm run dev`, the bridge is local.
 import { useEffect, useState } from 'react';
+import { Sessions } from './Sessions.jsx';
 import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, useReactFlow, useConnection } from '@xyflow/react';
 
 const BRIDGE = 'http://127.0.0.1:5182/wip';
@@ -65,6 +66,7 @@ function Note({ id, data }) {
       {dragging && <Handle id="drop" type="target" position={Position.Left} className="note-drop" isConnectableStart={false} />}
       <div className="note-title">
         <span className="note-title-text">{data.title}</span>
+        {data.sessions?.length > 0 && <span className="note-sessions" title="Claude sessions">🤖 {data.sessions.length}</span>}
         {data.page && <a className="nodrag note-page" href={data.page} title="Open its WIP page">📄</a>}
         <button className="nodrag" title="Delete note" onClick={() => confirm(`Delete "${data.title}"?`) && data.onDelete()}>✕</button>
       </div>
@@ -101,12 +103,12 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
   }, [linkFrom]);
   const { getNode, setCenter, getZoom } = useReactFlow();
 
-  // Reloaded on focus too: board.json may have changed in another tab or by the agent meanwhile.
+  // Reloaded on focus too: board.json or a note page may have changed in another tab, an editor or by an agent.
+  const load = () => fetch(BRIDGE)
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`bridge answered ${r.status}`))))
+    .then((b) => setNotes(b.notes))
+    .catch((e) => setError(`${e.message}. The WIP board needs the local bridge: npm run dev.`));
   useEffect(() => {
-    const load = () => fetch(BRIDGE)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`bridge answered ${r.status}`))))
-      .then((b) => setNotes(b.notes))
-      .catch((e) => setError(`${e.message}. The WIP board needs the local bridge: npm run dev.`));
     load();
     addEventListener('focus', load);
     return () => removeEventListener('focus', load);
@@ -154,7 +156,7 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
       ? 'The bridge predates note pages: restart npm run dev.' : `save failed: ${r.status}`))))))
     .then(({ page }) => setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, body, page } : n))));
   useEffect(() => {
-    if (apiRef) apiRef.current = notes ? { addIssue, saveBody } : null;
+    if (apiRef) apiRef.current = notes ? { addIssue, saveBody, reload: load } : null;
   });
   const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, links, ...n }) => ({
     ...n,
@@ -239,7 +241,7 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
 }
 
 // Right-hand aside for the selected note: its full body plus the notes it is related to.
-export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody }) {
+export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onReload }) {
   const [draft, setDraft] = useState(null);
   const [saving, setSaving] = useState(null);
   // Another note selected: drop the unsaved draft of the previous one.
@@ -286,6 +288,7 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
           </div>
         </>
       )}
+      <Sessions note={note} onChanged={onReload} />
       {parent && <><h3>Related to ↑</h3><ul>{link(parent)}</ul></>}
       {children.length > 0 && <><h3>Related notes ↓</h3><ul>{children.map(link)}</ul></>}
       <p className="muted">Double-click the note on the board to rename it. The body is saved as Markdown in docs/_WIP/board.</p>
