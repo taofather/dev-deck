@@ -8,6 +8,7 @@ import './styles.css';
 
 import { docs } from './content/index.js';
 import { Board, NoteAside } from './Board.jsx';
+import { CycleIssues } from './Linear.jsx';
 
 // Colors follow AGENTS.md: blue frontend, red backend, purple database.
 const DIMENSIONS = {
@@ -360,8 +361,25 @@ function App() {
   const [route, setRoute] = useState(parseHash);
   const [hidden, setHidden] = useState(new Set());
   const [focus, setFocus] = useState(false);
+  // Folds the left sidebar only (Focus hides both sides). Remembered per browser.
+  const [folded, setFolded] = useState(() => {
+    try {
+      return localStorage.getItem('sidebar-folded') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const fold = () => setFolded((f) => {
+    try {
+      localStorage.setItem('sidebar-folded', f ? '0' : '1');
+    } catch {}
+    return !f;
+  });
   // Filled by the WIP Board so the aside can show the selected note.
   const [boardNotes, setBoardNotes] = useState([]);
+  // Linear cycle issues from the board sidebar; the Board registers its add-note function here.
+  const [issues, setIssues] = useState(null);
+  const addIssueRef = useRef(null);
   useEffect(() => {
     const onHash = () => setRoute(parseHash());
     addEventListener('hashchange', onHash);
@@ -384,8 +402,9 @@ function App() {
   });
 
   return (
-    <div className={focus ? 'layout focus' : 'layout'}>
+    <div className={['layout', focus && 'focus', folded && 'folded', page.board && 'board'].filter(Boolean).join(' ')}>
       <nav className="sidebar">
+        <button className="fold-toggle" title={folded ? 'Unfold sidebar' : 'Fold sidebar'} onClick={fold}>{folded ? '»' : '«'}</button>
         {home && <a className="back" href={home}>← Docs</a>}
         <h1>{doc.title}</h1>
         {sections.map((s) => (
@@ -396,13 +415,20 @@ function App() {
             ))}
           </div>
         ))}
-        <div className="section">Dimensions</div>
-        {Object.entries(DIMENSIONS).map(([d, { label, color }]) => (
-          <label key={d} className="dim">
-            <input type="checkbox" checked={!hidden.has(d)} onChange={() => toggle(d)} />
-            <span className="swatch" style={{ background: color }} /> {label}
-          </label>
-        ))}
+        {page.board ? (
+          <CycleIssues onIssues={setIssues} onAdd={(i) => addIssueRef.current?.(i)}
+            onBoard={new Set(boardNotes.map((n) => n.linear?.id).filter(Boolean))} />
+        ) : (
+          <>
+            <div className="section">Dimensions</div>
+            {Object.entries(DIMENSIONS).map(([d, { label, color }]) => (
+              <label key={d} className="dim">
+                <input type="checkbox" checked={!hidden.has(d)} onChange={() => toggle(d)} />
+                <span className="swatch" style={{ background: color }} /> {label}
+              </label>
+            ))}
+          </>
+        )}
       </nav>
       <main>
         <header>
@@ -415,7 +441,8 @@ function App() {
           {page.board ? (
             <ReactFlowProvider>
               <Board isRef={isRef} colorOf={colorOf} onRef={(id) => go(doc.id, page.id, id)}
-                selected={entity} onSelect={(id) => go(doc.id, page.id, id)} onNotes={setBoardNotes} />
+                selected={entity} onSelect={(id) => go(doc.id, page.id, id)} onNotes={setBoardNotes}
+                issues={issues} addIssueRef={addIssueRef} />
             </ReactFlowProvider>
           ) : page.sequence ? (
             <Sequence doc={doc} page={page} entity={entity} hidden={hidden} />
@@ -431,7 +458,7 @@ function App() {
         </footer>
       </main>
       {note ? (
-        <NoteAside note={note} notes={boardNotes} isRef={isRef} colorOf={colorOf}
+        <NoteAside note={note} notes={boardNotes} issues={issues} isRef={isRef} colorOf={colorOf}
           onRef={(id) => go(doc.id, page.id, id)} onSelect={(id) => go(doc.id, page.id, id)} />
       ) : (
         <Panel doc={doc} page={page} entity={entity} />

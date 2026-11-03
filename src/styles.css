@@ -9,7 +9,14 @@
 .reactflow-app .eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-500); }
 
 .reactflow-app .layout { display: grid; grid-template-columns: 240px 1fr 340px; grid-template-rows: minmax(0, 1fr); height: calc(100vh - var(--hextra-navbar-height, 0px)); }
+/* The WIP board sidebar holds the Linear issue list, so it gets more room. */
+.reactflow-app .layout.board { grid-template-columns: 380px 1fr 340px; }
+.reactflow-app .layout.folded { grid-template-columns: 36px 1fr 340px; }
 .reactflow-app .layout.focus { grid-template-columns: 1fr; }
+.reactflow-app .layout.folded > .sidebar { padding: 8px 4px; overflow: hidden; }
+.reactflow-app .layout.folded > .sidebar > :not(.fold-toggle) { display: none; }
+.reactflow-app .fold-toggle { float: right; width: 26px; height: 26px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: #fff; font-size: 14px; line-height: 1; color: var(--color-neutral-700); cursor: pointer; }
+.reactflow-app .layout.folded .fold-toggle { float: none; }
 .reactflow-app .layout.focus > .sidebar, .reactflow-app .layout.focus > .panel { display: none; }
 .reactflow-app .focus-toggle { float: right; padding: 4px 10px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: #fff; font-size: 12px; font-weight: 600; color: var(--color-neutral-700); cursor: pointer; }
 
@@ -113,3 +120,25 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 }
 .reactflow-app .panel .note-aside-title { font-family: var(--font-sans); font-size: 18px; word-break: normal; }
 .reactflow-app .panel .note-body { padding: 0; font-size: 14px; cursor: auto; }
+
+/* WIP board sidebar: Linear issues of the active cycle (src/Linear.jsx). */
+.reactflow-app .linear .section { display: flex; align-items: center; justify-content: space-between; }
+.reactflow-app .linear-reload { border: 0; background: none; cursor: pointer; font-size: 14px; color: var(--color-neutral-500); }
+.reactflow-app .linear-dates { font-size: 12px; margin-bottom: 6px; }
+.reactflow-app .linear-state { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--color-neutral-700); margin: 10px 0 2px; }
+.reactflow-app .linear-card { position: relative; margin: 6px 0; padding: 8px 10px 8px 12px; background: #fff; border: 1px solid var(--color-neutral-200); border-left: 4px solid; border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / .06); transition: box-shadow .15s, transform .15s; }
+.reactflow-app .linear-card:hover { box-shadow: 0 3px 10px rgb(0 0 0 / .1); transform: translateY(-1px); }
+.reactflow-app .linear-card-head { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px; padding-right: 26px; }
+.reactflow-app .sidebar a.linear-issue { padding: 0; font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--color-neutral-800, #222); padding-right: 26px; }
+.reactflow-app .sidebar a.linear-issue:hover { text-decoration: underline; }
+.reactflow-app .linear-add { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: #fff; color: var(--color-dark-green-600); font-weight: 700; line-height: 1; cursor: pointer; }
+.reactflow-app .linear-add:hover { background: var(--color-dark-green-600); color: #fff; }
+.reactflow-app .linear-add.on { border-color: var(--color-neutral-300, #ccc); color: var(--color-neutral-500); }
+/* Status line of a WIP note made from a Linear issue (src/Board.jsx). */
+.reactflow-app .note-linear { display: flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--color-neutral-700); border-bottom: 1px solid var(--color-neutral-200); }
+.reactflow-app .note-linear .linear-id { margin-left: auto; }
+.reactflow-app .panel .note-linear { padding: 4px 0; margin-bottom: 8px; }
+.reactflow-app .linear-id { font-family: ui-monospace, monospace; font-size: 11px; color: var(--color-neutral-500); }
+.reactflow-app .linear-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.reactflow-app .linear-labels span { border: 1px solid; border-radius: 8px; padding: 0 6px; font-size: 11px; }
+.reactflow-app .linear .board-error { margin-left: 0; }

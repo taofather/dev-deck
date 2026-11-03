@@ -23,6 +23,16 @@ function Body({ text, isRef, colorOf, onRef }) {
   return <div className="note-body">{out}</div>;
 }
 
+// Linear status line of a note created from a cycle issue: live state when the sidebar has it, else the saved one.
+function Status({ linear, state }) {
+  return (
+    <a className="note-linear nodrag" href={linear.url} target="_blank" rel="noreferrer">
+      <span className="swatch" style={{ background: state.color }} /> {state.name}
+      <span className="linear-id">{linear.id}</span>
+    </a>
+  );
+}
+
 function Note({ data }) {
   // A note just created by a + button opens straight into edit mode.
   const [draft, setDraft] = useState(data.fresh ? { title: data.title, body: data.body } : null);
@@ -44,12 +54,14 @@ function Note({ data }) {
     );
   }
   return (
-    <div className="note" onDoubleClick={() => setDraft({ title: data.title, body: data.body })}>
+    <div className="note" style={data.state && { borderTopColor: data.state.color }}
+      onDoubleClick={() => setDraft({ title: data.title, body: data.body })}>
       <Handle type="target" position={Position.Top} isConnectable={false} />
       <div className="note-title">
         {data.title}
         <button className="nodrag" title="Delete note" onClick={() => confirm(`Delete "${data.title}"?`) && data.onDelete()}>✕</button>
       </div>
+      {data.linear && <Status linear={data.linear} state={data.state} />}
       <Body text={data.body} isRef={data.isRef} colorOf={data.colorOf} onRef={data.onRef} />
       <button className="note-add nodrag" title="Add related note" onClick={data.onAddRelated}>+</button>
       <Handle type="source" position={Position.Bottom} isConnectable={false} />
@@ -60,11 +72,14 @@ const nodeTypes = { note: Note };
 
 // The selected note lives in the route (#/doc/page/<note id>) like any entity, so App passes it in and
 // renders NoteAside for it; onNotes hands App the notes that aside reads.
-export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes }) {
+const stateOf = (note, issues) => note.linear && (issues?.find((i) => i.identifier === note.linear.id)?.state ?? note.linear.state);
+
+// issues: the sidebar's Linear cycle issues. addIssueRef: App's handle to add a note for one of them.
+export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issues, addIssueRef }) {
   const [notes, setNotes] = useState(null);
   const [error, setError] = useState(null);
   const [fresh, setFresh] = useState(null);
-  const { getNode } = useReactFlow();
+  const { getNode, setCenter, getZoom } = useReactFlow();
 
   // Reloaded on focus too: board.json may have changed in another tab or by the agent meanwhile.
   useEffect(() => {
@@ -99,6 +114,20 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes }) {
     onSelect(id);
     save([...notes, { id, title: 'New note', body: '', ...pos, ...(parent && { from }) }]);
   };
+  // A Linear issue gets one note: adding it again selects the existing one.
+  const addIssue = (issue) => {
+    const existing = notes.find((n) => n.linear?.id === issue.identifier);
+    if (existing) return onSelect(existing.id);
+    const id = crypto.randomUUID();
+    const x = notes.length ? Math.max(...notes.map((n) => n.x)) + NOTE_W + 40 : 0;
+    const linear = { id: issue.identifier, url: issue.url, state: { name: issue.state.name, color: issue.state.color } };
+    onSelect(id);
+    save([...notes, { id, title: issue.title, body: '', x, y: 0, linear }]);
+    setCenter(x + NOTE_W / 2, 100, { zoom: getZoom(), duration: 400 });
+  };
+  useEffect(() => {
+    if (addIssueRef) addIssueRef.current = notes ? addIssue : null;
+  });
   const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, ...n }) => (from === id ? n : { ...n, from })));
 
   if (!notes) return <div className="board-msg">{error ?? 'Loading…'}</div>;
@@ -110,7 +139,7 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes }) {
     style: { width: NOTE_W },
     selected: n.id === selected,
     data: {
-      ...n, isRef, colorOf, onRef, fresh: n.id === fresh,
+      ...n, isRef, colorOf, onRef, fresh: n.id === fresh, state: stateOf(n, issues),
       onChange: (p) => update(n.id, p), onDelete: () => remove(n.id), onAddRelated: () => add(n.id),
     },
   }));
@@ -150,7 +179,7 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes }) {
 }
 
 // Right-hand aside for the selected note: its full body plus the notes it is related to.
-export function NoteAside({ note, notes, isRef, colorOf, onRef, onSelect }) {
+export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect }) {
   const parent = notes.find((n) => n.id === note.from);
   const children = notes.filter((n) => n.from === note.id);
   const link = (n) => <li key={n.id}><a onClick={() => onSelect(n.id)}>{n.title}</a></li>;
@@ -158,6 +187,7 @@ export function NoteAside({ note, notes, isRef, colorOf, onRef, onSelect }) {
     <aside className="panel">
       <div className="badge" style={{ background: 'var(--color-dark-green-600)' }}>WIP note</div>
       <h2 className="note-aside-title">{note.title}</h2>
+      {note.linear && <Status linear={note.linear} state={stateOf(note, issues)} />}
       {note.body ? <Body text={note.body} isRef={isRef} colorOf={colorOf} onRef={onRef} /> : <p className="muted">Empty note.</p>}
       {parent && <><h3>Related to ↑</h3><ul>{link(parent)}</ul></>}
       {children.length > 0 && <><h3>Related notes ↓</h3><ul>{children.map(link)}</ul></>}

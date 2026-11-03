@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.4",
+    "@linear/sdk": "^101.0.0",
     "@xyflow/react": "^12.3.6",
     "@zenuml/core": "^4.11.0",
     "react": "^18.3.1",

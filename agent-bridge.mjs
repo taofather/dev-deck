@@ -4,7 +4,9 @@
 // run and GET /stream?run=<id>&from=<n> replays them to the reloaded page.
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readFile, rename, writeFile } from 'node:fs/promises';
+import { LinearClient } from '@linear/sdk';
 
 const PORT = 5182;
 // Any site open in the browser can reach 127.0.0.1; only the dev site may drive an agent that writes files.
@@ -13,6 +15,22 @@ const TOOLS = 'Read,Edit,Write,Glob,Grep';
 const KEEP_MS = 10 * 60 * 1000;
 // WIP board notes (src/Board.jsx). Outside the Vite module graph and Hugo mounts: saving reloads nothing.
 const BOARD = `${import.meta.dirname}/src/content/wip/board.json`;
+// Linear personal API key (linear.app/consentio/settings/account/security), from the env or the gitignored .env.
+if (existsSync(`${import.meta.dirname}/.env`)) process.loadEnvFile(`${import.meta.dirname}/.env`);
+const linear = process.env.LINEAR_API_KEY && new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
+// One raw query instead of the SDK's lazy models: those fetch state, cycle and labels one request per issue.
+const CYCLE_ISSUES = `query {
+  viewer {
+    assignedIssues(first: 100, filter: { cycle: { isActive: { eq: true } } }) {
+      nodes {
+        identifier title url priority priorityLabel
+        state { name type color position }
+        cycle { number name startsAt endsAt }
+        labels { nodes { name color } }
+      }
+    }
+  }
+}`;
 const isNote = (n) => n && typeof n.id === 'string' && typeof n.title === 'string' && typeof n.body === 'string'
   && Number.isFinite(n.x) && Number.isFinite(n.y);
 
@@ -117,6 +135,16 @@ createServer((req, res) => {
         .then(() => res.writeHead(204).end())
         .catch((err) => res.writeHead(500).end(err.message));
     });
+  }
+
+  // The viewer's issues in the active cycle, for the WIP board sidebar (src/Linear.jsx).
+  if (url.pathname === '/linear/cycle' && req.method === 'GET') {
+    if (!linear) return res.writeHead(503).end('LINEAR_API_KEY is not set (env or .env)');
+    return linear.client.rawRequest(CYCLE_ISSUES)
+      .then(({ data }) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+        issues: data.viewer.assignedIssues.nodes.map(({ labels, ...i }) => ({ ...i, labels: labels.nodes })),
+      })))
+      .catch((err) => res.writeHead(502).end(err.message));
   }
 
   if (req.method !== 'POST' || url.pathname !== '/chat') return res.writeHead(404).end();
