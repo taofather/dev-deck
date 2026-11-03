@@ -26,7 +26,7 @@ module:
     - { source: content, target: content }
     # docs/ as assets: content/_content.gotmpl lists the markdown files, and
     # layouts/_partials/publish-docs-files.html publishes the rest (images, json, .html).
-    # Not a static mount:  would take every .md edit for a static file change.
+    # Not a static mount: `hugo server` would take every .md edit for a static file change.
     - { source: docs, target: assets/docs }
     # React Flow bundle, built by Vite (npm run dev / build). Hugo renders the page itself.
     - { source: dist/assets, target: static/diagrams/assets }
@@ -40,7 +40,8 @@ menu:
     - { name: Diagrams, pageRef: /diagrams, weight: 3 }
     - { name: Tags, pageRef: /tags, weight: 4 }
     - { name: Entities, pageRef: /entities, weight: 5 }
-    - { name: Search, weight: 6, params: { type: search } }
+    - { name: Linear, url: "https://linear.app/my-issues/assigned", weight: 6, params: { type: link, icon: linear } }
+    - { name: Search, weight: 7, params: { type: search } }
 
 params:
   navbar:
