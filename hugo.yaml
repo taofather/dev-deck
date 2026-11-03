@@ -10,6 +10,12 @@ taxonomies:
 cascade:
   - target: { kind: term }
     layout: list
+  - target: { kind: taxonomy }
+    layout: list
+  - { target: { path: /tags }, title: Tags }
+  - { target: { path: /entities }, title: Entities }
+# Keep tag names as written (flow/procurement), not "Flow/procurement".
+capitalizeListTitles: false
 
 module:
   imports:

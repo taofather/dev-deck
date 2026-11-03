@@ -1,0 +1,9 @@
+{{- /* Colour group of a tag or entity name: the intention before "/" (flow/procurement → flow),
+       the DSL prefix before "-" (DBT-Orders → dbt), else "other". */ -}}
+{{- $g := "other" -}}
+{{- if strings.Contains . "/" -}}
+  {{- $g = index (split . "/") 0 -}}
+{{- else if findRE `^[A-Z]{2,4}-` . -}}
+  {{- $g = index (split . "-") 0 -}}
+{{- end -}}
+{{- return lower $g -}}

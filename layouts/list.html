@@ -16,13 +16,15 @@
           {{ partial "custom/content-begin.html" . }}
           {{ .Content }}
           {{- /* Folder pages list their subfolders and pages (most have no content of their own). */}}
-          {{- with .Pages }}
+          {{- if eq .Kind "taxonomy" }}
+            {{- partial "term-tree.html" . }}
+          {{- else }}{{ with .Pages }}
             <ul class="section-children">
               {{- range . }}
                 <li><a href="{{ .RelPermalink }}">{{ partial "utils/title" . }}</a>{{ if .IsSection }}/{{ end }}</li>
               {{- end }}
             </ul>
-          {{- end }}
+          {{- end }}{{ end }}
           {{ partial "custom/content-end.html" . }}
         </div>
         {{ partial "components/last-updated.html" . }}

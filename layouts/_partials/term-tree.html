@@ -1,0 +1,24 @@
+{{- /* /tags/ and /entities/: terms as bullets grouped by intention (model, flow, changelog, ops) or DSL prefix.
+       Label and link come from .Term: for a term that prefixes another (flow/procurement, flow/procurement/x),
+       Hugo resolves the parent's .Page to the child. .Page.LinkTitle is kept only when it matches, for its casing. */ -}}
+{{- $terms := .Data.Terms.Alphabetical -}}
+{{- $label := dict -}}
+{{- range $terms }}{{ $label = merge $label (dict .Term (cond (eq (lower .Page.LinkTitle) .Term) .Page.LinkTitle .Term)) }}{{ end -}}
+{{- $keys := slice -}}
+{{- range $terms }}{{ $keys = $keys | append (partial "utils/term-group.html" (index $label .Term)) }}{{ end -}}
+{{- $order := slice "model" "flow" "changelog" "ops" -}}
+{{- $keys = (intersect $order $keys) | append (sort (complement $order (uniq $keys))) -}}
+<ul class="term-tree">
+  {{- range $k := $keys }}
+  <li class="tg-{{ $k }}"><span class="term-group">{{ $k }}</span>
+    <ul>
+      {{- range $terms }}
+        {{- $name := index $label .Term -}}
+        {{- if eq (partial "utils/term-group.html" $name) $k }}
+      <li><a href="{{ printf "%s%s/" $.RelPermalink .Term }}">{{ cond (strings.Contains $name "/") (strings.TrimPrefix (printf "%s/" $k) $name) $name }}</a> <span class="term-count">{{ .Count }}</span></li>
+        {{- end }}
+      {{- end }}
+    </ul>
+  </li>
+  {{- end }}
+</ul>

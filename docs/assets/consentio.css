@@ -52,10 +52,32 @@ html:not(.dark) .content strong { color: var(--color-dark-green-600); }
 .reactflow-links { margin: 0 0 1rem; font-size: 0.8rem; font-weight: 700; }
 .reactflow-links a { font-family: var(--font-mono); color: var(--color-dark-green-600); }
 .doc-labels { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1rem; }
-.doc-labels a {
+.doc-labels a, .term-tree ul a {
   text-decoration: none;
   font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; padding: 0.15em 0.7em; border-radius: 999px;
-  background: var(--color-dark-green-50); color: var(--color-dark-green-700); border: 1px solid var(--color-dark-green-600);
+  color: var(--tc); border: 1px solid var(--tc); background: color-mix(in srgb, var(--tc) 10%, transparent);
 }
-.doc-labels a:hover { background: var(--color-dark-green-100); }
+.doc-labels a:hover, .term-tree ul a:hover { background: color-mix(in srgb, var(--tc) 22%, transparent); }
+
+/* Term colours: intentions for tags, DSL layer for entities (front-end blue, back-end red, database purple). */
+[class*="tg-"] { --tc: var(--color-dark-green-600); }
+.dark [class*="tg-"] { --tc: var(--color-dark-green-200); }
+.tg-model, .tg-dbt, .tg-dbq { --tc: #7c3aed !important; }
+.tg-flow, .tg-fcom, .tg-fdto { --tc: #2563eb !important; }
+.tg-changelog { --tc: #c2410c !important; }
+.tg-ops, .tg-met { --tc: #15803d !important; }
+.tg-bent, .tg-bdto, .tg-bpro, .tg-bagg, .tg-bfun { --tc: #dc2626 !important; }
+.dark .tg-model, .dark .tg-dbt, .dark .tg-dbq { --tc: #a78bfa !important; }
+.dark .tg-flow, .dark .tg-fcom, .dark .tg-fdto { --tc: #60a5fa !important; }
+.dark .tg-changelog { --tc: #fb923c !important; }
+.dark .tg-ops, .dark .tg-met { --tc: #4ade80 !important; }
+.dark .tg-bent, .dark .tg-bdto, .dark .tg-bpro, .dark .tg-bagg, .dark .tg-bfun { --tc: #f87171 !important; }
+
+.term-tree { list-style: none; padding: 0; }
+.term-tree > li { margin: 0 0 1rem; }
+.term-group { font-weight: 700; color: var(--tc); text-transform: uppercase; letter-spacing: .04em; font-size: .85rem; }
+.term-tree ul { list-style: disc; margin: .35rem 0 0 1.25rem; }
+.term-tree ul li { margin: .3rem 0; }
+.term-tree ul li::marker { color: var(--tc); }
+.term-count { font-size: .75rem; opacity: .6; }
 .doc-entities a { border-style: dashed; }

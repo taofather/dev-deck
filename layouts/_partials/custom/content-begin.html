@@ -8,7 +8,7 @@
 {{- range $tax := slice "tags" "entities" -}}
   {{- with $.GetTerms $tax }}
   <p class="doc-labels doc-{{ $tax }}">
-    {{- range . }}<a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>{{ end -}}
+    {{- range . }}<a class="tg-{{ partial "utils/term-group.html" .LinkTitle }}" href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>{{ end -}}
   </p>
   {{- end -}}
 {{- end -}}
