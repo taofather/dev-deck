@@ -6,11 +6,49 @@ This can be used as a skill giving guidelines to use dev-deck unified documentat
 It is hybrid and bi-dimensional because it lives in a hybrid hugo/react-flow repository.
 We try to replicate the Markdown hugo docs into its react-flow diagrams siblings.
 
-## Architecture Documentation Organization
-- A Domain usually has the name of an area, an entity or a bounded context that usually has its database table and works as aggregate root.
-- A Flow is everything interconnected in software, interconnected features that work together using domains. Flows can be composed by other flows.
-- Tickets are development tasks around any topic. Those files contain issue tracker links.
-- Infrastructure combines domains and flows in every area: clusters, cloud providers, messaging, secrets, release pipelines.
+## Hierarchy and taxonomy
+
+### Reigns: Domains, Infrastructure
+- WIP is work in progress. It allows just have a cleaner files area. Folders will be curated and moved inside another domain.
+- A Domain usually has the name of an application area, refering to full stack database to front-end.
+- Infrastructure refers to our tech stack in kubernetes, GCP, database or third party services.
+Reigns have a direct menu link in the top of output site header.
+
+### BoundedContexts
+BoundedContexts reflect into a folder in a reign.
+E.g: offers, integrations, document-import, tenders, admin, chat, notifications.
+
+### Intentions
+Intentions restrict folders inside a BoundedContext. They are 4 types: `model`, `flow`, `changelog`, `ops`.
+- Model reflects base database state and entities.
+- Flow is everything interconnecting software and features that work together using a Model. Flows can be composed by other flows.
+- Changelog is human labor and development around any of previous topic. Those files contain Jira/Linear links.
+- Ops are description of operations upon settings, or queries to extract production data, or links to dashboards for metrics.
+
+### Tags in Frontmatter
+**strict IntentionTags**
+Intentions have a strict relation with BoundedContexts, forming tags that will appear in the `tags` frontmatter attribute. 
+The IntentionTag will be always: `intention/BoundedContext`. E.g: `flow/document-import`, `model/identity`,  `changelog/GCE/artifact-registry`.
+Sub-folders in a BoundedContext that are not an Intention, should form a sub-level in the tag! E.g: `changelog/GCE/artifact-registry`, `flow/procurement/allocation-table`.
+
+**other tags** can of course exist: `toggle`, `spec`, etc. 
+
+### Other Frontmatter relations
+- Issue trackers:
+
+```yaml
+---
+title: <human-readable summary>
+jira: <company.atlassian.org/>
+linear: <linear.app/> 
+---
+```
+
+- `tags: [a, b]`: free classification. Listed at `/tags/<tag>/`.
+- `entities: [DBT-Orders, BENT-Order]`: the page's core DSL entities, written with their prefix. Listed at `/entities/<entity>/`, so every flow, domain and ticket touching an entity is one click away.
+- Only list entities the page is about, not every passing mention.
+- When a `reactflow` route ends in an entity (`#/tender/schema/DBT-Tenders`), add that entity to `entities` too.
+- Never use `labels:` (merged into `tags`) or `type` as a taxonomy (`type` is a reserved Hugo key).
 
 ## Unified DSL
 Use this set of DSL prefixes for EVERY entity:
@@ -24,6 +62,7 @@ Use this set of DSL prefixes for EVERY entity:
 *DBT-*: Database table. E.g `DBT-Orders`. We talk about the database entity.
 *DBQ-*: Database query. E.g `DBQ-GetWorkspaceSettings`. Queries found in database layer code.
 *DOM-*: Example `DOM-order`. Pure domain, used only when talking to the entity in terms beyond apps or database.
+*MET-*: Metric. It should include a link to a markdown doc, explaining how to get metrics on that Flow/Model, GoogleCloudLogging, Sentry or Postgres.  
 
 These elements will be always written with the prefix, followed by CamelCase word (`FDTO-CreateOrderRequest`, `BENT-OrderItem`, etc).
 
@@ -31,15 +70,22 @@ These elements will be always written with the prefix, followed by CamelCase wor
 Take advantage of react-flow JavaScript declaration of entities. Always try to relate with diagrams existing in src/content files.
 A diagram JS file should have its related-hugo-index to back with the `<a class="back" href="/related-hugo-index/">← Docs</a>`.
 
-## Markdown interconnected database
+## Interconnected files
+Link files to directories or other files if possible, using `intention/boundedContext/domain` hierarchy.
 
 - Use canonical syntax
 ```markdown
-[**Keyword** identifier](relative/path/to/target.md)
+[**Keyword** identifier](reign/boundedContext/flow/01-target.md)
 ```
 
-DO NOT connect with external projects out of active repository.
+## File naming and content
+In a folder, prefix the files with `YYYYmmddd` (`20261102`), to keep an order. Add ticket code (Jira/Linear) if available, `20261102-C-15453-do-that.md`.
 
+### Principles on files content
+* Node segregation: if a concept gets too complex, segregate or enrich concerning files. Better more files than verbosity.
+* Speak in absolute present: except for `ticket` files, use a descriptive, behavioral language, not related to changes made in pull requests. Do not use for example word `unchanged`.
+
+### React Flow links
 Include in frontmatter:
 ```yaml
 reactflow:
@@ -47,31 +93,8 @@ reactflow:
   - "#/example/overview/DBT-Users"
 ```
 
-## Node segregation
-- If a concept gets too complex, segregate or enrich concerning files. Better more files than verbosity.
-
-## File content: speak in absolute present
-Use a descriptive, behavioral language.
-
-## File types
-
-### Flow
-The higher level, aggregates features.
-`.flow.md`
-
-**Frontmatter:**
-```yaml
----
-code: <slugified-flow>
-type: flow
-reactflow:                                # optional
-  - "#/<flow-doc-id>"
-  - "#/<domain-doc-id>/<page>/<ENTITY>"
----
-```
-
-**React Flow links:**
 - Link a flow to its React Flow diagram when one exists in `src/content/`.
+- Link its core domain too, when present in `src/content/`.
 - Value is the route only, from `#` on. Never the host.
 - Route shape: `#/<doc id>/<page id>/<entity>`; page and entity optional.
 - `<doc id>` is the `id` exported by the `.js` content file.
