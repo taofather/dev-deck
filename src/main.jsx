@@ -357,24 +357,48 @@ function Panel({ doc, page, entity }) {
   );
 }
 
-function App() {
-  const [route, setRoute] = useState(parseHash);
-  const [hidden, setHidden] = useState(new Set());
-  const [focus, setFocus] = useState(false);
-  // Folds the left sidebar only (Focus hides both sides). Remembered per browser.
-  const [folded, setFolded] = useState(() => {
+// A boolean kept in localStorage; storage may be unavailable (private window), then it is per page load.
+function useFold(key) {
+  const [on, setOn] = useState(() => {
     try {
-      return localStorage.getItem('sidebar-folded') === '1';
+      return localStorage.getItem(key) === '1';
     } catch {
       return false;
     }
   });
-  const fold = () => setFolded((f) => {
+  const set = (next) => setOn((v) => {
+    const value = typeof next === 'function' ? next(v) : next;
     try {
-      localStorage.setItem('sidebar-folded', f ? '0' : '1');
+      localStorage.setItem(key, value ? '1' : '0');
     } catch {}
-    return !f;
+    return value;
   });
+  return [on, () => set((v) => !v), set];
+}
+
+// Grid columns: folded sides shrink to a strip; the WIP board widens both sides (Linear list, note editor, sessions).
+// The right panel is wide on purpose: note editor and Claude chat, entity docs with column tables.
+const FOLDED_W = '36px';
+const columnsOf = ({ focus, folded, panelFolded, board }) => (focus ? '1fr' : [
+  folded ? FOLDED_W : board ? '380px' : '240px',
+  '1fr',
+  panelFolded ? FOLDED_W : board ? '760px' : '680px',
+].join(' '));
+
+function App() {
+  const [route, setRoute] = useState(parseHash);
+  const [hidden, setHidden] = useState(new Set());
+  const [focus, setFocus] = useState(false);
+  // Each side folds on its own (Focus hides both). Remembered per browser.
+  const [folded, fold] = useFold('sidebar-folded');
+  const [panelFolded, foldPanel, setPanelFolded] = useFold('panel-folded');
+  // Clicking a node (board note or diagram card) brings a folded panel back, even when that node is already
+  // selected and the route does not change. A node's own buttons and handles (✕, +, →) leave it folded.
+  const showPanelOnNode = (e) => {
+    if (panelFolded && e.target.closest('.react-flow__node') && !e.target.closest('button, .react-flow__handle')) {
+      setPanelFolded(false);
+    }
+  };
   // Filled by the WIP Board so the aside can show the selected note.
   const [boardNotes, setBoardNotes] = useState([]);
   // Linear cycle issues from the board sidebar; the Board registers its add-note function here.
@@ -402,7 +426,11 @@ function App() {
   });
 
   return (
-    <div className={['layout', focus && 'focus', folded && 'folded', page.board && 'board'].filter(Boolean).join(' ')}>
+    <div className={['layout', focus && 'focus', folded && 'folded', panelFolded && 'panel-folded'].filter(Boolean).join(' ')}
+      style={{ gridTemplateColumns: columnsOf({ focus, folded, panelFolded, board: page.board }) }}>
+      <button className="fold-toggle panel-fold" title={panelFolded ? 'Unfold panel' : 'Fold panel'} onClick={foldPanel}>
+        {panelFolded ? '«' : '»'}
+      </button>
       <nav className="sidebar">
         <button className="fold-toggle" title={folded ? 'Unfold sidebar' : 'Fold sidebar'} onClick={fold}>{folded ? '»' : '«'}</button>
         {home && <a className="back" href={home}>← Docs</a>}
@@ -437,7 +465,7 @@ function App() {
           <h2>{page.title}</h2>
           <p>{page.intro}</p>
         </header>
-        <div className="canvas">
+        <div className="canvas" onClickCapture={showPanelOnNode}>
           {page.board ? (
             <ReactFlowProvider>
               <Board isRef={isRef} colorOf={colorOf} onRef={(id) => go(doc.id, page.id, id)}

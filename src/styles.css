@@ -9,9 +9,7 @@
 .reactflow-app .eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--color-neutral-500); }
 
 .reactflow-app .layout { display: grid; grid-template-columns: 240px 1fr 340px; grid-template-rows: minmax(0, 1fr); height: calc(100vh - var(--hextra-navbar-height, 0px)); }
-/* The WIP board sidebar holds the Linear issue list, so it gets more room. */
-.reactflow-app .layout.board { grid-template-columns: 380px 1fr 340px; }
-.reactflow-app .layout.folded { grid-template-columns: 36px 1fr 340px; }
+/* Column widths are set inline by App (columnsOf in src/main.jsx). */
 .reactflow-app .layout.focus { grid-template-columns: 1fr; }
 .reactflow-app .layout.folded > .sidebar { padding: 8px 4px; overflow: hidden; }
 .reactflow-app .layout.folded > .sidebar > :not(.fold-toggle) { display: none; }
@@ -183,3 +181,10 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .session-log .msg.error { color: #9b1c1c; }
 .reactflow-app .session-chat textarea { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: inherit; font-size: 13px; resize: vertical; }
 .reactflow-app .session-hint { font-size: 11px; margin: 4px 0 0; }
+/* Right panel fold: the button floats over the panel's top-right corner (or the folded strip). */
+.reactflow-app .layout { position: relative; }
+.reactflow-app .fold-toggle.panel-fold { position: absolute; top: 8px; right: 5px; z-index: 5; float: none; }
+.reactflow-app .layout.focus > .panel-fold { display: none; }
+.reactflow-app .layout.panel-folded > .panel { padding: 0; overflow: hidden; font-size: 0; } /* font-size: bare text (the no-selection hint) */
+.reactflow-app .layout.panel-folded > .panel > * { display: none; }
+.reactflow-app .layout:not(.panel-folded) > .panel { padding-top: 40px; }
