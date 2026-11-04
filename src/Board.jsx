@@ -2,7 +2,7 @@
 // through agent-bridge.mjs (GET/PUT /wip). Only works under `npm run dev`, the bridge is local.
 import { useEffect, useRef, useState } from 'react';
 import { Sessions } from './Sessions.jsx';
-import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, useReactFlow, useConnection } from '@xyflow/react';
+import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, useReactFlow, useConnection, useUpdateNodeInternals } from '@xyflow/react';
 
 const BRIDGE = 'http://127.0.0.1:5182/wip';
 const NOTE_W = 320;
@@ -66,12 +66,24 @@ function Note({ id, data }) {
   const dragging = useConnection((c) => c.inProgress && c.fromNode.id !== id);
   // Click-to-link (data.linkTarget) gets the same outline as a dragged link.
   const droppable = dragging || data.linkTarget;
+  // Handles come and go (none while editing the title, the drop zone while a link is dragged): React Flow must
+  // re-read them on each toggle, or arrows lose their ends.
+  const updateNodeInternals = useUpdateNodeInternals();
   // The node edits its title only; the body lives in a docs/_WIP/board page, edited from NoteAside.
   // A click on the title text (or a double click anywhere) edits it; a note just created by a + button opens editing.
   const [draft, setDraft] = useState(data.fresh ? data.title : null);
   // React Flow keeps a new node hidden until it is measured, so autoFocus misses it: retry for a few frames.
   const input = useRef(null);
   const editing = draft !== null;
+  // Toggles only: on mount React Flow measures the node itself, and an early call would make the initial fitView
+  // frame unmeasured nodes (zoomed in on nothing).
+  const toggles = useRef(`${editing}${dragging}`);
+  useEffect(() => {
+    if (toggles.current === `${editing}${dragging}`) return;
+    toggles.current = `${editing}${dragging}`;
+    updateNodeInternals(id);
+  }, [editing, dragging, id, updateNodeInternals]);
+
   useEffect(() => {
     if (!editing) return;
     let tries = 10;
@@ -137,6 +149,10 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
   const [notes, setNotes] = useState(null);
   const [error, setError] = useState(null);
   const [fresh, setFresh] = useState(null);
+  // Node sizes React Flow measured (id → { width, height }), handed back as node.measured. Without them every
+  // rebuilt node (e.g. after the focus reload) is hidden until re-measured, and a background Firefox tab misses
+  // that re-measure: all notes stayed invisible. Kept apart from notes, so board.json never stores them.
+  const [sizes, setSizes] = useState({});
   // Click-to-link: the note whose → was clicked; the next note clicked becomes the link target.
   const [linkFrom, setLinkFrom] = useState(null);
   useEffect(() => {
@@ -268,6 +284,7 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
     position: { x: n.x, y: n.y },
     dragHandle: '.note-title',
     style: { width: NOTE_W },
+    ...(sizes[n.id] && { measured: sizes[n.id] }),
     selected: n.id === selected,
     data: {
       ...n, isRef, colorOf, onRef, fresh: n.id === fresh, state: stateOf(n, issues),
@@ -301,6 +318,8 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
       nodeTypes={nodeTypes}
       onNodeDragStop={(_, node) => update(node.id, { x: Math.round(node.position.x), y: Math.round(node.position.y) })}
       onNodesChange={(changes) => {
+        const measured = changes.filter((c) => c.type === 'dimensions' && c.dimensions);
+        if (measured.length) setSizes((m) => Object.assign({ ...m }, ...measured.map((c) => ({ [c.id]: c.dimensions }))));
         const moves = changes.filter((c) => c.type === 'position' && c.position);
         if (moves.length) setNotes((ns) => ns.map((n) => {
           const c = moves.find((m) => m.id === n.id);
