@@ -25,14 +25,25 @@ function Body({ text, isRef, colorOf, onRef }) {
 }
 
 // Linear status line of a note created from a cycle issue: live state when the sidebar has it, else the saved one.
-function Status({ linear, state }) {
-  return (
-    <a className="note-linear nodrag" href={linear.url} target="_blank" rel="noreferrer">
+// A link to the issue in the aside only: in the node a click selects the note (and opens the aside).
+function Status({ linear, state, link = false }) {
+  const content = (
+    <>
       <span className="swatch" style={{ background: state.color }} /> {state.name}
       <span className="linear-id">{linear.id}</span>
-    </a>
+    </>
   );
+  return link
+    ? <a className="note-linear" href={linear.url} target="_blank" rel="noreferrer">{content}</a>
+    : <div className="note-linear">{content}</div>;
 }
+
+// Blur handler that commits only when focus moved elsewhere in the page. When the window itself loses focus
+// (macOS emoji palette ⌃⌘Space, ⌘Tab) the field stays document.activeElement, so editing goes on.
+const onFocusLeft = (commit) => (e) => {
+  const el = e.currentTarget;
+  setTimeout(() => el.isConnected && !el.contains(document.activeElement) && commit());
+};
 
 function Note({ id, data }) {
   // While a link is dragged from another note, this note turns into a drop zone (React Flow "easy connect").
@@ -40,7 +51,7 @@ function Note({ id, data }) {
   // Click-to-link (data.linkTarget) gets the same outline as a dragged link.
   const droppable = dragging || data.linkTarget;
   // The node edits its title only; the body lives in a docs/_WIP/board page, edited from NoteAside.
-  // A note just created by a + button opens straight into title editing.
+  // A click on the title text (or a double click anywhere) edits it; a note just created by a + button opens editing.
   const [draft, setDraft] = useState(data.fresh ? data.title : null);
   const commit = () => {
     data.onChange({ title: draft.trim() || 'Untitled' });
@@ -50,9 +61,9 @@ function Note({ id, data }) {
     if (e.key === 'Escape') setDraft(null);
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) commit();
   };
-  if (draft) {
+  if (draft !== null) {
     return (
-      <div className="note editing" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && commit()} onKeyDown={keys}>
+      <div className="note editing" onBlur={onFocusLeft(commit)} onKeyDown={keys}>
         <input className="nodrag" autoFocus value={draft} onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && commit()} />
       </div>
@@ -65,9 +76,12 @@ function Note({ id, data }) {
       <Handle id="link-in" type="target" position={Position.Left} isConnectable={false} />
       {dragging && <Handle id="drop" type="target" position={Position.Left} className="note-drop" isConnectableStart={false} />}
       <div className="note-title">
-        <span className="note-title-text">{data.title}</span>
+        {/* React Flow swallows the click that ends a drag, so dragging by the title still moves the note.
+            In click-to-link mode the click links instead. */}
+        <span className="note-title-text" title="Click to rename"
+          onClick={() => !data.linkSource && !data.linkTarget && setDraft(data.title)}>{data.title}</span>
         {data.sessions?.length > 0 && <span className="note-sessions" title="Claude sessions">🤖 {data.sessions.length}</span>}
-        {data.page && <a className="nodrag note-page" href={data.page} title="Open its WIP page">📄</a>}
+        {data.page && <span className="note-page" title="Has a WIP page (link in the aside)">📄</span>}
         <button className="nodrag" title="Delete note" onClick={() => confirm(`Delete "${data.title}"?`) && data.onDelete()}>✕</button>
       </div>
       {data.linear && <Status linear={data.linear} state={data.state} />}
@@ -156,7 +170,7 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
       ? 'The bridge predates note pages: restart npm run dev.' : `save failed: ${r.status}`))))))
     .then(({ page }) => setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, body, page } : n))));
   useEffect(() => {
-    if (apiRef) apiRef.current = notes ? { addIssue, saveBody, reload: load } : null;
+    if (apiRef) apiRef.current = notes ? { addIssue, saveBody, rename: (id, title) => update(id, { title }), reload: load } : null;
   });
   const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, links, ...n }) => ({
     ...n,
@@ -241,13 +255,22 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
 }
 
 // Right-hand aside for the selected note: its full body plus the notes it is related to.
-export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onReload }) {
+export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onRename, onReload }) {
   const [draft, setDraft] = useState(null);
+  // Title: click to rename; Enter or blur saves, Esc cancels. Saved like a rename on the node (board.json + page).
+  const [title, setTitle] = useState(null);
+  const rename = () => {
+    if (title === null) return;
+    const next = title.trim() || 'Untitled';
+    if (next !== note.title) onRename(note.id, next);
+    setTitle(null);
+  };
   const [saving, setSaving] = useState(null);
   // Another note selected: drop the unsaved draft of the previous one.
   useEffect(() => {
     setDraft(null);
     setSaving(null);
+    setTitle(null);
   }, [note.id]);
   const save = () => {
     setSaving('Saving…');
@@ -264,8 +287,16 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
   return (
     <aside className="panel">
       <div className="badge" style={{ background: 'var(--color-dark-green-600)' }}>WIP note</div>
-      <h2 className="note-aside-title">{note.title}</h2>
-      {note.linear && <Status linear={note.linear} state={stateOf(note, issues)} />}
+      {title !== null ? (
+        <input className="note-aside-title-input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} onBlur={onFocusLeft(rename)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') rename();
+            if (e.key === 'Escape') setTitle(null);
+          }} />
+      ) : (
+        <h2 className="note-aside-title" title="Click to rename" onClick={() => setTitle(note.title)}>{note.title}</h2>
+      )}
+      {note.linear && <Status linear={note.linear} state={stateOf(note, issues)} link />}
       {draft !== null ? (
         <div className="note-editor">
           <textarea autoFocus rows={Math.max(10, draft.split('\n').length + 2)} value={draft} onChange={(e) => setDraft(e.target.value)}

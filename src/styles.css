@@ -116,7 +116,9 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .reactflow-app .react-flow__node.selected .note { animation: none; box-shadow: 0 0 0 3px var(--color-electric-green-700), 0 0 18px 6px color-mix(in srgb, var(--color-electric-green-700) 70%, transparent); }
 }
-.reactflow-app .panel .note-aside-title { font-family: var(--font-sans); font-size: 18px; word-break: normal; }
+.reactflow-app .panel .note-aside-title { font-family: var(--font-sans); font-size: 18px; word-break: normal; cursor: text; }
+.reactflow-app .panel .note-aside-title:hover { text-decoration: underline dotted; }
+.reactflow-app .panel .note-aside-title-input { width: 100%; box-sizing: border-box; margin: 8px 0; padding: 4px 6px; font: 700 18px var(--font-sans); border: 1px solid var(--color-neutral-300); border-radius: 4px; }
 .reactflow-app .panel .note-body { padding: 0; font-size: 14px; cursor: auto; }
 
 /* WIP board sidebar: Linear issues of the active cycle (src/Linear.jsx). */
@@ -153,7 +155,8 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .note.droppable { cursor: copy; }
 .reactflow-app .board-hint { margin-left: 10px; padding: 3px 8px; border-radius: 4px; background: var(--color-dark-green-50); color: var(--color-dark-green-700); font-size: 12px; font-weight: 600; }
 /* WIP note body editor in the aside; the body is a docs/_WIP/board page (wip-notes.mjs). */
-.reactflow-app .note-title-text { flex: 1; }
+.reactflow-app .note-title-text { flex: 1; cursor: text; }
+.reactflow-app .note-title-text:hover { text-decoration: underline dotted; }
 .reactflow-app .note-page { text-decoration: none; }
 .reactflow-app .note-editor textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: 13px/1.45 ui-monospace, monospace; resize: vertical; }
 .reactflow-app .note-editor-bar { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
