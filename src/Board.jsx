@@ -1,11 +1,27 @@
 // WIP board page (src/content/wip/wip.js): free-positioned notes, edited in place and saved
 // through agent-bridge.mjs (GET/PUT /wip). Only works under `npm run dev`, the bridge is local.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Sessions } from './Sessions.jsx';
 import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, useReactFlow, useConnection } from '@xyflow/react';
 
 const BRIDGE = 'http://127.0.0.1:5182/wip';
 const NOTE_W = 320;
+// Sides an arrow end can sit on, in the order "Rotate origin/destination" walks them. Stored per relation:
+// - parent arrow, on the child: fromSide (default bottom), toSide (default top);
+// - link, on the source note: linkSides[target] (default right), linkToSides[target] (default left).
+const SIDES = ['right', 'bottom', 'left', 'top'];
+const POSITION = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
+const nextSide = (side) => SIDES[(SIDES.indexOf(side) + 1) % SIDES.length];
+const DEFAULT = { from: { origin: 'bottom', dest: 'top' }, link: { origin: 'right', dest: 'left' } };
+// The two ends of a relation, read from the note that stores it.
+const sidesOf = (kind, s, t) => (kind === 'from'
+  ? { origin: t.fromSide ?? DEFAULT.from.origin, dest: t.toSide ?? DEFAULT.from.dest }
+  : { origin: s.linkSides?.[t.id] ?? DEFAULT.link.origin, dest: s.linkToSides?.[t.id] ?? DEFAULT.link.dest });
+// A map without key `id`, or undefined when that leaves it empty (keeps board.json free of {}).
+const without = (map, id) => {
+  const { [id]: _, ...rest } = map ?? {};
+  return Object.keys(rest).length ? rest : undefined;
+};
 
 // Markdown links, bare URLs and DSL refs become links; everything else stays plain text.
 const TOKEN = /\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s)]+)|\b([A-Z][A-Z0-9]+-[\w.-]*[\w])/g;
@@ -53,6 +69,21 @@ function Note({ id, data }) {
   // The node edits its title only; the body lives in a docs/_WIP/board page, edited from NoteAside.
   // A click on the title text (or a double click anywhere) edits it; a note just created by a + button opens editing.
   const [draft, setDraft] = useState(data.fresh ? data.title : null);
+  // React Flow keeps a new node hidden until it is measured, so autoFocus misses it: retry for a few frames.
+  const input = useRef(null);
+  const editing = draft !== null;
+  useEffect(() => {
+    if (!editing) return;
+    let tries = 10;
+    let frame;
+    const focus = () => {
+      input.current?.focus();
+      if (document.activeElement !== input.current && tries-- > 0) frame = requestAnimationFrame(focus);
+      else input.current?.select();
+    };
+    focus();
+    return () => cancelAnimationFrame(frame);
+  }, [editing]);
   const commit = () => {
     data.onChange({ title: draft.trim() || 'Untitled' });
     setDraft(null);
@@ -64,7 +95,7 @@ function Note({ id, data }) {
   if (draft !== null) {
     return (
       <div className="note editing" onBlur={onFocusLeft(commit)} onKeyDown={keys}>
-        <input className="nodrag" autoFocus value={draft} onChange={(e) => setDraft(e.target.value)}
+        <input ref={input} className="nodrag" value={draft} onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && commit()} />
       </div>
     );
@@ -72,8 +103,8 @@ function Note({ id, data }) {
   return (
     <div className={['note', droppable && 'droppable', data.linkSource && 'linking'].filter(Boolean).join(' ')} style={data.state && { borderTopColor: data.state.color }}
       onDoubleClick={() => setDraft(data.title)}>
-      <Handle id="in" type="target" position={Position.Top} isConnectable={false} />
-      <Handle id="link-in" type="target" position={Position.Left} isConnectable={false} />
+      {SIDES.map((side) => <Handle key={`t-${side}`} id={`t-${side}`} type="target" position={POSITION[side]} className="note-side" isConnectable={false} />)}
+      {SIDES.map((side) => <Handle key={side} id={`s-${side}`} type="source" position={POSITION[side]} className="note-side" isConnectable={false} />)}
       {dragging && <Handle id="drop" type="target" position={Position.Left} className="note-drop" isConnectableStart={false} />}
       <div className="note-title">
         {/* React Flow swallows the click that ends a drag, so dragging by the title still moves the note.
@@ -92,7 +123,6 @@ function Note({ id, data }) {
           e.stopPropagation();
           data.onStartLink();
         }}>→</Handle>
-      <Handle id="out" type="source" position={Position.Bottom} isConnectable={false} />
     </div>
   );
 }
@@ -115,6 +145,20 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
     addEventListener('keydown', esc);
     return () => removeEventListener('keydown', esc);
   }, [linkFrom]);
+  // Relation menu, opened by clicking an arrow: { kind: 'from' | 'link', source, target, x, y } (screen coords).
+  const [menu, setMenu] = useState(null);
+  useEffect(() => {
+    if (!menu) return;
+    const esc = (e) => e.key === 'Escape' && setMenu(null);
+    const away = (e) => !e.target.closest('.edge-menu') && setMenu(null);
+    // Capture phase: React Flow's pan/zoom stops pointerdown on the pane from bubbling.
+    addEventListener('keydown', esc);
+    addEventListener('pointerdown', away, true);
+    return () => {
+      removeEventListener('keydown', esc);
+      removeEventListener('pointerdown', away, true);
+    };
+  }, [menu]);
   const { getNode, setCenter, getZoom } = useReactFlow();
 
   // Reloaded on focus too: board.json or a note page may have changed in another tab, an editor or by an agent.
@@ -172,11 +216,16 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
   useEffect(() => {
     if (apiRef) apiRef.current = notes ? { addIssue, saveBody, rename: (id, title) => update(id, { title }), reload: load } : null;
   });
-  const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, links, ...n }) => ({
-    ...n,
-    ...(from !== id && from && { from }),
-    ...(links?.some((t) => t !== id) && { links: links.filter((t) => t !== id) }),
-  })));
+  const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, fromSide, toSide, links, linkSides, linkToSides, ...n }) => {
+    const kept = links?.filter((t) => t !== id);
+    return JSON.parse(JSON.stringify({
+      ...n,
+      ...(from !== id && { from, fromSide, toSide }),
+      links: kept?.length ? kept : undefined,
+      linkSides: without(linkSides, id),
+      linkToSides: without(linkToSides, id),
+    }));
+  }));
   // links: free associations between notes, besides the from (parent) hierarchy. Stored on the source note.
   const link = ({ source, target }) => {
     const s = notes.find((n) => n.id === source);
@@ -184,9 +233,33 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
     update(source, { links: [...(s.links ?? []), target] });
   };
   const unlink = (source, target) => {
-    const links = notes.find((n) => n.id === source).links.filter((t) => t !== target);
-    update(source, { links: links.length ? links : undefined });
+    const s = notes.find((n) => n.id === source);
+    const links = s.links.filter((t) => t !== target);
+    update(source, {
+      links: links.length ? links : undefined, linkSides: without(s.linkSides, target), linkToSides: without(s.linkToSides, target),
+    });
   };
+  // The relation behind an arrow: its sides, how to move either end to the next side, how to delete it.
+  const relation = ({ kind, source, target }) => {
+    const s = notes.find((n) => n.id === source);
+    const t = notes.find((n) => n.id === target);
+    if (!s || !t) return null;
+    const sides = sidesOf(kind, s, t);
+    return kind === 'from'
+      ? {
+        s, t, sides,
+        rotate: (end) => update(target, end === 'origin' ? { fromSide: nextSide(sides.origin) } : { toSide: nextSide(sides.dest) }),
+        remove: () => update(target, { from: undefined, fromSide: undefined, toSide: undefined }),
+      }
+      : {
+        s, t, sides,
+        rotate: (end) => update(source, end === 'origin'
+          ? { linkSides: { ...s.linkSides, [target]: nextSide(sides.origin) } }
+          : { linkToSides: { ...s.linkToSides, [target]: nextSide(sides.dest) } }),
+        remove: () => unlink(source, target),
+      };
+  };
+  const rel = menu && relation(menu);
 
   if (!notes) return <div className="board-msg">{error ?? 'Loading…'}</div>;
   const nodes = notes.map((n) => ({
@@ -207,12 +280,16 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
   const ids = new Set(notes.map((n) => n.id));
   const edges = [
     ...notes.filter((n) => n.from).map((n) => ({
-      id: `${n.from}>${n.id}`, source: n.from, target: n.id, sourceHandle: 'out', targetHandle: 'in',
-      type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed }, className: lit(n.id, n.from) ? 'lit' : undefined,
+      id: `${n.from}>${n.id}`, source: n.from, target: n.id,
+      sourceHandle: `s-${n.fromSide ?? DEFAULT.from.origin}`, targetHandle: `t-${n.toSide ?? DEFAULT.from.dest}`,
+      data: { kind: 'from' }, type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed },
+      className: lit(n.id, n.from) ? 'rel lit' : 'rel',
     })),
     ...notes.flatMap((n) => (n.links ?? []).filter((t) => ids.has(t)).map((t) => ({
-      id: `${n.id}~${t}`, source: n.id, target: t, sourceHandle: 'link', targetHandle: 'link-in', data: { link: true },
-      type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed }, className: lit(n.id, t) ? 'link lit' : 'link',
+      id: `${n.id}~${t}`, source: n.id, target: t,
+      sourceHandle: `s-${n.linkSides?.[t] ?? DEFAULT.link.origin}`, targetHandle: `t-${n.linkToSides?.[t] ?? DEFAULT.link.dest}`,
+      data: { kind: 'link' }, type: 'smoothstep', markerEnd: { type: MarkerType.ArrowClosed },
+      className: lit(n.id, t) ? 'rel link lit' : 'rel link',
     }))),
   ];
 
@@ -240,7 +317,7 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
       zoomOnDoubleClick={false}
       onConnect={link}
       connectionLineStyle={{ strokeDasharray: '6 4', strokeWidth: 2 }}
-      onEdgeClick={(_, e) => e.data?.link && confirm('Remove this link?') && unlink(e.source, e.target)}
+      onEdgeClick={(ev, e) => e.data?.kind && setMenu({ kind: e.data.kind, source: e.source, target: e.target, x: ev.clientX, y: ev.clientY })}
       minZoom={0.1}
     >
       <Background gap={20} />
@@ -250,6 +327,21 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
         {linkFrom && <span className="board-hint">Click a note to link it · Esc to cancel</span>}
         {error && <span className="board-error">{error}</span>}
       </Panel>
+      {rel && (
+        <div className="edge-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
+          <div className="edge-menu-head">
+            <span className="muted">{menu.kind === 'from' ? 'Parent' : 'Link'}</span>
+            <strong>{rel.s.title}</strong> → <strong>{rel.t.title}</strong>
+          </div>
+          {/* Stays open: click again to keep rotating. */}
+          <button onClick={() => rel.rotate('origin')}>↻ Rotate origin <span className="muted">{rel.sides.origin} → {nextSide(rel.sides.origin)}</span></button>
+          <button onClick={() => rel.rotate('dest')}>↻ Rotate destination <span className="muted">{rel.sides.dest} → {nextSide(rel.sides.dest)}</span></button>
+          <button className="danger" onClick={() => {
+            rel.remove();
+            setMenu(null);
+          }}>🗑 Delete relation</button>
+        </div>
+      )}
     </ReactFlow>
   );
 }

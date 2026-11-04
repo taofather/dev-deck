@@ -15,7 +15,7 @@ export const pages = [
     id: 'board',
     section: 'Home',
     title: 'Work in progress',
-    intro: 'Double-click a note to edit it, drag it by its title. DSL refs (BENT-Order, DBT-Tenders…) open their doc.',
+    intro: 'Click a note to open it, click its title to rename it, drag it by its title. Click an arrow to rotate or delete it. DSL refs (BENT-Order, DBT-Tenders…) open their doc.',
     board: true,
   },
 ];
