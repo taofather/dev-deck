@@ -45,18 +45,23 @@ export function CycleIssues({ onIssues, onAdd, onBoard }) {
         <div key={s.name}>
           <div className="linear-state"><span className="swatch" style={{ background: s.color }} /> {s.name}</div>
           {issues.filter((i) => i.state.name === s.name).map((i) => (
-            <div key={i.identifier} className="linear-card" style={{ borderLeftColor: s.color }}>
+            // A card whose issue has a note centers the board on it; the title still opens Linear.
+            <div key={i.identifier} className={onBoard.has(i.identifier) ? 'linear-card on-board' : 'linear-card'} style={{ borderLeftColor: s.color }}
+              onClick={onBoard.has(i.identifier) ? () => onAdd(i) : undefined} title={onBoard.has(i.identifier) ? 'Show its note on the board' : undefined}>
               <div className="linear-card-head">
                 <span className="linear-id">{i.identifier}</span>
                 <span className="muted">{i.priorityLabel}</span>
               </div>
-              <a className="linear-issue" href={i.url} target="_blank" rel="noreferrer">{i.title}</a>
+              <a className="linear-issue" href={i.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{i.title}</a>
               {i.labels.length > 0 && (
                 <span className="linear-labels">
                   {i.labels.map((l) => <span key={l.name} style={{ borderColor: l.color, color: l.color }}>{l.name}</span>)}
                 </span>
               )}
-              <button className={onBoard.has(i.identifier) ? 'linear-add on' : 'linear-add'} onClick={() => onAdd(i)}
+              <button className={onBoard.has(i.identifier) ? 'linear-add on' : 'linear-add'} onClick={(e) => {
+                e.stopPropagation();
+                onAdd(i);
+              }}
                 title={onBoard.has(i.identifier) ? 'Show its note on the board' : 'Add a note to the board'}>
                 {onBoard.has(i.identifier) ? '✓' : '+'}
               </button>

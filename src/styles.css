@@ -128,6 +128,7 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .linear-state { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--color-neutral-700); margin: 10px 0 2px; }
 .reactflow-app .linear-card { position: relative; margin: 6px 0; padding: 8px 10px 8px 12px; background: #fff; border: 1px solid var(--color-neutral-200); border-left: 4px solid; border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / .06); transition: box-shadow .15s, transform .15s; }
 .reactflow-app .linear-card:hover { box-shadow: 0 3px 10px rgb(0 0 0 / .1); transform: translateY(-1px); }
+.reactflow-app .linear-card.on-board { cursor: pointer; }
 .reactflow-app .linear-card-head { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px; padding-right: 26px; }
 .reactflow-app .sidebar a.linear-issue { padding: 0; font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--color-neutral-800, #222); padding-right: 26px; }
 .reactflow-app .sidebar a.linear-issue:hover { text-decoration: underline; }

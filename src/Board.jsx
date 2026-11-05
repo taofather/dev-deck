@@ -233,10 +233,14 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
     onSelect(id);
     save([...notes, { id, title: 'New note', body: '', ...pos, ...(parent && { from }) }]);
   };
-  // A Linear issue gets one note: adding it again selects the existing one.
+  // A Linear issue gets one note: adding it again selects the existing one and centers the board on it.
   const addIssue = (issue) => {
     const existing = notes.find((n) => n.linear?.id === issue.identifier);
-    if (existing) return onSelect(existing.id);
+    if (existing) {
+      const h = getNode(existing.id)?.measured?.height ?? 120;
+      setCenter(existing.x + NOTE_W / 2, existing.y + h / 2, { zoom: getZoom(), duration: 400 });
+      return onSelect(existing.id);
+    }
     const id = crypto.randomUUID();
     const x = notes.length ? Math.max(...notes.map((n) => n.x)) + NOTE_W + 40 : 0;
     const linear = { id: issue.identifier, url: issue.url, state: { name: issue.state.name, color: issue.state.color } };
