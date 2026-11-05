@@ -180,6 +180,18 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .session-log .msg { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; padding: 6px 8px; border-radius: 6px; }
 .reactflow-app .session-log .msg.user { background: var(--color-dark-green-50); align-self: flex-end; max-width: 90%; }
 .reactflow-app .session-log .msg.agent { background: var(--color-neutral-100, #f4f4f4); }
+.reactflow-app .session-log .msg.md { white-space: normal; }
+.reactflow-app .session-log .msg.md > :first-child { margin-top: 0; }
+.reactflow-app .session-log .msg.md > :last-child { margin-bottom: 0; }
+.reactflow-app .session-log .msg.md :is(p, ul, ol, pre, table, blockquote, h1, h2, h3, h4) { margin: 6px 0; }
+.reactflow-app .session-log .msg.md :is(h1, h2, h3, h4) { font-size: 14px; }
+.reactflow-app .session-log .msg.md :is(ul, ol) { padding-left: 18px; }
+.reactflow-app .session-log .msg.md code { font: 12px ui-monospace, monospace; background: var(--color-neutral-200); padding: 0 3px; border-radius: 3px; }
+.reactflow-app .session-log .msg.md pre { overflow-x: auto; padding: 6px 8px; background: var(--color-neutral-200); border-radius: 4px; }
+.reactflow-app .session-log .msg.md pre code { padding: 0; background: none; }
+.reactflow-app .session-log .msg.md table { border-collapse: collapse; font-size: 12px; display: block; overflow-x: auto; }
+.reactflow-app .session-log .msg.md :is(th, td) { border: 1px solid var(--color-neutral-300, #ddd); padding: 2px 6px; }
+.reactflow-app .session-log .msg.md blockquote { border-left: 3px solid var(--color-neutral-300, #ddd); padding-left: 8px; color: var(--color-neutral-500); }
 .reactflow-app .session-log .msg.tool { font: 11px ui-monospace, monospace; color: var(--color-neutral-500); padding: 0 8px; }
 .reactflow-app .session-log .msg.error { color: #9b1c1c; }
 .reactflow-app .session-chat textarea { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: inherit; font-size: 13px; resize: vertical; }

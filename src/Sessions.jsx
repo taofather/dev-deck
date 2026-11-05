@@ -3,6 +3,22 @@
 // Recording a session or an agent edit livereloads the page: the open chat lives in sessionStorage and its run
 // is followed again from the last event seen (as assets/agent-chat.js does).
 import { useEffect, useState } from 'react';
+import { marked } from 'marked';
+
+// Agent replies render as Markdown. Raw HTML is shown escaped and only http(s)/mailto/relative/anchor URLs
+// become links or images: the agent may echo untrusted content from files or the web.
+const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+// Allowlist, not a scheme blocklist: `java&#x73;cript:` passes marked verbatim and the browser decodes it.
+const safeUrl = (href) => /^(https?:\/\/|mailto:|[/#?]|\.\.?\/)/i.test(href ?? '') || !/[:&]/.test(href ?? '');
+marked.use({
+  breaks: true,
+  renderer: {
+    html: escapeHtml,
+    link: (href, title, text) => (safeUrl(href) ? false : text),
+    image: (href, title, text) => (safeUrl(href) ? false : escapeHtml(text ?? '')),
+  },
+});
+const markdown = (text) => ({ __html: marked.parse(text) });
 
 const BRIDGE = 'http://127.0.0.1:5182';
 const KEY = 'wip-chat';
@@ -168,7 +184,9 @@ export function Sessions({ note, onChanged }) {
             <button className="focus-toggle" onClick={() => setChat(null)}>✕</button>
           </div>
           <div className="session-log">
-            {chat.log.map(([role, text], i) => <div key={i} className={`msg ${role}`}>{role === 'tool' ? `🔧 ${text}` : text}</div>)}
+            {chat.log.map(([role, text], i) => (role === 'agent'
+              ? <div key={i} className="msg agent md" dangerouslySetInnerHTML={markdown(text)} />
+              : <div key={i} className={`msg ${role}`}>{role === 'tool' ? `🔧 ${text}` : text}</div>))}
             {!chat.log.length && <p className="muted">{chat.session ? 'Loading history…' : `Runs in ${catalog?.root ?? 'AGENT_ROOT'}. The first message starts the session.`}</p>}
           </div>
           <textarea rows={3} value={input} disabled={!!chat.run} placeholder="Message Claude (Enter to send, Shift+Enter for a new line)"
