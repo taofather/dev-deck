@@ -180,6 +180,40 @@ const parseHash = () => {
 };
 const go = (docId, pageId, entity) => (location.hash = `/${docId}/${pageId}${entity ? `/${entity}` : ''}`);
 
+// Folder > doc > section > page, from the src/content folder layout. The branch holding the current page is open.
+// Called with no label for the root; each folder calls it again one level deeper.
+function DiagramTree({ label, docs: inside = docs, level = 0, route }) {
+  const deeper = inside.filter((d) => d.dirs.length > level);
+  const children = (
+    <>
+      {[...new Set(deeper.map((d) => d.dirs[level]))].map((f) => (
+        <DiagramTree key={f} label={f} docs={deeper.filter((d) => d.dirs[level] === f)} level={level + 1} route={route} />
+      ))}
+      {inside.filter((d) => d.dirs.length === level).map((d) => (
+        <details key={d.id} className="tree" open={d === route.doc}>
+          <summary>{d.title}</summary>
+          {[...new Set(d.pages.map((p) => p.section))].map((s) => (
+            <details key={s} className="tree" open={d === route.doc && route.page.section === s}>
+              <summary className="section">{s}</summary>
+              {d.pages.filter((p) => p.section === s).map((p) => (
+                <a key={p.id} className={p === route.page ? 'current' : ''}
+                  onClick={() => go(d.id, p.id, d === route.doc ? route.entity : null)}>{p.title}</a>
+              ))}
+            </details>
+          ))}
+        </details>
+      ))}
+    </>
+  );
+  if (!label) return children;
+  return (
+    <details className="tree" open={inside.includes(route.doc)}>
+      <summary>📁 {label}</summary>
+      {children}
+    </details>
+  );
+}
+
 function Diagram({ doc, page, entity, hidden }) {
   const base = useMemo(() => layout(page), [page]);
   const { fitView } = useReactFlow();
@@ -379,6 +413,9 @@ function useFold(key) {
 // Grid columns: folded sides shrink to a strip; the WIP board widens both sides (Linear list, note editor, sessions).
 // The right panel is wide on purpose: note editor and Claude chat, entity docs with column tables.
 const FOLDED_W = '36px';
+// Sidebar menu options: [key, icon, label]. Linear lists the current cycle and lives on the WIP board.
+const MENUS = [['browse', '🗂', 'Browse'], ['linear', '◷', 'Linear']];
+
 const columnsOf = ({ focus, folded, panelFolded, board }) => (focus ? '1fr' : [
   folded ? FOLDED_W : board ? '380px' : '240px',
   '1fr',
@@ -390,7 +427,21 @@ function App() {
   const [hidden, setHidden] = useState(new Set());
   const [focus, setFocus] = useState(false);
   // Each side folds on its own (Focus hides both). Remembered per browser.
-  const [folded, fold] = useFold('sidebar-folded');
+  // The open sidebar menu ('browse' | 'linear'), '' when folded. Remembered per browser.
+  const [menu, setMenuState] = useState(() => {
+    try {
+      return localStorage.getItem('sidebar-menu') ?? 'browse';
+    } catch {
+      return 'browse';
+    }
+  });
+  const setMenu = (m) => {
+    setMenuState(m);
+    try {
+      localStorage.setItem('sidebar-menu', m);
+    } catch {}
+  };
+  const folded = !menu;
   const [panelFolded, foldPanel, setPanelFolded] = useFold('panel-folded');
   // Clicking a node (board note or diagram card) brings a folded panel back, even when that node is already
   // selected and the route does not change. A node's own buttons and handles (✕, +, →) leave it folded.
@@ -413,12 +464,14 @@ function App() {
   const { doc, page, entity } = route;
   // On the WIP board the route entity is either a note id or a DSL ref clicked inside a note.
   const note = page.board && boardNotes.find((n) => n.id === entity);
-  // The Home section stays reachable as the default page, the back link replaces it in the sidebar.
-  const sections = [...new Set(doc.pages.map((p) => p.section))].filter((s) => s !== 'Home');
   // Filled by layouts/diagrams.html from the reactflow-* front matter; absent under `npm run dev:diagrams`.
   const home = window.reactflowHomes?.[doc.id];
   const i = doc.pages.indexOf(page);
   const [prev, next] = [doc.pages[i - 1], doc.pages[i + 1]];
+  const openMenu = (m) => {
+    setMenu(m);
+    if (m === 'linear' && !page.board) go('wip-board', 'board');
+  };
   const toggle = (d) => setHidden((h) => {
     const n = new Set(h);
     n.has(d) ? n.delete(d) : n.add(d);
@@ -432,30 +485,38 @@ function App() {
         {panelFolded ? '«' : '»'}
       </button>
       <nav className="sidebar">
-        <button className="fold-toggle" title={folded ? 'Unfold sidebar' : 'Fold sidebar'} onClick={fold}>{folded ? '»' : '«'}</button>
-        {home && <a className="back" href={home}>← Docs</a>}
-        <h1>{doc.title}</h1>
-        {sections.map((s) => (
-          <div key={s}>
-            <div className="section">{s}</div>
-            {doc.pages.filter((p) => p.section === s).map((p) => (
-              <a key={p.id} className={p === page ? 'current' : ''} onClick={() => go(doc.id, p.id, entity)}>{p.title}</a>
-            ))}
-          </div>
-        ))}
-        {page.board ? (
-          <CycleIssues onIssues={setIssues} onAdd={(i) => apiRef.current?.addIssue(i)}
-            onBoard={new Set(boardNotes.map((n) => n.linear?.id).filter(Boolean))} />
-        ) : (
+        <div className="menu">
+          {MENUS.map(([m, icon, label]) => (
+            <button key={m} className={menu === m ? 'on' : ''} title={label} onClick={() => openMenu(m)}>
+              {icon}{!folded && ` ${label}`}
+            </button>
+          ))}
+          {!folded && <button className="fold" title="Fold menu" onClick={() => setMenu('')}>‹</button>}
+        </div>
+        {menu === 'browse' && (
           <>
-            <div className="section">Dimensions</div>
-            {Object.entries(DIMENSIONS).map(([d, { label, color }]) => (
-              <label key={d} className="dim">
-                <input type="checkbox" checked={!hidden.has(d)} onChange={() => toggle(d)} />
-                <span className="swatch" style={{ background: color }} /> {label}
-              </label>
-            ))}
+            {home && <a className="back" href={home}>← Docs</a>}
+            <h1>{doc.title}</h1>
+            <DiagramTree route={route} />
+            {!page.board && (
+              <details className="tree">
+                <summary className="section">Dimensions{hidden.size ? ` (${hidden.size} hidden)` : ''}</summary>
+                {Object.entries(DIMENSIONS).map(([d, { label, color }]) => (
+                  <label key={d} className="dim">
+                    <input type="checkbox" checked={!hidden.has(d)} onChange={() => toggle(d)} />
+                    <span className="swatch" style={{ background: color }} /> {label}
+                  </label>
+                ))}
+              </details>
+            )}
           </>
+        )}
+        {/* Mounted on the board even when hidden: the board reads note status from these issues. */}
+        {page.board && (
+          <div hidden={menu !== 'linear'}>
+            <CycleIssues onIssues={setIssues} onAdd={(i) => apiRef.current?.addIssue(i)}
+              onBoard={new Set(boardNotes.map((n) => n.linear?.id).filter(Boolean))} />
+          </div>
         )}
       </nav>
       <main>

@@ -12,7 +12,13 @@
 /* Column widths are set inline by App (columnsOf in src/main.jsx). */
 .reactflow-app .layout.focus { grid-template-columns: 1fr; }
 .reactflow-app .layout.folded > .sidebar { padding: 8px 4px; overflow: hidden; }
-.reactflow-app .layout.folded > .sidebar > :not(.fold-toggle) { display: none; }
+.reactflow-app .layout.folded > .sidebar > :not(.menu) { display: none; }
+.reactflow-app .sidebar .menu { display: flex; gap: 4px; margin-bottom: 12px; }
+.reactflow-app .layout.folded .sidebar .menu { flex-direction: column; }
+.reactflow-app .sidebar .menu button { height: 26px; padding: 0 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: #fff; font-size: 13px; font-weight: 600; color: var(--color-neutral-700); cursor: pointer; }
+.reactflow-app .layout.folded .sidebar .menu button { padding: 0; }
+.reactflow-app .sidebar .menu button.on { background: var(--color-dark-green-50); border-color: var(--color-dark-green-600); color: var(--color-dark-green-700); }
+.reactflow-app .sidebar .menu .fold { margin-left: auto; }
 .reactflow-app .fold-toggle { float: right; width: 26px; height: 26px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: #fff; font-size: 14px; line-height: 1; color: var(--color-neutral-700); cursor: pointer; }
 .reactflow-app .layout.folded .fold-toggle { float: none; }
 .reactflow-app .layout.focus > .sidebar, .reactflow-app .layout.focus > .panel { display: none; }
@@ -32,6 +38,10 @@
 .reactflow-app .sidebar a { display: block; padding: 4px 8px; border-radius: 4px; font-size: 14px; color: var(--color-neutral-700); }
 .reactflow-app .sidebar a.back { padding-left: 0; font-size: 13px; font-weight: 600; color: var(--color-dark-green-700); }
 .reactflow-app .sidebar a.current { background: var(--color-dark-green-50); color: var(--color-dark-green-700); font-weight: 700; }
+.reactflow-app .tree > summary { cursor: pointer; padding: 3px 0; font-size: 13px; font-weight: 600; color: var(--color-neutral-700); }
+.reactflow-app .tree > summary.section { margin: 6px 0 2px; }
+.reactflow-app .tree .tree { margin-left: 12px; }
+.reactflow-app .tree a { margin-left: 12px; }
 .reactflow-app .dim { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 2px 0; }
 .reactflow-app .dim input { accent-color: var(--color-dark-green-600); }
 .reactflow-app .swatch { width: 10px; height: 10px; border-radius: 2px; }

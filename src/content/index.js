@@ -3,4 +3,5 @@ const modules = import.meta.glob('./*/**/*.js', { eager: true });
 
 export const docs = Object.entries(modules)
   .sort(([a], [b]) => a.localeCompare(b))
-  .map(([path, mod]) => ({ ...mod, folder: path.split('/')[1] }));
+  // dirs: the folders between src/content and the file, e.g. ['intrastructure', 'nats'].
+  .map(([path, mod]) => ({ ...mod, dirs: path.split('/').slice(1, -1) }));
