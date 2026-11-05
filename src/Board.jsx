@@ -40,6 +40,23 @@ function Body({ text, isRef, colorOf, onRef }) {
   return <div className="note-body">{out}</div>;
 }
 
+// Labels: the note page's tags, shown as pastel post-its. `wip` is on every board page and is left out.
+const labelsOf = (note) => (note.tags ?? []).filter((t) => t !== 'wip');
+// Material 100-200 pastels; a label keeps its colour wherever it appears (hash of its text).
+const STICKY = ['#fff59d', '#f8bbd0', '#c5e1a5', '#b3e5fc', '#ffcc80', '#d1c4e9', '#b2dfdb', '#ffab91'];
+const stickyColor = (label) => STICKY[[...label].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % STICKY.length];
+// A slight tilt per label, -3°..3°, stable across renders.
+const stickyTilt = (label, i) => `${((label.length * 7 + i * 5) % 7) - 3}deg`;
+function Sticky({ label, i = 0, onRemove }) {
+  return (
+    <span className="sticky" style={{ '--sticky': stickyColor(label), '--tilt': stickyTilt(label, i), '--i': i }}>
+      {label}
+      {onRemove && <button title={`Remove "${label}"`} onClick={onRemove}>×</button>}
+    </span>
+  );
+}
+const MAX_STICKIES = 4;
+
 // Linear status line of a note created from a cycle issue: live state when the sidebar has it, else the saved one.
 // A link to the issue in the aside only: in the node a click selects the note (and opens the aside).
 function Status({ linear, state, link = false }) {
@@ -115,6 +132,12 @@ function Note({ id, data }) {
   return (
     <div className={['note', droppable && 'droppable', data.linkSource && 'linking'].filter(Boolean).join(' ')} style={data.state && { borderTopColor: data.state.color }}
       onDoubleClick={() => setDraft(data.title)}>
+      {labelsOf(data).length > 0 && (
+        <div className="stickies" aria-label="Labels">
+          {labelsOf(data).slice(0, MAX_STICKIES).map((l, i) => <Sticky key={l} label={l} i={i} />)}
+          {labelsOf(data).length > MAX_STICKIES && <span className="sticky more">+{labelsOf(data).length - MAX_STICKIES}</span>}
+        </div>
+      )}
       {SIDES.map((side) => <Handle key={`t-${side}`} id={`t-${side}`} type="target" position={POSITION[side]} className="note-side" isConnectable={false} />)}
       {SIDES.map((side) => <Handle key={side} id={`s-${side}`} type="source" position={POSITION[side]} className="note-side" isConnectable={false} />)}
       {dragging && <Handle id="drop" type="target" position={Position.Left} className="note-drop" isConnectableStart={false} />}
@@ -222,6 +245,13 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
     setCenter(x + NOTE_W / 2, 100, { zoom: getZoom(), duration: 400 });
   };
   // The body goes to the note's docs/_WIP/board page; Hugo then rebuilds and livereloads this page.
+  // Labels go to the page's tags front matter (created if needed); Hugo then rebuilds and livereloads this page.
+  const saveTags = (id, tags) => fetch(`${BRIDGE}/tags`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, tags }),
+  })
+    .then((r) => (r.ok ? r.json() : r.text().then((t) => Promise.reject(new Error(t || (r.status === 404
+      ? 'The bridge predates labels: restart npm run dev.' : `save failed: ${r.status}`))))))
+    .then(({ tags: saved }) => setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, tags: saved } : n))));
   const saveBody = (id, body) => fetch(`${BRIDGE}/body`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, body }),
   })
@@ -230,7 +260,7 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
       ? 'The bridge predates note pages: restart npm run dev.' : `save failed: ${r.status}`))))))
     .then(({ page }) => setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, body, page } : n))));
   useEffect(() => {
-    if (apiRef) apiRef.current = notes ? { addIssue, saveBody, rename: (id, title) => update(id, { title }), reload: load } : null;
+    if (apiRef) apiRef.current = notes ? { addIssue, saveBody, saveTags, rename: (id, title) => update(id, { title }), reload: load } : null;
   });
   const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, fromSide, toSide, links, linkSides, linkToSides, ...n }) => {
     const kept = links?.filter((t) => t !== id);
@@ -365,8 +395,32 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
   );
 }
 
+// Aside label editor: post-its with ×, and an input that adds one on Enter (comma-separated adds several).
+function Labels({ note, onSave }) {
+  const [input, setInput] = useState('');
+  const [error, setError] = useState(null);
+  const labels = labelsOf(note);
+  const save = (next) => onSave(note.id, ['wip', ...next]).then(() => setError(null)).catch((e) => setError(e.message));
+  const add = () => {
+    const fresh = input.split(',').map((t) => t.trim()).filter((t) => t && !labels.includes(t));
+    setInput('');
+    if (fresh.length) save([...labels, ...fresh]);
+  };
+  return (
+    <div className="labels">
+      {labels.map((l, i) => <Sticky key={l} label={l} i={i} onRemove={() => save(labels.filter((x) => x !== l))} />)}
+      <input value={input} placeholder="+ label" aria-label="Add a label" onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') add();
+          if (e.key === 'Escape') setInput('');
+        }} />
+      {error && <span className="board-error">{error}</span>}
+    </div>
+  );
+}
+
 // Right-hand aside for the selected note: its full body plus the notes it is related to.
-export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onRename, onReload }) {
+export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload }) {
   const [draft, setDraft] = useState(null);
   // Title: click to rename; Enter or blur saves, Esc cancels. Saved like a rename on the node (board.json + page).
   const [title, setTitle] = useState(null);
@@ -408,6 +462,7 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
         <h2 className="note-aside-title" title="Click to rename" onClick={() => setTitle(note.title)}>{note.title}</h2>
       )}
       {note.linear && <Status linear={note.linear} state={stateOf(note, issues)} link />}
+      <Labels note={note} onSave={onSaveTags} />
       {draft !== null ? (
         <div className="note-editor">
           <textarea autoFocus rows={Math.max(10, draft.split('\n').length + 2)} value={draft} onChange={(e) => setDraft(e.target.value)}

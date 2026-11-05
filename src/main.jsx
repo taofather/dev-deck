@@ -489,6 +489,7 @@ function App() {
         <NoteAside note={note} notes={boardNotes} issues={issues}
           onReload={() => apiRef.current?.reload()}
           onRename={(id, title) => apiRef.current?.rename(id, title)}
+          onSaveTags={(id, tags) => apiRef.current?.saveTags(id, tags) ?? Promise.reject(new Error('Board not loaded'))}
           onSaveBody={(id, body) => apiRef.current?.saveBody(id, body) ?? Promise.reject(new Error('Board not loaded'))} isRef={isRef} colorOf={colorOf}
           onRef={(id) => go(doc.id, page.id, id)} onSelect={(id) => go(doc.id, page.id, id)} />
       ) : (

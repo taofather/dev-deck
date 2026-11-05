@@ -54,6 +54,22 @@ function newFileName(note) {
   }
 }
 
+// tags front matter, a flow list (`tags: [wip, idea]`) or a block list (`tags:` then `  - idea` lines).
+// The board shows them as sticky labels on the note; `wip` is every note's own tag and is not shown there.
+const TAGS = /^tags:[ \t]*(\[.*\])?[ \t]*\n?((?:[ \t]+- .*\n?)*)/m;
+const unquote = (v) => (v.startsWith('"') ? JSON.parse(v) : v.replace(/^'|'$/g, ''));
+function tagsOf(fm) {
+  const m = fm.match(TAGS);
+  if (!m) return [];
+  const items = m[1] ? m[1].slice(1, -1).split(',') : m[2].split('\n').map((l) => l.replace(/^[ \t]+- /, ''));
+  return items.map((t) => t.trim()).filter(Boolean).map(unquote);
+}
+const yamlItem = (t) => (/^[\w./-]+$/.test(t) ? t : JSON.stringify(t));
+const withTags = (fm, tags) => {
+  const line = `tags: [${tags.map(yamlItem).join(', ')}]`;
+  return TAGS.test(fm) ? fm.replace(TAGS, `${line}\n`).replace(/\n$/, '') : `${fm}\n${line}`;
+};
+
 // claude_sessions front matter, one flow mapping per line so it stays greppable and hand-editable:
 //   - { id: <uuid>, name: "<note title>", started: "<ISO time>", origin: board | attached }
 const SESSION_LINE = /^ {2}- \{ id: ([0-9a-f-]{36}), name: ("(?:[^"\\]|\\.)*"), started: "?([^",}\s]+)"?, origin: (\w+) \}$/gm;
@@ -85,6 +101,7 @@ export async function loadNotes() {
     return {
       ...n, title: p?.title ?? n.title, body: p?.body ?? n.body ?? '', page: p ? pageUrl(p.file) : null,
       sessions: p ? sessionsOf(p.fm) : [],
+      tags: p ? tagsOf(p.fm) : ['wip'],
     };
   });
 }
@@ -96,7 +113,7 @@ export async function saveNotes(notes) {
     const p = pages.get(n.id);
     if (p && p.title !== n.title) await writePage(n, undefined, p);
   }
-  await writeBoard(notes.map(({ body, page, sessions, ...n }) => n));
+  await writeBoard(notes.map(({ body, page, sessions, tags, ...n }) => n));
 }
 
 // PUT /wip/body: writes one note's body to its page, creating the page on first save.
@@ -104,6 +121,15 @@ export async function saveBody(id, body) {
   const note = (await readBoard()).notes.find((n) => n.id === id);
   if (!note) return null;
   return pageUrl(await writePage(note, body, (await scan()).get(id)));
+}
+
+// PUT /wip/tags: the note page's tags (page created if needed). `wip` stays first: every board page carries it.
+export async function saveTags(id, tags) {
+  const note = (await readBoard()).notes.find((n) => n.id === id);
+  if (!note) return null;
+  const clean = ['wip', ...new Set(tags.map((t) => String(t).trim()).filter((t) => t && t !== 'wip'))];
+  await writePage(note, undefined, (await scan()).get(id), (fm) => withTags(fm, clean));
+  return clean;
 }
 
 // Records a Claude session on the note's page (created if needed); an id already listed is left as is.

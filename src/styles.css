@@ -203,3 +203,28 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .edge-menu button:hover { background: var(--color-neutral-100); }
 .reactflow-app .edge-menu button.danger { color: #b42318; }
 .reactflow-app .edge-menu button.danger:hover { background: #fee4e2; }
+
+/* Labels: page tags as Material pastel post-its. On a node they sit pinned along the top edge, outside the node box
+   (absolute: React Flow's measured size ignores them) and click-through, so the node handles every click. */
+.reactflow-app .sticky { --sticky: #fff59d; --tilt: 0deg; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 4px; background: var(--sticky); color: rgb(0 0 0 / .75); font: 600 11px/1.2 var(--font-sans); border-radius: 2px 2px 6px 2px; box-shadow: 0 1px 1px rgb(0 0 0 / .08), 0 3px 6px -2px rgb(0 0 0 / .25); transform: rotate(var(--tilt)); background-image: linear-gradient(180deg, rgb(255 255 255 / .35), transparent 40%); white-space: nowrap; }
+.reactflow-app .sticky.more { --sticky: #eeeeee; }
+/* Tucked behind the note: z-index -1 paints them under .note (positioned, no z-index) but still inside the React Flow
+   node's own stacking context (its transform), so above the canvas. They slide out from behind on mount and rise on hover. */
+.reactflow-app .stickies { position: absolute; left: 14px; right: 14px; bottom: 100%; margin-bottom: -15px; display: flex; gap: 10px; align-items: flex-end; pointer-events: none; z-index: -1; }
+.reactflow-app .stickies .sticky { display: block; max-width: 96px; overflow: hidden; text-overflow: ellipsis; padding: 4px 10px 24px; font-size: 12px; transform-origin: 50% 100%;
+  box-shadow: 0 -1px 2px rgb(0 0 0 / .06), 0 -3px 8px -4px rgb(0 0 0 / .25);
+  transform: translateY(var(--lift, 0px)) rotate(var(--tilt)); transition: transform .25s cubic-bezier(.3, 1.6, .5, 1);
+  animation: sticky-out .45s cubic-bezier(.3, 1.5, .5, 1) both; animation-delay: calc(var(--i, 0) * 70ms); }
+/* Same diagonal for all of them on the node (--diag, not the per-label inline --tilt), so they lie parallel;
+   the aside keeps the per-label tilt. */
+.reactflow-app .stickies { --diag: -12deg; }
+.reactflow-app .stickies .sticky { transform: translateY(var(--lift, 0px)) rotate(var(--diag)); animation-name: sticky-out-diag; }
+@keyframes sticky-out-diag { from { transform: translateY(100%) rotate(var(--diag)); } }
+.reactflow-app .react-flow__node:hover .stickies .sticky { --lift: -5px; }
+@keyframes sticky-out { from { transform: translateY(100%) rotate(var(--tilt)); } }
+.reactflow-app .labels { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 12px; }
+.reactflow-app .labels .sticky { font-size: 12px; padding: 4px 6px 5px 10px; }
+.reactflow-app .labels .sticky button { border: 0; background: none; padding: 0 2px; font-size: 14px; line-height: 1; color: rgb(0 0 0 / .45); cursor: pointer; }
+.reactflow-app .labels .sticky button:hover { color: rgb(0 0 0 / .85); }
+.reactflow-app .labels input { width: 110px; padding: 4px 8px; border: 1px dashed var(--color-neutral-300); border-radius: 4px; font: 12px var(--font-sans); background: transparent; }
+.reactflow-app .labels input:focus { outline: none; border-style: solid; border-color: var(--color-dark-green-600); }

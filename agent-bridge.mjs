@@ -8,7 +8,7 @@ import { existsSync } from 'node:fs';
 import { LinearClient } from '@linear/sdk';
 import { randomUUID } from 'node:crypto';
 import { relative } from 'node:path';
-import { addSession, loadNotes, migrateBodies, noteContext, saveBody, saveNotes } from './wip-notes.mjs';
+import { addSession, loadNotes, migrateBodies, noteContext, saveBody, saveNotes, saveTags } from './wip-notes.mjs';
 import { AGENT_ROOT, isSessionId, listSessions, transcript } from './claude-sessions.mjs';
 
 const PORT = 5182;
@@ -136,6 +136,16 @@ createServer((req, res) => {
       if (typeof b?.id !== 'string' || typeof b.body !== 'string') return res.writeHead(400).end();
       saveBody(b.id, b.body)
         .then((page) => (page ? json(res, { page }) : res.writeHead(404).end('no such note')))
+        .catch((err) => res.writeHead(500).end(err.message));
+    });
+  }
+
+  // A note's labels: the tags of its docs/_WIP/board page.
+  if (url.pathname === '/wip/tags' && req.method === 'PUT') {
+    return readBody(req, (b) => {
+      if (typeof b?.id !== 'string' || !Array.isArray(b.tags) || !b.tags.every((t) => typeof t === 'string')) return res.writeHead(400).end();
+      saveTags(b.id, b.tags)
+        .then((tags) => (tags ? json(res, { tags }) : res.writeHead(404).end('no such note')))
         .catch((err) => res.writeHead(500).end(err.message));
     });
   }
