@@ -301,4 +301,5 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .modal-depth .focus-toggle.on { background: var(--color-dark-green-50); border-color: var(--color-dark-green-600); color: var(--color-dark-green-700); }
 .reactflow-app .modal-canvas { flex: 1; min-height: 0; }
 .reactflow-app .modal-empty { padding: 24px; }
-.reactflow-app .panel .focus-toggle.upstream { float: none; margin: 0 0 10px; }
+.reactflow-app .panel .flow-buttons { display: flex; gap: 6px; margin: 0 0 10px; }
+.reactflow-app .panel .flow-buttons .focus-toggle { float: none; }
