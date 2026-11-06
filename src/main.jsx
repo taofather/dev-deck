@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, Handle, Position, MarkerType, useReactFlow, useNodesState } from '@xyflow/react';
+import { ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, Handle, Position, MarkerType, useReactFlow, useNodesState, useConnection, useUpdateNodeInternals, Panel as FlowPanel } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
 import '@xyflow/react/dist/style.css';
 import '../docs/assets/consentio.css';
 import './styles.css';
 
-import { docs } from './content/index.js';
-import { Board, NoteAside } from './Board.jsx';
+import { docs, replaceSdd } from './content/index.js';
+import { ENVS, ID, NEW_KINDS, OP_STATES, loadSdd, ops, saveSdd, statusesOf } from './SddEdit.js';
+import { Board, Labels, NoteAside, Stickies } from './Board.jsx';
 import { CycleIssues } from './Linear.jsx';
+import { Orchestrator } from './Orchestrator.jsx';
 
 // Colors follow AGENTS.md: blue frontend, red backend, purple database.
 const DIMENSIONS = {
@@ -20,6 +22,13 @@ const DIMENSIONS = {
   infra: { label: 'Infrastructure', color: '#1f7f8c', prefixes: ['K8S', 'NATS', 'GCP'] },
   action: { label: 'Action point', color: '#b5179e', prefixes: ['AP'] },
   ops: { label: 'Script step', color: '#184c47', prefixes: ['OPS'] },
+  prd: { label: 'Product requirement', color: '#a07800', prefixes: ['PRD'] },
+  adr: { label: 'Architecture decision', color: '#6b4f3a', prefixes: ['ADR'] },
+  plan: { label: 'Plan', color: '#3d6b8c', prefixes: ['PLAN'] },
+  task: { label: 'Task', color: '#6d7a1f', prefixes: ['TASK'] },
+  acc: { label: 'Acceptance criterion', color: '#0f7b6c', prefixes: ['ACC'] },
+  cod: { label: 'Code change', color: '#0284c7', prefixes: ['COD'] },
+  op: { label: 'Operation', color: '#7c3aed', prefixes: ['OP'] },
   step: { label: 'Decision step', color: '#56616e', prefixes: [] },
 };
 
@@ -34,7 +43,9 @@ const entityDocs = (entity) =>
     .filter((d) => d.entities[entity])
     .map((d) => ({ doc: d, ...(typeof d.entities[entity] === 'string' ? { text: d.entities[entity] } : d.entities[entity]) }));
 
-const relations = [...new Map(docs.flatMap((d) => d.relations).map((r) => [r.join('|'), r])).values()];
+const buildRelations = () => [...new Map(docs.flatMap((d) => d.relations).map((r) => [r.join('|'), r])).values()];
+// Rebuilt when a _sdd.json doc is edited or reloaded (App.refresh).
+let relations = buildRelations();
 
 const NODE_W = 230;
 const NODE_H = 66;
@@ -42,6 +53,26 @@ const NODE_H = 66;
 const ROW_H = 17;
 const colsOf = (id) => entityDocs(id).find((e) => e.columns)?.columns;
 const iconOf = (id) => entityDocs(id).find((e) => e.icon)?.icon;
+// Labels (post-its, like WIP board notes): an entity's `tags` in any doc, merged.
+const tagsOf = (id) => [...new Set(entityDocs(id).flatMap((e) => e.tags ?? []))];
+// Status LED from an entity's `status` property (TASK, ACC…; sdd-convert-skill.md), like `tags`. First match wins:
+// a warning or block outranks done ("done ⚠" is yellow). Unknown words are grey; no status, no LED.
+// COD's "dev" (merged, not released) is yellow; "released" is green.
+const LEDS = [['red', /blocked|regressed|fail|❌/], ['yellow', /partial|review|progress|wip|doing|⚠|🟡|^dev$/],
+  ['green', /done|met|ok|released|✅/], ['grey', /./]];
+// An OP's status is a list of targets, [{ env, state }]: green when every target is done, yellow when some are,
+// grey when none is. No target, no LED.
+const statusOf = (id) => {
+  const s = entityDocs(id).map((e) => e.status).find((x) => (Array.isArray(x) ? x.length : x));
+  if (!s) return null;
+  if (Array.isArray(s)) {
+    const done = s.filter((t) => t.state === 'done').length;
+    return { text: s.map((t) => `${t.env} ${t.state}`).join(' · '), led: done === s.length ? 'green' : done ? 'yellow' : 'grey', targets: s };
+  }
+  return { text: s, led: LEDS.find(([, re]) => re.test(s.toLowerCase()))[0] };
+};
+// Environment badge (eph, dev, staging, sandbox, prod) from an entity's `env` property.
+const envOf = (id) => entityDocs(id).map((e) => e.env).find(Boolean);
 // An icon is an emoji or a path/URL to an image (e.g. '/icons/gcp/cloud-sql.svg' under static/).
 const Icon = ({ icon }) => (!icon ? null : /[./]/.test(icon) ? <img className="icon" src={icon} alt="" /> : <span className="icon">{icon}</span>);
 const heightOf = (n) => (n.columns ? 42 + n.columns.length * ROW_H : NODE_H);
@@ -65,7 +96,7 @@ function pageGraph(page) {
 
 function layout(page) {
   const { edges } = pageGraph(page);
-  const nodes = pageGraph(page).nodes.map((n) => ({ ...n, columns: colsOf(n.ref), icon: n.icon ?? iconOf(n.ref) }));
+  const nodes = pageGraph(page).nodes.map((n) => ({ ...n, columns: colsOf(n.ref), icon: n.icon ?? iconOf(n.ref), tags: tagsOf(n.ref), status: statusOf(n.ref), env: envOf(n.ref) }));
   // Optional page.groups: [{ id, label, color, icon, ref?, members: [nodeId | groupId] }], drawn as containers.
   // A group with a ref opens that entity's panel when its label is clicked.
   // A group listed in another group's members nests inside it. Groups without any page node are dropped.
@@ -90,6 +121,8 @@ function layout(page) {
   const depth = (id) => (g.parent(id) ? depth(g.parent(id)) + 1 : 0);
   const placed = (id) => {
     const parentId = g.parent(id);
+    // A position saved by dragging (editable _sdd.json pages) wins over the computed layout.
+    if (!parentId && page.positions?.[id]) return { position: page.positions[id] };
     const own = topLeft(id);
     const origin = parentId ? topLeft(parentId) : { x: 0, y: 0 };
     return { ...(parentId && { parentId, extent: 'parent' }), position: { x: own.x - origin.x, y: own.y - origin.y } };
@@ -143,13 +176,35 @@ const appearances = (entity) =>
     .filter((p) => pageGraph(p).nodes.some((n) => n.ref === entity) || p.groups?.some((g) => g.ref === entity))
     .map((page) => ({ doc, page })));
 
-function Card({ data, selected }) {
+function Card({ id, data, selected }) {
   const { color } = DIMENSIONS[data.dim];
-  const cls = ['card', data.kind, data.focused && 'focused', data.faded && 'faded', selected && 'selected'];
+  // Editable pages link like the WIP board: drag the → handle onto any part of another card (the whole card is a
+  // drop zone while a link is dragged), or click → and then the other card. Handles that come and go must be
+  // re-measured, or edges lose their ends.
+  const dragging = useConnection((c) => c.inProgress && c.fromNode.id !== id);
+  const updateNodeInternals = useUpdateNodeInternals();
+  useEffect(() => {
+    if (data.editable) updateNodeInternals(id);
+  }, [dragging, data.editable, id, updateNodeInternals]);
+  const cls = ['card', data.kind, data.focused && 'focused', data.faded && 'faded', selected && 'selected',
+    (dragging || data.linkTarget) && 'droppable', data.linkSource && 'linking'];
   return (
     <div className={cls.filter(Boolean).join(' ')} style={{ borderLeftColor: color }}>
+      <Stickies labels={data.tags ?? []} />
       <Handle type="target" position={data.horizontal ? Position.Left : Position.Top} />
-      <div className="card-label"><Icon icon={data.icon} />{data.label}</div>
+      {data.editable && dragging && <Handle id="drop" type="target" position={Position.Left} className="card-drop" isConnectableStart={false} />}
+      <div className="card-label">
+        {data.status && <span className={`led ${data.status.led}`} title={data.status.text} aria-label={`Status: ${data.status.text}`} />}
+        <Icon icon={data.icon} />{data.label}
+        {data.env && <span className={`env-badge ${data.env}`} title={`Environment: ${data.env}`}>{data.env}</span>}
+        {/* A code change lives in a repo, not an environment: its badge is where it got (wip, review, dev, released). */}
+        {data.ref?.startsWith('COD-') && data.status && <span className="env-badge" title="Code change status">{data.status.text}</span>}
+      </div>
+      {data.status?.targets && (
+        <div className="card-envs">
+          {data.status.targets.map((t) => <span key={t.env} className={`env-chip ${t.state}`} title={`${t.env}: ${t.state}`}>{t.env}</span>)}
+        </div>
+      )}
       {data.ref && data.ref !== data.label && <div className="card-ref" style={{ color }}>{data.ref}</div>}
       {data.sub && <div className="card-sub">{data.sub}</div>}
       {data.columns && (
@@ -162,6 +217,14 @@ function Card({ data, selected }) {
         </table>
       )}
       <Handle type="source" position={data.horizontal ? Position.Right : Position.Bottom} />
+      {data.editable && (
+        <Handle id="link" type="source" position={Position.Right} className="card-link" isConnectableEnd={false}
+          title="Drag onto another node, or click and then click it"
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onStartLink();
+          }}>→</Handle>
+      )}
     </div>
   );
 }
@@ -214,26 +277,73 @@ function DiagramTree({ label, docs: inside = docs, level = 0, route }) {
   );
 }
 
-function Diagram({ doc, page, entity, hidden }) {
+// Suggested label for a new relation, from the skill's spec conventions (sdd-convert-skill.md).
+const LINK_LABELS = [[/^PRD$/, /^ADR$/, 'decided by'], [/^PRD$/, /^PLAN$/, 'planned by'], [/^PRD$/, /^ACC$/, 'accepted when'],
+  [/^PLAN$/, /^(TASK|COD|OP)$/, 'step'], [/^PLAN$/, /^ACC$/, 'done when'], [/^(TASK|COD|OP)$/, /^ACC$/, 'satisfies'],
+  [/^TASK$/, /^(COD|OP)$/, 'done by'], [/^COD$/, /^OP$/, 'deployed by'], [/^(TASK|COD|OP)$/, /^(TASK|COD|OP)$/, 'before'],
+  [/^ADR$/, /./, 'shapes'], [/^(TASK|COD|OP)$/, /./, 'changes'], [/^ACC$/, /./, 'checks'], [/^PRD$/, /./, 'implemented by']];
+const linkLabel = (a, b) => LINK_LABELS.find(([x, y]) => x.test(a.split('-')[0]) && y.test(b.split('-')[0]))?.[2] ?? '';
+
+// onPick: a click on a node calls it instead of navigating (the upstream modal); the view then fits all, no zoom.
+// zoomTo: { id } asks for one zoom onto that entity once the route shows it, even where clicks never zoom (editable).
+function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo }) {
   const base = useMemo(() => layout(page), [page]);
-  const { fitView } = useReactFlow();
+  const { fitView, screenToFlowPosition } = useReactFlow();
   // Dragged positions live here until the page changes (the Diagram key remounts this state).
-  const [moved, , onNodesChange] = useNodesState(base.nodes);
+  // An edited _sdd.json page rebuilds base: take its saved positions without remounting (the viewport stays).
+  const [moved, setMoved, onNodesChange] = useNodesState(base.nodes);
+  useEffect(() => setMoved(base.nodes), [base, setMoved]);
+  const refOf = (id) => base.nodes.find((n) => n.id === id)?.data.ref;
+  const connect = ({ source, target }) => {
+    const [a, b] = [refOf(source), refOf(target)];
+    if (!a || !b || a === b) return;
+    const label = prompt(`Relation ${a} → ${b}, label:`, linkLabel(a, b));
+    if (label !== null) edit.link([a, b, label.trim()]);
+  };
+  const addAtCenter = (kind) => {
+    const r = document.querySelector('.canvas').getBoundingClientRect();
+    const p = screenToFlowPosition({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    edit.add(kind, { x: p.x - NODE_W / 2, y: p.y - NODE_H / 2 });
+  };
+  // Click-to-link, as on the WIP board: the card whose → was clicked; the next card clicked is the target.
+  const linkable = !!edit && !!page.entities;
+  const [linkFrom, setLinkFrom] = useState(null);
+  useEffect(() => {
+    if (!linkFrom) return;
+    const esc = (e) => e.key === 'Escape' && setLinkFrom(null);
+    addEventListener('keydown', esc);
+    return () => removeEventListener('keydown', esc);
+  }, [linkFrom]);
 
   // A relation (from~to) focuses both ends and the edge itself.
   const focus = entity?.split('~') ?? [];
   const nodes = moved.map((n) => ({
     ...n,
-    data: { ...n.data, focused: focus.includes(n.data.ref), faded: hidden.has(n.data.dim) },
+    data: {
+      ...n.data, focused: focus.includes(n.data.ref), faded: hidden.has(n.data.dim),
+      ...(linkable && n.type === 'card' && {
+        editable: true, linkSource: linkFrom === n.id, linkTarget: !!linkFrom && linkFrom !== n.id,
+        onStartLink: () => setLinkFrom((f) => (f === n.id ? null : n.id)),
+      }),
+    },
   }));
   const edges = base.edges.map((e) => (entity && e.data.rel === entity ? { ...e, className: 'focused' } : e));
 
+  // Zooms to the selection when it changes, not when the page data does: an edited _sdd.json rebuilds base on every
+  // save and reload, and the view must stay where the user left it. Editable diagrams zoom only for the entity the
+  // page opened on (a deep link): there a click selects a node to edit or drag, it does not navigate.
+  const opened = useRef(false);
+  const zoomed = useRef(null);
   useEffect(() => {
+    const forced = zoomTo && zoomTo !== zoomed.current && zoomTo.id === entity;
+    if (forced) zoomed.current = zoomTo;
+    if (onPick || (edit && opened.current && !forced)) return;
+    opened.current = true;
     const focus = entity?.split('~') ?? [];
     const hits = base.nodes.filter((n) => focus.includes(n.data.ref)).map((n) => ({ id: n.id }));
     // Wait one frame so React Flow has measured the new nodes.
     if (hits.length) requestAnimationFrame(() => fitView({ nodes: hits, maxZoom: 1.2, duration: 400 }));
-  }, [base, entity, fitView]);
+  }, [entity, fitView, zoomTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <ReactFlow
@@ -244,15 +354,40 @@ function Diagram({ doc, page, entity, hidden }) {
       edges={edges}
       nodeTypes={nodeTypes}
       // Lanes only react on their label, so empty space inside a group stays inert.
-      onNodeClick={(e, n) => n.data.ref && (n.type === 'card' || e.target.closest('.lane-label')) && go(doc.id, page.id, n.data.ref)}
-      onEdgeClick={(_, e) => e.data.rel && go(doc.id, page.id, e.data.rel)}
-      onPaneClick={() => go(doc.id, page.id)}
-      nodesConnectable={false}
+      onNodeClick={(e, n) => {
+        if (linkFrom && n.type === 'card') {
+          connect({ source: linkFrom, target: n.id });
+          return setLinkFrom(null);
+        }
+        if (n.data.ref && (n.type === 'card' || e.target.closest('.lane-label'))) (onPick ?? ((r) => go(doc.id, page.id, r)))(n.data.ref);
+      }}
+      onEdgeClick={(_, e) => !onPick && e.data.rel && go(doc.id, page.id, e.data.rel)}
+      onPaneClick={() => (linkFrom ? setLinkFrom(null) : !onPick && go(doc.id, page.id))}
+      // Links are relations, drawn on entity pages; flow pages (nodes + edges) only move.
+      nodesConnectable={linkable}
+      onConnect={linkable ? connect : undefined}
+      connectOnClick={false}
+      connectionLineStyle={{ strokeDasharray: '6 4', strokeWidth: 2 }}
+      onNodeDragStop={edit ? (_, n, all) => edit.move((all?.length ? all : [n]).filter((x) => x.type === 'card')
+        .map((x) => ({ id: x.id, x: x.position.x, y: x.position.y }))) : undefined}
+      // Deleting removes from the file: only through the panel's button, never a stray Backspace.
+      deleteKeyCode={null}
       minZoom={0.1}
     >
       <Background gap={20} />
       <Controls />
       <MiniMap pannable zoomable nodeColor={(n) => DIMENSIONS[n.data.dim]?.color ?? 'transparent'} />
+      {edit && (
+        <FlowPanel position="top-left">
+          {page.entities && Object.keys(NEW_KINDS).map((k) => (
+            <button key={k} className="focus-toggle" style={{ borderColor: colorOf(`${k}-x`) }} onClick={() => addAtCenter(k)}>+ {k}</button>
+          ))}
+          <span className="board-hint">
+            {linkFrom ? 'Click a node to link it · Esc to cancel' : 'Drag nodes to place them · → on a node to link it'}
+          </span>
+          {edit.error && <span className="board-error">{edit.error}</span>}
+        </FlowPanel>
+      )}
     </ReactFlow>
   );
 }
@@ -307,9 +442,95 @@ const openEntity = (doc, page, id) => {
   here ? go(here.doc.id, here.page.id, id) : go(doc.id, page.id, id);
 };
 
-function RelationPanel({ doc, page, rel }) {
+// Panel editor of a node declared in the open _sdd.json: id, text, why. Remounted per entity (key).
+function EntityEditor({ id, edit }) {
+  const entry = edit.raw.entities?.[id];
+  const [draft, setDraft] = useState(() => ({
+    id, text: typeof entry === 'string' ? entry : entry?.text ?? '', why: typeof entry === 'object' ? entry?.why ?? '' : '',
+  }));
+  const kind = id.split('-')[0];
+  const raw = typeof entry === 'object' ? entry?.status : undefined;
+  const status = typeof raw === 'string' ? raw : '';
+  const env = typeof entry === 'object' ? entry?.env ?? '' : '';
+  // OP: status is its target environments, [{ env, state }]; COD lives in a repo, so it has no env.
+  const isOp = kind === 'OP';
+  const targets = Array.isArray(raw) ? raw : [];
+  const needsWhy = ['PRD', 'ADR', 'PLAN'].includes(kind) || draft.why;
+  const nextId = draft.id.trim();
+  const problem = !ID.test(nextId) ? 'Id: PREFIX-Name' : nextId !== id && edit.raw.entities?.[nextId] !== undefined ? `${nextId} already exists`
+    : (kind === 'PRD' && !draft.why.trim()) ? 'A PRD states its why' : null;
+  const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value });
+  const save = () => !problem && edit.save(id, nextId, { text: draft.text.trim(), why: draft.why.trim() });
+  const keys = (e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && save();
+  return (
+    <section className="sdd-editor" onKeyDown={keys}>
+      {/* Labels and status save at once, like board labels; id, text and why save with the button. */}
+      <Labels labels={typeof entry === 'object' ? entry?.tags ?? [] : []} onSave={(tags) => edit.field(id, 'tags', tags)} />
+      <label>Id <input value={draft.id} onChange={set('id')} /></label>
+      <label>Text <textarea rows={4} value={draft.text} onChange={set('text')} /></label>
+      {needsWhy && <label>Why <textarea rows={3} value={draft.why} onChange={set('why')} /></label>}
+      {isOp && <OpTargets targets={targets} onChange={(next) => edit.field(id, 'status', next)} />}
+      <div className="note-editor-bar">
+        <button className="focus-toggle" onClick={save} disabled={!!problem}>Save ⌘↵</button>
+        {/* Saved on change. A custom value from the file ("done ⚠") stays in the list so it is not lost. */}
+        {!isOp && (
+          <select className="sdd-status" aria-label="Status" value={status} onChange={(e) => edit.field(id, 'status', e.target.value)}>
+            <option value="">— no status</option>
+            {[...new Set([...statusesOf(kind), status].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
+        {!isOp && kind !== 'COD' && (
+          <select className="sdd-status" aria-label="Environment" value={env} onChange={(e) => edit.field(id, 'env', e.target.value)}>
+            <option value="">— no env</option>
+            {[...new Set([...ENVS, env].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
+        <button className="focus-toggle danger" onClick={() => confirm(`Remove ${id} and its relations from this diagram?`) && edit.remove(id)}>🗑 Delete</button>
+        {problem && <span className="board-error">{problem}</span>}
+      </div>
+    </section>
+  );
+}
+
+// An OP's targets: one checkbox per environment, a pending/done state for each ticked one. Saved on change,
+// in ENVS order; an env unknown to ENVS (from the file) keeps its row.
+function OpTargets({ targets, onChange }) {
+  const byEnv = Object.fromEntries(targets.map((t) => [t.env, t]));
+  const envs = [...new Set([...ENVS, ...targets.map((t) => t.env)])];
+  const set = (env, t) => onChange(envs.map((e) => (e === env ? t : byEnv[e])).filter(Boolean));
+  return (
+    <fieldset className="op-targets">
+      <legend>Environments</legend>
+      {envs.map((env) => (
+        <label key={env}>
+          <input type="checkbox" checked={!!byEnv[env]} onChange={(e) => set(env, e.target.checked ? { env, state: 'pending' } : null)} />
+          <span>{env}</span>
+          {byEnv[env] && (
+            <select className="sdd-status" aria-label={`${env} state`} value={byEnv[env].state}
+              onChange={(e) => set(env, { env, state: e.target.value })}>
+              {[...new Set([...OP_STATES, byEnv[env].state])].map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+// Right panel options on a _sdd.json diagram: [key, icon, label], like the sidebar's Browse / Linear.
+const SIDE_MENUS = [['node', '🔎', 'Node'], ['agent', '🤖', 'Agent']];
+const SideMenu = ({ side, onSide }) => (
+  <div className="menu panel-menu">
+    {SIDE_MENUS.map(([m, icon, label]) => (
+      <button key={m} className={side === m ? 'on' : ''} onClick={() => onSide(m)}>{icon} {label}</button>
+    ))}
+  </div>
+);
+
+function RelationPanel({ doc, page, rel, edit, menu }) {
   const [a, b] = rel.split('~');
   const between = ([x, y]) => (x === a && y === b) || (x === b && y === a);
+  const own = edit ? (edit.raw.relations ?? []).filter(between) : [];
   const labels = [...new Map([...refEdges(page), ...relations].filter(between).map((r) => [r.join('|'), r])).values()];
   const pages = docs.flatMap((d) => d.pages.filter((p) => refEdges(p).some(([x, y]) => x === a && y === b)).map((p) => ({ doc: d, page: p })));
   const end = (id) => (
@@ -320,6 +541,7 @@ function RelationPanel({ doc, page, rel }) {
   );
   return (
     <aside className="panel">
+      {menu}
       <div className="badge" style={{ background: 'var(--color-neutral-500)' }}>Relation</div>
       <h2>{a} → {b}</h2>
       <ul>
@@ -327,6 +549,26 @@ function RelationPanel({ doc, page, rel }) {
           <li key={`${x}|${y}|${l}`}>{x === a ? '→' : '←'} <b>{l || '—'}</b></li>
         ))}
       </ul>
+      {own.length > 0 && (
+        <>
+          <h3>Edit in {doc.title}</h3>
+          <ul>
+            {own.map((r) => (
+              <li key={r.join('|')}>
+                {r[0]} → {r[1]} <b>{r[2] || '—'}</b>{' '}
+                <button className="focus-toggle" onClick={() => {
+                  const l = prompt('Label:', r[2] ?? '');
+                  if (l !== null) edit.relabel(r, l.trim());
+                }}>✎</button>{' '}
+                <button className="focus-toggle danger" onClick={() => {
+                  edit.unlink(r);
+                  if (own.length === 1) go(doc.id, page.id);
+                }}>🗑</button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       {end(a)}
       {end(b)}
       <h3>Appears in</h3>
@@ -342,9 +584,62 @@ function RelationPanel({ doc, page, rel }) {
   );
 }
 
-function Panel({ doc, page, entity }) {
-  if (!entity) return <aside className="panel muted">Click a node to read its doc and jump to the other dimensions it lives in.</aside>;
-  if (entity.includes('~')) return <RelationPanel doc={doc} page={page} rel={entity} />;
+// Upstream of an entity: the entity and every node that reaches it through incoming relations ([a, b]: a precedes b),
+// up to `depth` levels (Infinity = all). Breadth-first over all docs' relations; cycles stop at nodes already seen.
+const upstreamOf = (id, depth) => {
+  const seen = new Set([id]);
+  let frontier = [id];
+  for (let d = 0; d < depth && frontier.length; d++) {
+    frontier = relations.filter(([a, b]) => frontier.includes(b) && !seen.has(a)).map(([a]) => a)
+      .filter((a) => !seen.has(a) && seen.add(a));
+  }
+  return [...seen];
+};
+const DEPTHS = [[1, '1'], [2, '2'], [3, '3'], [Infinity, 'all']];
+
+// A temporary, read-only canvas over the diagram: the node and its upstream, laid out left to right.
+// Clicking a node closes it and selects that node on the main diagram (App); Esc, ✕ or the backdrop just close it.
+function UpstreamModal({ doc, id, hidden, onPick, onClose }) {
+  const [depth, setDepth] = useState(Infinity);
+  const ids = upstreamOf(id, depth);
+  const key = ids.join('|');
+  const page = useMemo(() => ({
+    id: `upstream-${id}`, title: `Upstream of ${id}`, entities: ids, direction: 'LR', edgeType: 'smoothstep',
+  }), [id, key]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const esc = (e) => e.key === 'Escape' && onClose();
+    addEventListener('keydown', esc);
+    return () => removeEventListener('keydown', esc);
+  }, [onClose]);
+  return (
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" role="dialog" aria-label={page.title}>
+        <div className="modal-head">
+          <strong>⤴ Upstream of <span style={{ color: colorOf(id) }}>{id}</span></strong>
+          <span className="muted">{ids.length - 1} preceding node{ids.length === 2 ? '' : 's'}</span>
+          <span className="modal-depth">
+            Depth {DEPTHS.map(([d, label]) => (
+              <button key={label} className={`focus-toggle${depth === d ? ' on' : ''}`} onClick={() => setDepth(d)}>{label}</button>
+            ))}
+          </span>
+          <button className="focus-toggle" title="Close (Esc)" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-canvas">
+          {ids.length > 1 ? (
+            <ReactFlowProvider>
+              <Diagram key={key} doc={doc} page={page} entity={id} hidden={hidden} onPick={onPick} />
+            </ReactFlowProvider>
+          ) : <p className="muted modal-empty">No incoming relations: nothing precedes {id}.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Panel({ doc, page, entity, edit, menu, onUpstream }) {
+  if (!entity) return <aside className="panel muted">{menu}Click a node to read its doc and jump to the other dimensions it lives in.</aside>;
+  if (entity.includes('~')) return <RelationPanel doc={doc} page={page} rel={entity} edit={edit} menu={menu} />;
+  const editable = edit && edit.raw.entities?.[entity] !== undefined;
   const dim = dimOf(entity);
   const out = relations.filter(([a]) => a === entity);
   const inc = relations.filter(([, b]) => b === entity);
@@ -358,13 +653,23 @@ function Panel({ doc, page, entity }) {
   const described = entityDocs(entity);
   return (
     <aside className="panel">
+      {menu}
       <div className="badge" style={{ background: DIMENSIONS[dim].color }}>{DIMENSIONS[dim].label}</div>
       <h2>{entity}</h2>
-      {described.length === 0 && <p>⚠ Not documented yet.</p>}
-      {described.map(({ doc: d, text, columns }) => (
+      {onUpstream && <button className="focus-toggle upstream" title="This node and everything that leads to it" onClick={() => onUpstream(entity)}>⤴ Upstream</button>}
+      {editable && <EntityEditor key={entity} id={entity} edit={edit} />}
+      {edit && !editable && (
+        <p className="muted">
+          Declared in another diagram, edit it there.{' '}
+          <button className="focus-toggle danger" onClick={() => edit.remove(entity)}>Remove from this diagram</button>
+        </p>
+      )}
+      {described.length === 0 && !editable && <p>⚠ Not documented yet.</p>}
+      {described.filter((e) => !(editable && e.doc.file === edit.file)).map(({ doc: d, text, why, columns }) => (
         <section key={d.id}>
           {described.length > 1 && <h3>From {d.title}</h3>}
           <p>{text}</p>
+          {why && <p><strong>Why:</strong> {why}</p>}
           {columns && (
             <table>
               <tbody>
@@ -445,10 +750,11 @@ function App() {
   const [panelFolded, foldPanel, setPanelFolded] = useFold('panel-folded');
   // Clicking a node (board note or diagram card) brings a folded panel back, even when that node is already
   // selected and the route does not change. A node's own buttons and handles (✕, +, →) leave it folded.
+  // On a _sdd.json diagram it also leaves the Agent tab for the 🔎 Node tab, and so does an edge (relation panel).
   const showPanelOnNode = (e) => {
-    if (panelFolded && e.target.closest('.react-flow__node') && !e.target.closest('button, .react-flow__handle')) {
-      setPanelFolded(false);
-    }
+    if (!e.target.closest('.react-flow__node, .react-flow__edge') || e.target.closest('button, .react-flow__handle')) return;
+    if (panelFolded) setPanelFolded(false);
+    if (side === 'agent') setSide('node');
   };
   // Filled by the WIP Board so the aside can show the selected note.
   const [boardNotes, setBoardNotes] = useState([]);
@@ -461,7 +767,81 @@ function App() {
     return () => removeEventListener('hashchange', onHash);
   }, []);
 
+  // _sdd.json docs: the bundle holds the build-time copy; the bridge serves the file as saved now (edits, agents,
+  // an editor). Read on load and on focus, like the WIP board. No bridge: the bundled copy stays, read-only.
+  const [sddError, setSddError] = useState(null);
+  const refresh = () => {
+    relations = buildRelations();
+    setRoute(parseHash());
+  };
+  // Saves still in flight: a read then could return the file before them and undo an edit on screen
+  // (closing a prompt() or confirm() refocuses the window, which reads).
+  const saving = useRef(0);
+  // The same read, for the orchestrator: the agent edits the file, the diagram follows when a run ends.
+  const pullRef = useRef(null);
+  // Right panel tab on _sdd.json diagrams ('node' | 'agent'). Remembered per browser, like the sidebar menu.
+  const [side, setSideState] = useState(() => {
+    try {
+      return localStorage.getItem('panel-menu') ?? 'node';
+    } catch {
+      return 'node';
+    }
+  });
+  const setSide = (m) => {
+    setSideState(m);
+    try {
+      localStorage.setItem('panel-menu', m);
+    } catch {}
+  };
+  useEffect(() => {
+    const pull = pullRef.current = () => {
+      if (saving.current) return;
+      return Promise.all(docs.filter((d) => d.file).map((d) => loadSdd(d.file).then((raw) => {
+        if (saving.current || JSON.stringify(raw) === JSON.stringify(docs.find((x) => x.file === d.file)?.raw)) return false;
+        replaceSdd(d.file, raw);
+        return true;
+      })))
+        .then((changed) => {
+          setSddError(null);
+          if (changed.some(Boolean)) refresh();
+        }, () => setSddError('Read-only: editing needs the local bridge (npm run dev).'));
+    };
+    pull();
+    addEventListener('focus', pull);
+    return () => removeEventListener('focus', pull);
+  }, []);
+
   const { doc, page, entity } = route;
+  // The node whose upstream modal is open (UpstreamModal), or null.
+  const [upstream, setUpstream] = useState(null);
+  // A zoom asked from outside the canvas (a pick in the upstream modal), consumed by Diagram.
+  const [zoomTo, setZoomTo] = useState(null);
+  // Every change is applied at once, then written; a failed write shows in the toolbar and the next load restores the file.
+  const commit = (raw, then) => {
+    replaceSdd(doc.file, raw);
+    refresh();
+    then?.();
+    saving.current++;
+    saveSdd(doc.file, raw)
+      .then(() => setSddError(null), (e) => setSddError(`${e.message}. Not saved: editing needs npm run dev.`))
+      .finally(() => saving.current--);
+  };
+  const edit = doc.file && {
+    file: doc.file,
+    raw: doc.raw,
+    error: sddError,
+    move: (moves) => commit(ops.move(doc.raw, page.id, moves)),
+    add: (kind, pos) => {
+      const { raw, id } = ops.add(doc.raw, page.id, kind, pos);
+      commit(raw, () => go(doc.id, page.id, id));
+    },
+    save: (id, to, value) => commit(ops.rename(ops.describe(doc.raw, id, value), id, to), () => to !== id && go(doc.id, page.id, to)),
+    remove: (id) => commit(ops.remove(doc.raw, id), () => go(doc.id, page.id)),
+    field: (id, key, value) => commit(ops.field(doc.raw, id, key, value)),
+    link: (rel) => commit(ops.link(doc.raw, rel)),
+    unlink: (rel) => commit(ops.unlink(doc.raw, rel)),
+    relabel: (rel, label) => commit(ops.relabel(doc.raw, rel, label)),
+  };
   // On the WIP board the route entity is either a note id or a DSL ref clicked inside a note.
   const note = page.board && boardNotes.find((n) => n.id === entity);
   // Filled by layouts/diagrams.html from the reactflow-* front matter; absent under `npm run dev:diagrams`.
@@ -501,6 +881,13 @@ function App() {
             {!page.board && (
               <details className="tree">
                 <summary className="section">Dimensions{hidden.size ? ` (${hidden.size} hidden)` : ''}</summary>
+                {/* All on / all off. Half-checked when only some are hidden; a click then shows them all. */}
+                <label className="dim all">
+                  <input type="checkbox" checked={hidden.size === 0}
+                    ref={(el) => el && (el.indeterminate = hidden.size > 0 && hidden.size < Object.keys(DIMENSIONS).length)}
+                    onChange={() => setHidden(hidden.size === 0 ? new Set(Object.keys(DIMENSIONS)) : new Set())} />
+                  {hidden.size === 0 ? 'Unmark all' : 'Mark all'}
+                </label>
                 {Object.entries(DIMENSIONS).map(([d, { label, color }]) => (
                   <label key={d} className="dim">
                     <input type="checkbox" checked={!hidden.has(d)} onChange={() => toggle(d)} />
@@ -537,7 +924,7 @@ function App() {
             <Sequence doc={doc} page={page} entity={entity} hidden={hidden} />
           ) : (
             <ReactFlowProvider>
-              <Diagram key={`${doc.id}/${page.id}`} doc={doc} page={page} entity={entity} hidden={hidden} />
+              <Diagram key={`${doc.id}/${page.id}`} doc={doc} page={page} entity={entity} hidden={hidden} edit={edit} zoomTo={zoomTo} />
             </ReactFlowProvider>
           )}
         </div>
@@ -553,8 +940,25 @@ function App() {
           onSaveTags={(id, tags) => apiRef.current?.saveTags(id, tags) ?? Promise.reject(new Error('Board not loaded'))}
           onSaveBody={(id, body) => apiRef.current?.saveBody(id, body) ?? Promise.reject(new Error('Board not loaded'))} isRef={isRef} colorOf={colorOf}
           onRef={(id) => go(doc.id, page.id, id)} onSelect={(id) => go(doc.id, page.id, id)} />
+      ) : doc.file && side === 'agent' ? (
+        <aside className="panel">
+          <SideMenu side={side} onSide={setSide} />
+          <Orchestrator doc={doc} onReload={() => pullRef.current?.()} />
+        </aside>
       ) : (
-        <Panel doc={doc} page={page} entity={entity} />
+        <Panel doc={doc} page={page} entity={entity} edit={edit} onUpstream={setUpstream}
+          menu={doc.file && <SideMenu side={side} onSide={setSide} />} />
+      )}
+      {upstream && (
+        <UpstreamModal doc={doc} id={upstream} hidden={hidden} onClose={() => setUpstream(null)}
+          onPick={(id) => {
+            // A pick leaves the modal for the node itself: zoomed on the main diagram, its panel open on the Node tab.
+            setUpstream(null);
+            setSide('node');
+            setPanelFolded(false);
+            setZoomTo({ id });
+            openEntity(doc, page, id);
+          }} />
       )}
     </div>
   );

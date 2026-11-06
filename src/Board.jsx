@@ -47,7 +47,7 @@ const STICKY = ['#fff59d', '#f8bbd0', '#c5e1a5', '#b3e5fc', '#ffcc80', '#d1c4e9'
 const stickyColor = (label) => STICKY[[...label].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % STICKY.length];
 // A slight tilt per label, -3°..3°, stable across renders.
 const stickyTilt = (label, i) => `${((label.length * 7 + i * 5) % 7) - 3}deg`;
-function Sticky({ label, i = 0, onRemove }) {
+export function Sticky({ label, i = 0, onRemove }) {
   return (
     <span className="sticky" style={{ '--sticky': stickyColor(label), '--tilt': stickyTilt(label, i), '--i': i }}>
       {label}
@@ -56,6 +56,13 @@ function Sticky({ label, i = 0, onRemove }) {
   );
 }
 const MAX_STICKIES = 4;
+// The post-its on top of a node (a board note or a diagram card): the first MAX_STICKIES, then +n.
+export const Stickies = ({ labels }) => labels.length > 0 && (
+  <div className="stickies" aria-label="Labels">
+    {labels.slice(0, MAX_STICKIES).map((l, i) => <Sticky key={l} label={l} i={i} />)}
+    {labels.length > MAX_STICKIES && <span className="sticky more">+{labels.length - MAX_STICKIES}</span>}
+  </div>
+);
 
 // Linear status line of a note created from a cycle issue: live state when the sidebar has it, else the saved one.
 // A link to the issue in the aside only: in the node a click selects the note (and opens the aside).
@@ -132,12 +139,7 @@ function Note({ id, data }) {
   return (
     <div className={['note', droppable && 'droppable', data.linkSource && 'linking'].filter(Boolean).join(' ')} style={data.state && { borderTopColor: data.state.color }}
       onDoubleClick={() => setDraft(data.title)}>
-      {labelsOf(data).length > 0 && (
-        <div className="stickies" aria-label="Labels">
-          {labelsOf(data).slice(0, MAX_STICKIES).map((l, i) => <Sticky key={l} label={l} i={i} />)}
-          {labelsOf(data).length > MAX_STICKIES && <span className="sticky more">+{labelsOf(data).length - MAX_STICKIES}</span>}
-        </div>
-      )}
+      <Stickies labels={labelsOf(data)} />
       {SIDES.map((side) => <Handle key={`t-${side}`} id={`t-${side}`} type="target" position={POSITION[side]} className="note-side" isConnectable={false} />)}
       {SIDES.map((side) => <Handle key={side} id={`s-${side}`} type="source" position={POSITION[side]} className="note-side" isConnectable={false} />)}
       {dragging && <Handle id="drop" type="target" position={Position.Left} className="note-drop" isConnectableStart={false} />}
@@ -400,11 +402,11 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
 }
 
 // Aside label editor: post-its with ×, and an input that adds one on Enter (comma-separated adds several).
-function Labels({ note, onSave }) {
+// onSave(next labels) returns a promise; its error shows next to the input. Shared with the diagram node editor.
+export function Labels({ labels, onSave }) {
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
-  const labels = labelsOf(note);
-  const save = (next) => onSave(note.id, ['wip', ...next]).then(() => setError(null)).catch((e) => setError(e.message));
+  const save = (next) => Promise.resolve(onSave(next)).then(() => setError(null)).catch((e) => setError(e.message));
   const add = () => {
     const fresh = input.split(',').map((t) => t.trim()).filter((t) => t && !labels.includes(t));
     setInput('');
@@ -466,7 +468,7 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
         <h2 className="note-aside-title" title="Click to rename" onClick={() => setTitle(note.title)}>{note.title}</h2>
       )}
       {note.linear && <Status linear={note.linear} state={stateOf(note, issues)} link />}
-      <Labels note={note} onSave={onSaveTags} />
+      <Labels key={note.id} labels={labelsOf(note)} onSave={(next) => onSaveTags(note.id, ['wip', ...next])} />
       {draft !== null ? (
         <div className="note-editor">
           <textarea autoFocus rows={Math.max(10, draft.split('\n').length + 2)} value={draft} onChange={(e) => setDraft(e.target.value)}

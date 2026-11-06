@@ -21,13 +21,15 @@ module:
   imports:
     - path: github.com/imfing/hextra
   mounts:
-    - { source: docs, target: content, files: ["! **.html"] }
+    # _sdd.json: diagram data, saved live by agent-bridge.mjs (like board.json). Kept out of Hugo so a save
+    # neither publishes it nor livereloads the diagram being edited.
+    - { source: docs, target: content, files: ["! **.html", "! **_sdd.json"] }
     # Hugo-only pages (diagrams.md) and the folder → section adapter, kept out of the Obsidian vault.
     - { source: content, target: content }
     # docs/ as assets: content/_content.gotmpl lists the markdown files, and
     # layouts/_partials/publish-docs-files.html publishes the rest (images, json, .html).
     # Not a static mount: `hugo server` would take every .md edit for a static file change.
-    - { source: docs, target: assets/docs }
+    - { source: docs, target: assets/docs, files: ["! **_sdd.json"] }
     # React Flow bundle, built by Vite (npm run dev / build). Hugo renders the page itself.
     - { source: dist/assets, target: static/diagrams/assets }
     - { source: layouts, target: layouts }

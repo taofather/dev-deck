@@ -13,7 +13,10 @@
 .reactflow-app .layout.focus { grid-template-columns: 1fr; }
 .reactflow-app .layout.folded > .sidebar { padding: 8px 4px; overflow: hidden; }
 .reactflow-app .layout.folded > .sidebar > :not(.menu) { display: none; }
-.reactflow-app .sidebar .menu { display: flex; gap: 4px; margin-bottom: 12px; }
+.reactflow-app .sidebar .menu, .reactflow-app .panel-menu { display: flex; gap: 4px; margin-bottom: 12px; }
+/* Right panel Node / Agent toggle on _sdd.json diagrams: same buttons as the sidebar menu. */
+.reactflow-app .panel-menu button { height: 26px; padding: 0 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: #fff; font-size: 13px; font-weight: 600; color: var(--color-neutral-700); cursor: pointer; }
+.reactflow-app .panel-menu button.on { background: var(--color-dark-green-50); border-color: var(--color-dark-green-600); color: var(--color-dark-green-700); }
 .reactflow-app .layout.folded .sidebar .menu { flex-direction: column; }
 .reactflow-app .sidebar .menu button { height: 26px; padding: 0 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: #fff; font-size: 13px; font-weight: 600; color: var(--color-neutral-700); cursor: pointer; }
 .reactflow-app .layout.folded .sidebar .menu button { padding: 0; }
@@ -44,6 +47,7 @@
 .reactflow-app .tree a { margin-left: 12px; }
 .reactflow-app .dim { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 2px 0; }
 .reactflow-app .dim input { accent-color: var(--color-dark-green-600); }
+.reactflow-app .dim.all { font-weight: 600; border-bottom: 1px solid var(--color-neutral-200); margin-bottom: 2px; }
 .reactflow-app .swatch { width: 10px; height: 10px; border-radius: 2px; }
 
 .reactflow-app main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -173,6 +177,35 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .note-editor-bar { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
 .reactflow-app .note-editor-bar .focus-toggle { float: none; }
 .reactflow-app .note-editor-bar .board-error { margin-left: 0; }
+/* Status LED on a card, from the entity's "[status]" text prefix (statusOf in main.jsx). Yellow (in progress) pulses. */
+.reactflow-app .led { --led: #9aa3ad; display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; vertical-align: 1px;
+  background: radial-gradient(circle at 35% 30%, rgb(255 255 255 / .85), var(--led) 55%); box-shadow: 0 0 0 1px rgb(0 0 0 / .15), 0 0 5px var(--led); }
+.reactflow-app .led.grey { --led: #9aa3ad; box-shadow: 0 0 0 1px rgb(0 0 0 / .15); }
+.reactflow-app .led.green { --led: #2fb344; }
+.reactflow-app .led.red { --led: #e03131; }
+.reactflow-app .led.yellow { --led: #f5b700; animation: led-pulse 1.4s ease-in-out infinite; }
+@keyframes led-pulse { 50% { opacity: .45; box-shadow: 0 0 0 1px rgb(0 0 0 / .15), 0 0 10px 2px var(--led); } }
+@media (prefers-reduced-motion: reduce) { .reactflow-app .led.yellow { animation: none; } }
+/* Environment badge on a card, from the entity's `env` (envOf in main.jsx). Prod stands out. */
+.reactflow-app .env-badge { float: right; margin-left: 6px; padding: 0 5px; border-radius: 3px; background: var(--color-neutral-200); color: var(--color-neutral-700); font: 600 10px/16px ui-monospace, monospace; }
+.reactflow-app .env-badge.staging, .reactflow-app .env-badge.sandbox { background: #e0ecff; color: #1d4ed8; }
+.reactflow-app .env-badge.prod { background: #fde2e1; color: #b42318; }
+/* An OP's target environments, one chip each: done green, pending grey (status: [{ env, state }]). */
+.reactflow-app .card-envs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.reactflow-app .env-chip { padding: 0 5px; border-radius: 3px; font: 600 10px/16px ui-monospace, monospace; background: var(--color-neutral-200); color: var(--color-neutral-700); }
+.reactflow-app .env-chip.done { background: #d3f9d8; color: #1b7a32; }
+.reactflow-app .env-chip.done::before { content: '✓ '; }
+/* OP targets in the node editor: a checkbox per environment, a state for each ticked one. */
+.reactflow-app .sdd-editor .op-targets { margin: 8px 0; font-size: 12px; }
+.reactflow-app .sdd-editor .op-targets label { display: flex; align-items: center; gap: 6px; margin: 3px 0; color: var(--color-neutral-700); }
+.reactflow-app .sdd-editor .op-targets label > span { width: 60px; }
+.reactflow-app .sdd-editor .op-targets input { display: inline-block; width: auto; margin: 0; }
+/* Node editor of an editable _sdd.json diagram (EntityEditor in main.jsx). */
+.reactflow-app .sdd-editor label { display: block; margin: 8px 0; font-size: 12px; font-weight: 600; color: var(--color-neutral-500); }
+.reactflow-app .sdd-editor input, .reactflow-app .sdd-editor textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 3px; padding: 6px 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: 13px/1.45 ui-monospace, monospace; resize: vertical; }
+.reactflow-app .focus-toggle.danger { color: #b42318; }
+.reactflow-app .sdd-status { padding: 4px 6px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: 12px var(--font-sans); background: #fff; }
+.reactflow-app .react-flow__panel .focus-toggle { float: none; margin-right: 6px; border-left-width: 4px; }
 /* Claude sessions of a WIP note (src/Sessions.jsx). */
 .reactflow-app .note-sessions { font-size: 11px; font-weight: 600; color: var(--color-neutral-500); white-space: nowrap; }
 .reactflow-app .sessions .session-list, .reactflow-app .sessions .session-picker { list-style: none; padding: 0; margin: 6px 0; }
@@ -251,3 +284,21 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .labels .sticky button:hover { color: rgb(0 0 0 / .85); }
 .reactflow-app .labels input { width: 110px; padding: 4px 8px; border: 1px dashed var(--color-neutral-300); border-radius: 4px; font: 12px var(--font-sans); background: transparent; }
 .reactflow-app .labels input:focus { outline: none; border-style: solid; border-color: var(--color-dark-green-600); }
+/* Linking on editable _sdd.json diagrams, as WIP board notes link (Card in main.jsx): a → handle shown on hover,
+   and the whole card as a drop zone while a link is dragged or click-to-link is on. */
+.reactflow-app .card .react-flow__handle.card-link { opacity: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: #fff; color: var(--color-dark-green-600); font-size: 13px; font-weight: 700; cursor: crosshair; transition: opacity .15s; }
+.reactflow-app .react-flow__node:hover .card .react-flow__handle.card-link { opacity: 1; }
+.reactflow-app .card .react-flow__handle.card-link:hover, .reactflow-app .card.linking .react-flow__handle.card-link { opacity: 1; background: var(--color-dark-green-600); color: #fff; }
+.reactflow-app .card .react-flow__handle.card-drop { position: absolute; inset: 0; z-index: 10; width: 100%; height: 100%; top: 0; left: 0; transform: none; border: 0; border-radius: 6px; background: transparent; opacity: 1; }
+.reactflow-app .card.droppable { cursor: copy; outline: 2px dashed var(--color-dark-green-600); outline-offset: 2px; }
+.reactflow-app .card.linking { box-shadow: 0 0 0 3px var(--color-dark-green-600); }
+/* Upstream modal (UpstreamModal in main.jsx): a temporary canvas over the diagram. */
+.reactflow-app .modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: rgb(15 23 42 / .45); }
+.reactflow-app .modal { display: flex; flex-direction: column; width: min(92vw, 1500px); height: 86vh; background: #fff; border-radius: 8px; box-shadow: 0 20px 50px rgb(0 0 0 / .3); overflow: hidden; }
+.reactflow-app .modal-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--color-neutral-200); font-size: 14px; }
+.reactflow-app .modal-head .focus-toggle { float: none; }
+.reactflow-app .modal-depth { margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-neutral-500); }
+.reactflow-app .modal-depth .focus-toggle.on { background: var(--color-dark-green-50); border-color: var(--color-dark-green-600); color: var(--color-dark-green-700); }
+.reactflow-app .modal-canvas { flex: 1; min-height: 0; }
+.reactflow-app .modal-empty { padding: 24px; }
+.reactflow-app .panel .focus-toggle.upstream { float: none; margin: 0 0 10px; }

@@ -69,6 +69,7 @@ These elements will be always written with the prefix, followed by CamelCase wor
 ## An interconnected JavaScript database
 Take advantage of react-flow JavaScript declaration of entities. Always try to relate with diagrams existing in src/content files.
 A diagram JS file should have its related-hugo-index to back with the `<a class="back" href="/related-hugo-index/">← Docs</a>`.
+A docs folder can also hold its diagram as data in a `_sdd.json` (same shape as a JS doc: `id`, `title`, `entities`, `relations`, `pages`), loaded by `src/content/index.js`. Spec conversions use it (see the `sdd-convert` skill, `sdd-convert-skill.md`).
 
 ## Interconnected files
 Link files to directories or other files if possible, using `intention/boundedContext/domain` hierarchy.

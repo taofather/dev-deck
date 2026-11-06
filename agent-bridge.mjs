@@ -5,9 +5,10 @@
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import { LinearClient } from '@linear/sdk';
 import { randomUUID } from 'node:crypto';
-import { relative } from 'node:path';
+import { relative, resolve, sep } from 'node:path';
 import { addSession, loadNotes, migrateBodies, noteContext, saveBody, saveNotes, saveTags } from './wip-notes.mjs';
 import { AGENT_ROOT, isSessionId, listSessions, transcript } from './claude-sessions.mjs';
 
@@ -35,6 +36,26 @@ const CYCLE_ISSUES = `query {
 // WIP board notes (src/Board.jsx): layout in board.json, bodies in docs/_WIP/board pages (wip-notes.mjs).
 const isNote = (n) => n && typeof n.id === 'string' && typeof n.title === 'string' && Number.isFinite(n.x) && Number.isFinite(n.y);
 const json = (res, data) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
+
+// Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json only.
+const DOCS = resolve(import.meta.dirname, 'docs');
+const sddPath = (file) => {
+  const abs = typeof file === 'string' && resolve(import.meta.dirname, file);
+  return abs && abs.startsWith(DOCS + sep) && abs.endsWith(`${sep}_sdd.json`) ? abs : null;
+};
+const isSdd = (d) => d && typeof d === 'object' && !Array.isArray(d) && typeof (d.entities ?? {}) === 'object'
+  && Array.isArray(d.relations ?? []) && Array.isArray(d.pages ?? []);
+const readSdd = (file) => readFile(file, 'utf8').then((raw) => (raw.trim() ? JSON.parse(raw) : {}));
+// Pretty JSON that stays hand-editable: short arrays ([from, to, label], short id lists) on one line.
+// Checked by a round trip; a string the regex would touch falls back to plain indentation.
+const sddJson = (d) => {
+  const plain = JSON.stringify(d, null, 2);
+  const compact = plain.replace(/\[\s+([^[\]{}]*?)\s+\]/g, (all, inner) => {
+    const line = `[${inner.replace(/\n\s*/g, ' ')}]`;
+    return line.length <= 120 ? line : all;
+  });
+  return `${JSON.stringify(JSON.parse(compact)) === JSON.stringify(d) ? compact : plain}\n`;
+};
 
 function readBody(req, done) {
   let body = '';
@@ -147,6 +168,68 @@ createServer((req, res) => {
       saveTags(b.id, b.tags)
         .then((tags) => (tags ? json(res, { tags }) : res.writeHead(404).end('no such note')))
         .catch((err) => res.writeHead(500).end(err.message));
+    });
+  }
+
+  // A _sdd.json diagram: read on load and focus, written on every edit (src/SddEdit.js).
+  if (url.pathname === '/sdd') {
+    const file = sddPath(url.searchParams.get('file'));
+    if (!file) return res.writeHead(400).end('file must be docs/**/_sdd.json');
+    if (req.method === 'GET') {
+      return readSdd(file)
+        .then((d) => json(res, d))
+        .catch((err) => res.writeHead(err.code === 'ENOENT' ? 404 : 500).end(err.message));
+    }
+    if (req.method === 'PUT') {
+      return readBody(req, async (d) => {
+        if (!isSdd(d)) return res.writeHead(400).end('not a diagram: { entities, relations, pages }');
+        try {
+          // The app may hold a copy older than the orchestrator record (written here by /sdd/chat): keep the record.
+          const disk = await readSdd(file).catch(() => ({}));
+          if (disk.orchestrator && !d.orchestrator) d.orchestrator = disk.orchestrator;
+          await writeFile(file, sddJson(d));
+          res.writeHead(204).end();
+        } catch (err) {
+          res.writeHead(500).end(err.message);
+        }
+      });
+    }
+  }
+
+  // The diagram's orchestrator: one Claude conversation per _sdd.json (src/Orchestrator.jsx). The first message
+  // creates it and records { id, started } as `orchestrator` in the file before claude starts; later ones resume it.
+  if (url.pathname === '/sdd/chat' && req.method === 'POST') {
+    return readBody(req, async (b) => {
+      const file = sddPath(b?.file);
+      if (!file || typeof b.message !== 'string' || !b.message.trim() || !/^[\w-]+$/.test(b.run ?? '') || runs.has(b.run)) {
+        return res.writeHead(400).end();
+      }
+      try {
+        const d = await readSdd(file);
+        let args;
+        let created;
+        if (isSessionId(d.orchestrator?.id)) {
+          args = ['-p', b.message, '--resume', d.orchestrator.id];
+        } else {
+          created = randomUUID();
+          d.orchestrator = { id: created, started: new Date().toISOString() };
+          await writeFile(file, sddJson(d));
+          const intro = [
+            `[Orchestrator of the dev-deck spec diagram "${d.title ?? b.file}".`,
+            `Its data: ${file}. The spec documents it was converted from are the Markdown files in the same folder.`,
+            `Follow ${resolve(import.meta.dirname, 'sdd-convert-skill.md')} (load the unified-docs skill first).`,
+            'Edit that _sdd.json in place: keep "orchestrator" as is, and give every new node a position in its kind column.',
+            `The user watches it live at /diagrams/#/${d.id ?? ''}.]`,
+          ].join(' ');
+          args = ['-p', `${intro}\n\n${b.message}`, '--session-id', created, '--name', `SDD ${d.title ?? b.file}`];
+        }
+        if (relative(AGENT_ROOT, import.meta.dirname).startsWith('..')) args.push('--add-dir', import.meta.dirname);
+        const emit = start(b.run, args, AGENT_ROOT);
+        if (created) emit({ session: created });
+        res.writeHead(202).end();
+      } catch (err) {
+        res.writeHead(500).end(err.message);
+      }
     });
   }
 

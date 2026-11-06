@@ -18,92 +18,47 @@ marked.use({
     image: (href, title, text) => (safeUrl(href) ? false : escapeHtml(text ?? '')),
   },
 });
-const markdown = (text) => ({ __html: marked.parse(text) });
+export const markdown = (text) => ({ __html: marked.parse(text) });
 
-const BRIDGE = 'http://127.0.0.1:5182';
-const KEY = 'wip-chat';
+export const BRIDGE = 'http://127.0.0.1:5182';
 
-const loadChat = () => {
+const loadChat = (key) => {
   try {
-    return JSON.parse(sessionStorage.getItem(KEY));
+    return JSON.parse(sessionStorage.getItem(key));
   } catch {
     return null;
   }
 };
-const storeChat = (chat) => {
+const storeChat = (key, chat) => {
   try {
-    chat ? sessionStorage.setItem(KEY, JSON.stringify(chat)) : sessionStorage.removeItem(KEY);
+    chat ? sessionStorage.setItem(key, JSON.stringify(chat)) : sessionStorage.removeItem(key);
   } catch {}
 };
-const when = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
-const short = (id) => id.slice(0, 8);
+export const when = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
+export const short = (id) => id.slice(0, 8);
 
-// onChanged: reload the board notes, a session was recorded on the page.
-export function Sessions({ note, onChanged }) {
-  const [catalog, setCatalog] = useState(null); // { root, sessions } from AGENT_ROOT
-  const [error, setError] = useState(null);
-  const [picking, setPicking] = useState(false);
-  const [copied, setCopied] = useState(null);
-  // chat: { note, session (null until the bridge names it), log: [[role, text]], run: { id, seen } | null }
+// One open chat per storage key, bound to a scope (a note id, a _sdd.json path): survives livereloads in
+// sessionStorage and follows a run still going after one. chat: { note: scope, session (null until the bridge
+// names it), log: [[role, text]], run: { id, seen } | null }. onEvent(ev) sees every run event (session, done…).
+export function useRunChat(key, scope, onEvent) {
   const [chat, setChatState] = useState(() => {
-    const c = loadChat();
-    return c?.note === note.id ? c : null;
+    const c = loadChat(key);
+    return c?.note === scope ? c : null;
   });
   const setChat = (next) => setChatState((prev) => {
     const value = typeof next === 'function' ? next(prev) : next;
-    storeChat(value);
+    storeChat(key, value);
     return value;
   });
-  const [input, setInput] = useState('');
-
+  // Another scope: its own chat, if the stored one belongs to it.
   useEffect(() => {
-    fetch(`${BRIDGE}/wip/sessions`).then((r) => r.json()).then(setCatalog).catch(() => setError('Bridge not running: npm run dev.'));
-  }, []);
-  // Another note selected: its own chat, if the stored one belongs to it.
-  useEffect(() => {
-    const c = loadChat();
-    setChatState(c?.note === note.id ? c : null);
-    setPicking(false);
-  }, [note.id]);
+    const c = loadChat(key);
+    setChatState(c?.note === scope ? c : null);
+  }, [key, scope]);
   // A run still going after a reload: follow it again.
   useEffect(() => {
     if (chat?.run) follow(chat.run);
   }, [chat?.run?.id]);
-
-  const resumeCmd = (id) => `cd ${catalog?.root ?? 'AGENT_ROOT'} && claude --resume ${id}`;
-  const copy = (id) => navigator.clipboard.writeText(resumeCmd(id)).then(() => {
-    setCopied(id);
-    setTimeout(() => setCopied(null), 1500);
-  });
-  const updatedOf = (id) => catalog?.sessions.find((s) => s.id === id)?.updated;
-
-  const open = (session) => {
-    setChat({ note: note.id, session, log: [], run: null });
-    if (!session) return;
-    fetch(`${BRIDGE}/wip/session?id=${session}`).then((r) => r.json())
-      .then(({ log }) => setChat((c) => (c?.session === session ? { ...c, log: log.map((m) => [m.role, m.text]) } : c)))
-      .catch((e) => setError(e.message));
-  };
-
-  const attach = (s) => fetch(`${BRIDGE}/wip/session/attach`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note: note.id, id: s.id, name: s.title }),
-  }).then((r) => (r.ok ? onChanged() : Promise.reject(new Error(`attach failed: ${r.status}`))))
-    .then(() => setPicking(false))
-    .catch((e) => setError(e.message));
-
-  const send = async () => {
-    const message = input.trim();
-    if (!message || chat.run) return;
-    const run = { id: crypto.randomUUID(), seen: 0 };
-    setInput('');
-    setChat((c) => ({ ...c, log: [...c.log, ['user', message]] }));
-    const res = await fetch(`${BRIDGE}/wip/chat`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ run: run.id, note: note.id, message, session: chat.session ?? undefined }),
-    }).catch((e) => ({ ok: false, statusText: e.message }));
-    // The run is stored (and followed, see the effect) only once the bridge has it.
-    setChat((c) => (res.ok ? { ...c, run } : { ...c, log: [...c.log, ['error', `bridge: ${res.status ?? ''} ${res.statusText}`]] }));
-  };
 
   // Streams run events from `seen` on; a reload mid-stream re-enters here through the effect above.
   async function follow(run, retries = 3) {
@@ -130,7 +85,7 @@ export function Sessions({ note, onChanged }) {
             const session = c.session ?? ev.session ?? ev.sid ?? null;
             return { ...c, log, session, run: ev.done ? null : { ...run } };
           });
-          if (ev.session) onChanged();
+          onEvent?.(ev);
           if (ev.done) return;
         }
       }
@@ -140,6 +95,90 @@ export function Sessions({ note, onChanged }) {
       setChat((c) => (c?.run?.id === run.id ? { ...c, log: [...c.log, ['error', e.message]], run: null } : c));
     }
   }
+
+  // Posts a message to `path` (body + { run, message }); the run is stored, and followed, once the bridge has it.
+  const send = async (path, body, message) => {
+    const run = { id: crypto.randomUUID(), seen: 0 };
+    setChat((c) => ({ ...c, log: [...c.log, ['user', message]] }));
+    const res = await fetch(`${BRIDGE}${path}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, run: run.id, message }),
+    }).catch((e) => ({ ok: false, statusText: e.message }));
+    setChat((c) => (res.ok ? { ...c, run } : { ...c, log: [...c.log, ['error', `bridge: ${res.status ?? ''} ${res.statusText}`]] }));
+  };
+
+  // Loads a session's history from its transcript into the open chat.
+  const loadHistory = (session) => fetch(`${BRIDGE}/wip/session?id=${session}`).then((r) => r.json())
+    .then(({ log }) => setChat((c) => (c?.session === session ? { ...c, log: log.map((m) => [m.role, m.text]) } : c)));
+
+  return { chat, setChat, send, loadHistory };
+}
+
+// The conversation itself: log, input and the "running" state. Shared by note sessions and diagram orchestrators.
+export function ChatLog({ chat, input, setInput, onSend, emptyHint, onClose }) {
+  return (
+    <div className="session-chat">
+      <div className="session-chat-head">
+        <strong>{chat.session ? `Session ${short(chat.session)}` : 'New session'}</strong>
+        {chat.run && <span className="muted"> · running…</span>}
+        {onClose && <button className="focus-toggle" onClick={onClose}>✕</button>}
+      </div>
+      <div className="session-log">
+        {chat.log.map(([role, text], i) => (role === 'agent'
+          ? <div key={i} className="msg agent md" dangerouslySetInnerHTML={markdown(text)} />
+          : <div key={i} className={`msg ${role}`}>{role === 'tool' ? `🔧 ${text}` : text}</div>))}
+        {!chat.log.length && <p className="muted">{chat.session ? 'Loading history…' : emptyHint}</p>}
+      </div>
+      <textarea rows={3} value={input} disabled={!!chat.run} placeholder="Message Claude (Enter to send, Shift+Enter for a new line)"
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            onSend();
+          }
+        }} />
+      {chat.session && <p className="muted session-hint">⚠️ Don't resume it in a terminal while a run here is going.</p>}
+    </div>
+  );
+}
+
+// onChanged: reload the board notes, a session was recorded on the page.
+export function Sessions({ note, onChanged }) {
+  const [catalog, setCatalog] = useState(null); // { root, sessions } from AGENT_ROOT
+  const [error, setError] = useState(null);
+  const [picking, setPicking] = useState(false);
+  const [copied, setCopied] = useState(null);
+  const { chat, setChat, send: post, loadHistory } = useRunChat('wip-chat', note.id, (ev) => ev.session && onChanged());
+  const [input, setInput] = useState('');
+
+  useEffect(() => {
+    fetch(`${BRIDGE}/wip/sessions`).then((r) => r.json()).then(setCatalog).catch(() => setError('Bridge not running: npm run dev.'));
+  }, []);
+  useEffect(() => setPicking(false), [note.id]);
+
+  const resumeCmd = (id) => `cd ${catalog?.root ?? 'AGENT_ROOT'} && claude --resume ${id}`;
+  const copy = (id) => navigator.clipboard.writeText(resumeCmd(id)).then(() => {
+    setCopied(id);
+    setTimeout(() => setCopied(null), 1500);
+  });
+  const updatedOf = (id) => catalog?.sessions.find((s) => s.id === id)?.updated;
+
+  const open = (session) => {
+    setChat({ note: note.id, session, log: [], run: null });
+    if (session) loadHistory(session).catch((e) => setError(e.message));
+  };
+
+  const attach = (s) => fetch(`${BRIDGE}/wip/session/attach`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note: note.id, id: s.id, name: s.title }),
+  }).then((r) => (r.ok ? onChanged() : Promise.reject(new Error(`attach failed: ${r.status}`))))
+    .then(() => setPicking(false))
+    .catch((e) => setError(e.message));
+
+  const send = () => {
+    const message = input.trim();
+    if (!message || chat.run) return;
+    setInput('');
+    post('/wip/chat', { note: note.id, session: chat.session ?? undefined }, message);
+  };
 
   const attached = new Set(note.sessions?.map((s) => s.id));
   return (
@@ -177,28 +216,8 @@ export function Sessions({ note, onChanged }) {
         </ul>
       )}
       {chat && (
-        <div className="session-chat">
-          <div className="session-chat-head">
-            <strong>{chat.session ? `Session ${short(chat.session)}` : 'New session'}</strong>
-            {chat.run && <span className="muted"> · running…</span>}
-            <button className="focus-toggle" onClick={() => setChat(null)}>✕</button>
-          </div>
-          <div className="session-log">
-            {chat.log.map(([role, text], i) => (role === 'agent'
-              ? <div key={i} className="msg agent md" dangerouslySetInnerHTML={markdown(text)} />
-              : <div key={i} className={`msg ${role}`}>{role === 'tool' ? `🔧 ${text}` : text}</div>))}
-            {!chat.log.length && <p className="muted">{chat.session ? 'Loading history…' : `Runs in ${catalog?.root ?? 'AGENT_ROOT'}. The first message starts the session.`}</p>}
-          </div>
-          <textarea rows={3} value={input} disabled={!!chat.run} placeholder="Message Claude (Enter to send, Shift+Enter for a new line)"
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }} />
-          {chat.session && <p className="muted session-hint">⚠️ Don't resume it in a terminal while a run here is going.</p>}
-        </div>
+        <ChatLog chat={chat} input={input} setInput={setInput} onSend={send} onClose={() => setChat(null)}
+          emptyHint={`Runs in ${catalog?.root ?? 'AGENT_ROOT'}. The first message starts the session.`} />
       )}
     </section>
   );
