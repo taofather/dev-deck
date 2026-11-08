@@ -1,4 +1,4 @@
-// Localhost bridge: the chat panel (assets/agent-chat.js) POSTs here, this runs `claude -p` in this
+// Localhost bridge: the chat panel (src/agent-chat.js) POSTs here, this runs `claude -p` in this
 // repo (AGENTS.md applies) and streams its stream-json events back as SSE. Started by `npm run dev`.
 // Every agent edit livereloads the page, so a run outlives its HTTP request: events are buffered per
 // run and GET /stream?run=<id>&from=<n> replays them to the reloaded page.
@@ -296,7 +296,7 @@ createServer((req, res) => {
     });
   }
 
-  // Page chat panel (assets/agent-chat.js): runs in dev-deck.
+  // Page chat panel (src/agent-chat.js): runs in dev-deck.
   if (req.method !== 'POST' || url.pathname !== '/chat') return res.writeHead(404).end();
   readBody(req, (msg) => {
     if (typeof msg?.message !== 'string' || !msg.message.trim() || !/^[\w-]+$/.test(msg.run ?? '') || runs.has(msg.run)) {
