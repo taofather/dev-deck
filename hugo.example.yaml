@@ -1,0 +1,51 @@
+# Hugo + Hextra. Content lives in docs/ (also an Obsidian vault), so it is mounted
+# instead of moved. No menu for the sidebar: Hextra builds it from the folder tree.
+title: Developer Deck
+baseURL: /
+disableKinds: [rss]
+taxonomies:
+  tag: tags
+  entity: entities # DSL names: DBT-Orders, BENT-Order, BFUN-…
+# Term pages (/tags/x/) use layouts/list.html: Hextra's term.html prints .Title, which most docs lack.
+cascade:
+  - target: { kind: term }
+    layout: list
+  - target: { kind: taxonomy }
+    layout: list
+  - { target: { path: /tags }, title: Tags }
+  - { target: { path: /entities }, title: Entities }
+# Keep tag names as written (flow/procurement), not "Flow/procurement".
+capitalizeListTitles: false
+
+module:
+  imports:
+    - path: github.com/imfing/hextra
+  mounts:
+    # _sdd.json: diagram data, saved live by agent-bridge.mjs (like board.json). Kept out of Hugo so a save
+    # neither publishes it nor livereloads the diagram being edited.
+    - { source: docs, target: content, files: ["! **.html", "! **_sdd.json"] }
+    # Hugo-only pages (diagrams.md) and the folder → section adapter, kept out of the Obsidian vault.
+    - { source: content, target: content }
+    # docs/ as assets: content/_content.gotmpl lists the markdown files, and
+    # layouts/_partials/publish-docs-files.html publishes the rest (images, json, .html).
+    # Not a static mount: `hugo server` would take every .md edit for a static file change.
+    - { source: docs, target: assets/docs, files: ["! **_sdd.json"] }
+    # React Flow bundle, built by Vite (npm run dev / build). Hugo renders the page itself.
+    - { source: dist/assets, target: static/diagrams/assets }
+    - { source: layouts, target: layouts }
+
+# Top tabs, as MkDocs did with navigation.tabs.
+menu:
+  main:
+    - { name: WIP, url: /diagrams/#/wip, weight: 1 }
+    - { name: Example, pageRef: /example, weight: 2 }
+    - { name: Diagrams, pageRef: /diagrams, weight: 3 }
+    - { name: Tags, pageRef: /tags, weight: 4 }
+    - { name: Entities, pageRef: /entities, weight: 5 }
+    - { name: Linear, url: "https://linear.app/my-issues/assigned", weight: 6, params: { type: link, icon: linear } }
+    - { name: Search, weight: 7, params: { type: search } }
+
+params:
+  navbar:
+    displayTitle: true
+    displayLogo: false

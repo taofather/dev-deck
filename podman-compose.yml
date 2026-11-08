@@ -9,6 +9,11 @@ services:
     working_dir: /app
     volumes:
       - .:/app:z
+      - ../..:/app/docs:z
+      - /app/docs/.dev-deck
+      - ../hugo.yaml:/app/hugo.yaml:z
+      - ../assets:/app/custom-assets:z
+      - ../database:/app/database:z
     ports:
       - "5180:5180"
       - "5182:5182"
