@@ -17,7 +17,7 @@ const PORT = 5182;
 const ORIGINS = ['http://localhost:5180', 'http://127.0.0.1:5180'];
 const TOOLS = 'Read,Edit,Write,Glob,Grep';
 const KEEP_MS = 10 * 60 * 1000;
-// Linear personal API key (linear.app/consentio/settings/account/security), from the env or the gitignored .env.
+// Linear personal API key (linear.app/mycompany/settings/account/security), from the env or the gitignored .env.
 if (existsSync(`${import.meta.dirname}/.env`)) process.loadEnvFile(`${import.meta.dirname}/.env`);
 const linear = process.env.LINEAR_API_KEY && new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
 // One raw query instead of the SDK's lazy models: those fetch state, cycle and labels one request per issue.

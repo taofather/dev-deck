@@ -1,4 +1,4 @@
-/* Layout only; colors and fonts come from docs/assets/consentio.css (shared with Hugo).
+/* Layout only; colors and fonts come from docs/assets/custom.css (shared with Hugo).
    Scoped to .reactflow-app (#root): the page also holds the Hugo navbar. */
 .reactflow-app * { box-sizing: border-box; }
 .reactflow-app { margin: 0; font-family: var(--font-sans); color: var(--color-neutral-700); background: var(--color-neutral-50); }

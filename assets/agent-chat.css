@@ -1,4 +1,4 @@
-/* Chat panel for agent-chat.js; colors from docs/assets/consentio.css. */
+/* Chat panel for agent-chat.js; colors from docs/assets/custom.css. */
 .agent-chat { position: fixed; right: 16px; bottom: 16px; z-index: 100; font-family: var(--font-sans); font-size: 14px; }
 .agent-chat-toggle {
   width: 48px; height: 48px; border-radius: 50%; border: 0; cursor: pointer; font-size: 22px;

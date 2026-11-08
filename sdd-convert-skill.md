@@ -14,9 +14,9 @@ On conflict, this file wins for the diagram storage and node set.
 
 ## 1. Input
 
-- A spec file path, usually outside dev-deck (e.g. `knowledge/prds/...`, `src/rtapi-1/docs/...`).
+- A spec file path, usually outside dev-deck. Prompt user for file paths.
 - Read it fully. Never invent a requirement, decision, plan step or entity the spec does not state.
-- Skip RESTRICTED folders (`omnologus-consentio`, `omnologus-taofather`) unless the user names them.
+- Skip RESTRICTED folders unless the user names them.
 
 ## 2. Output: `_sdd.json`, one per folder
 
