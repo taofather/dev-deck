@@ -186,7 +186,7 @@ function Card({ id, data, selected }) {
   useEffect(() => {
     if (data.editable) updateNodeInternals(id);
   }, [dragging, data.editable, id, updateNodeInternals]);
-  const cls = ['card', data.kind, data.focused && 'focused', data.faded && 'faded', selected && 'selected',
+  const cls = ['card', data.kind, data.focused && 'focused', data.faded && 'faded', data.match && 'match', selected && 'selected',
     (dragging || data.linkTarget) && 'droppable', data.linkSource && 'linking'];
   return (
     <div className={cls.filter(Boolean).join(' ')} style={{ borderLeftColor: color }}>
@@ -286,7 +286,11 @@ const linkLabel = (a, b) => LINK_LABELS.find(([x, y]) => x.test(a.split('-')[0])
 
 // onPick: a click on a node calls it instead of navigating (the flow modal); the view then fits all, no zoom.
 // zoomTo: { id } asks for one zoom onto that entity once the route shows it, even where clicks never zoom (editable).
-function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo }) {
+// Search over a node: its id, label and, in a _sdd.json, its whole entity (text, why, tags, status, env).
+const matches = (doc, n, q) => [n.data.ref, n.data.label, JSON.stringify(doc.raw?.entities?.[n.data.ref] ?? '')]
+  .join(' ').toLowerCase().includes(q);
+
+function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }) {
   const base = useMemo(() => layout(page), [page]);
   const { fitView, screenToFlowPosition } = useReactFlow();
   // Dragged positions live here until the page changes (the Diagram key remounts this state).
@@ -317,10 +321,12 @@ function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo }) {
 
   // A relation (from~to) focuses both ends and the edge itself.
   const focus = entity?.split('~') ?? [];
+  const q = query.trim().toLowerCase();
+  const hit = (n) => !q || (n.type === 'card' && matches(doc, n, q));
   const nodes = moved.map((n) => ({
     ...n,
     data: {
-      ...n.data, focused: focus.includes(n.data.ref), faded: hidden.has(n.data.dim),
+      ...n.data, focused: focus.includes(n.data.ref), faded: hidden.has(n.data.dim) || !hit(n), match: !!q && hit(n),
       ...(linkable && n.type === 'card' && {
         editable: true, linkSource: linkFrom === n.id, linkTarget: !!linkFrom && linkFrom !== n.id,
         onStartLink: () => setLinkFrom((f) => (f === n.id ? null : n.id)),
@@ -344,6 +350,14 @@ function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo }) {
     // Wait one frame so React Flow has measured the new nodes.
     if (hits.length) requestAnimationFrame(() => fitView({ nodes: hits, maxZoom: 1.2, duration: 400 }));
   }, [entity, fitView, zoomTo]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A search frames its matches once typing pauses.
+  useEffect(() => {
+    if (!q) return;
+    const hits = base.nodes.filter(hit).map((n) => ({ id: n.id }));
+    const t = setTimeout(() => hits.length && fitView({ nodes: hits, maxZoom: 1.2, duration: 400 }), 300);
+    return () => clearTimeout(t);
+  }, [q, fitView]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <ReactFlow
@@ -828,6 +842,9 @@ function App() {
   const [flow, setFlow] = useState(null);
   // A zoom asked from outside the canvas (a pick in the flow modal), consumed by Diagram.
   const [zoomTo, setZoomTo] = useState(null);
+  // Diagram search (header input); cleared when the page changes.
+  const [query, setQuery] = useState('');
+  useEffect(() => setQuery(''), [doc.id, page.id]);
   // Every change is applied at once, then written; a failed write shows in the toolbar and the next load restores the file.
   const commit = (raw, then) => {
     replaceSdd(doc.file, raw);
@@ -921,9 +938,12 @@ function App() {
       <main>
         <header>
           <button className="focus-toggle" onClick={() => setFocus(!focus)}>{focus ? '⇤ Panels' : '⤢ Focus'}</button>
+          {!page.board && !page.sequence && (
+            <input type="search" className="diagram-search" placeholder="🔍 Search nodes…" value={query}
+              onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQuery('')} />
+          )}
           <div className="eyebrow">{doc.title} › {page.section}</div>
           <h2>{page.title}</h2>
-          <p>{page.intro}</p>
         </header>
         <div className="canvas" onClickCapture={showPanelOnNode}>
           {page.board ? (
@@ -936,7 +956,7 @@ function App() {
             <Sequence doc={doc} page={page} entity={entity} hidden={hidden} />
           ) : (
             <ReactFlowProvider>
-              <Diagram key={`${doc.id}/${page.id}`} doc={doc} page={page} entity={entity} hidden={hidden} edit={edit} zoomTo={zoomTo} />
+              <Diagram key={`${doc.id}/${page.id}`} doc={doc} page={page} entity={entity} hidden={hidden} edit={edit} zoomTo={zoomTo} query={query} />
             </ReactFlowProvider>
           )}
         </div>
