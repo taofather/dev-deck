@@ -266,7 +266,8 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
       ? 'The bridge predates note pages: restart npm run dev.' : `save failed: ${r.status}`))))))
     .then(({ page }) => setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, body, page } : n))));
   useEffect(() => {
-    if (apiRef) apiRef.current = notes ? { addIssue, saveBody, saveTags, rename: (id, title) => update(id, { title }), reload: load } : null;
+    if (apiRef) apiRef.current = notes ? { addIssue, saveBody, saveTags, rename: (id, title) => update(id, { title }), reload: load,
+      rotate: (r, end) => relation(r)?.rotate(end) } : null;
   });
   const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, fromSide, toSide, links, linkSides, linkToSides, ...n }) => {
     const kept = links?.filter((t) => t !== id);
@@ -426,7 +427,7 @@ export function Labels({ labels, onSave }) {
 }
 
 // Right-hand aside for the selected note: its full body plus the notes it is related to.
-export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload }) {
+export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload, onRotate }) {
   const [draft, setDraft] = useState(null);
   // Title: click to rename; Enter or blur saves, Esc cancels. Saved like a rename on the node (board.json + page).
   const [title, setTitle] = useState(null);
@@ -452,9 +453,14 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
       })
       .catch((e) => setSaving(e.message));
   };
-  const parent = notes.find((n) => n.id === note.from);
-  const children = notes.filter((n) => n.from === note.id);
-  const link = (n) => <li key={n.id}><a onClick={() => onSelect(n.id)}>{n.title}</a></li>;
+  // Every arrow touching this note: parent and children (from), links out and in. Each end rotates like the edge menu.
+  const byId = (id) => notes.find((n) => n.id === id);
+  const rels = [
+    note.from && byId(note.from) && { kind: 'from', source: note.from, target: note.id, other: byId(note.from), label: 'Related to ↑' },
+    ...notes.filter((n) => n.from === note.id).map((n) => ({ kind: 'from', source: note.id, target: n.id, other: n, label: 'Related ↓' })),
+    ...(note.links ?? []).filter(byId).map((t) => ({ kind: 'link', source: note.id, target: t, other: byId(t), label: 'Links to →' })),
+    ...notes.filter((n) => n.links?.includes(note.id)).map((n) => ({ kind: 'link', source: n.id, target: note.id, other: n, label: 'Linked from ←' })),
+  ].filter(Boolean);
   return (
     <aside className="panel">
       <div className="badge" style={{ background: 'var(--color-dark-green-600)' }}>WIP note</div>
@@ -492,8 +498,25 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
         </>
       )}
       <Sessions note={note} onChanged={onReload} />
-      {parent && <><h3>Related to ↑</h3><ul>{link(parent)}</ul></>}
-      {children.length > 0 && <><h3>Related notes ↓</h3><ul>{children.map(link)}</ul></>}
+      {rels.length > 0 && (
+        <>
+          <h3>Relations</h3>
+          <ul className="note-rels">
+            {rels.map((r) => {
+              const sides = sidesOf(r.kind, byId(r.source), byId(r.target));
+              return (
+                <li key={`${r.kind}:${r.source}>${r.target}`}>
+                  <span className="muted">{r.label}</span> <a onClick={() => onSelect(r.other.id)}>{r.other.title}</a>
+                  <span className="note-rel-rotate">
+                    <button className="focus-toggle" title={`Origin side: ${sides.origin} → ${nextSide(sides.origin)}`} onClick={() => onRotate(r, 'origin')}>↻ origin · {sides.origin}</button>
+                    <button className="focus-toggle" title={`Destination side: ${sides.dest} → ${nextSide(sides.dest)}`} onClick={() => onRotate(r, 'dest')}>↻ destination · {sides.dest}</button>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
       <p className="muted">Double-click the note on the board to rename it. The body is saved as Markdown in docs/_WIP/board.</p>
     </aside>
   );

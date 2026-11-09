@@ -7,7 +7,9 @@ import '../docs/assets/custom.css';
 import './styles.css';
 
 import { docs, replaceSdd } from './content/index.js';
-import { ENVS, ID, NEW_KINDS, OP_STATES, loadSdd, ops, saveSdd, statusesOf } from './SddEdit.js';
+import { ENVS, ID, NEW_KINDS, OP_STATES, SIDES, loadSdd, nextSide, ops, saveSdd, statusesOf } from './SddEdit.js';
+
+const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
 import { Board, Labels, NoteAside, Stickies } from './Board.jsx';
 import { CycleIssues } from './Linear.jsx';
 import { Orchestrator } from './Orchestrator.jsx';
@@ -135,6 +137,7 @@ function layout(page) {
     };
   });
   const refOf = Object.fromEntries(nodes.map((n) => [n.id, n.ref]));
+  const relOf = (a, b) => (refOf[a] && refOf[b] ? `${refOf[a]}~${refOf[b]}` : null);
   return {
     nodes: [...groupNodes, ...nodes.map((n) => {
       const h = heightOf(n);
@@ -149,9 +152,12 @@ function layout(page) {
     })],
     // page.edgeType: 'step' (square), 'smoothstep' (rounded corners), 'straight' or 'default' (bezier).
     // An edge between two refs is a relation: clicking it opens #/doc/page/<from>~<to>.
+    // page.sides["A~B"]: arrow ends moved off the default sides (rotated in the relation panel; Card's side handles).
     edges: edges.map(([a, b, label, dashed], i) => ({
       id: `e${i}`,
-      data: { rel: refOf[a] && refOf[b] ? `${refOf[a]}~${refOf[b]}` : null },
+      data: { rel: relOf(a, b) },
+      ...(page.sides?.[relOf(a, b)]?.from && { sourceHandle: `s-${page.sides[relOf(a, b)].from}` }),
+      ...(page.sides?.[relOf(a, b)]?.to && { targetHandle: `t-${page.sides[relOf(a, b)].to}` }),
       type: page.edgeType ?? 'step',
       source: a,
       target: b,
@@ -217,6 +223,9 @@ function Card({ id, data, selected }) {
         </table>
       )}
       <Handle type="source" position={data.horizontal ? Position.Right : Position.Bottom} />
+      {/* Hidden ends for rotated arrows (page.sides); after the defaults, which edges without a handle id take. */}
+      {SIDES.map((s) => <Handle key={`s-${s}`} id={`s-${s}`} type="source" position={POSITIONS[s]} className="side-handle" isConnectable={false} />)}
+      {SIDES.map((s) => <Handle key={`t-${s}`} id={`t-${s}`} type="target" position={POSITIONS[s]} className="side-handle" isConnectable={false} />)}
       {data.editable && (
         <Handle id="link" type="source" position={Position.Right} className="card-link" isConnectableEnd={false}
           title="Drag onto another node, or click and then click it"
@@ -547,6 +556,10 @@ function RelationPanel({ doc, page, rel, edit, menu }) {
   const own = edit ? (edit.raw.relations ?? []).filter(between) : [];
   const labels = [...new Map([...refEdges(page), ...relations].filter(between).map((r) => [r.join('|'), r])).values()];
   const pages = docs.flatMap((d) => d.pages.filter((p) => refEdges(p).some(([x, y]) => x === a && y === b)).map((p) => ({ doc: d, page: p })));
+  // The arrow's ends on this page: saved sides, else the card's default handles for the page direction.
+  const drawn = edit && refEdges(page).some(([x, y]) => x === a && y === b);
+  const lr = page.direction === 'LR';
+  const sides = { from: page.sides?.[rel]?.from ?? (lr ? 'right' : 'bottom'), to: page.sides?.[rel]?.to ?? (lr ? 'left' : 'top') };
   const end = (id) => (
     <section key={id}>
       <h3><a onClick={() => openEntity(doc, page, id)} style={{ color: DIMENSIONS[dimOf(id)].color }}>{id}</a></h3>
@@ -563,6 +576,14 @@ function RelationPanel({ doc, page, rel, edit, menu }) {
           <li key={`${x}|${y}|${l}`}>{x === a ? '→' : '←'} <b>{l || '—'}</b></li>
         ))}
       </ul>
+      {drawn && (
+        <div className="rel-rotate">
+          <button className="focus-toggle" title={`Origin side: ${sides.from} → ${nextSide(sides.from)}`}
+            onClick={() => edit.side(rel, 'from', nextSide(sides.from))}>↻ Rotate origin · {sides.from}</button>
+          <button className="focus-toggle" title={`Destination side: ${sides.to} → ${nextSide(sides.to)}`}
+            onClick={() => edit.side(rel, 'to', nextSide(sides.to))}>↻ Rotate destination · {sides.to}</button>
+        </div>
+      )}
       {own.length > 0 && (
         <>
           <h3>Edit in {doc.title}</h3>
@@ -870,6 +891,7 @@ function App() {
     link: (rel) => commit(ops.link(doc.raw, rel)),
     unlink: (rel) => commit(ops.unlink(doc.raw, rel)),
     relabel: (rel, label) => commit(ops.relabel(doc.raw, rel, label)),
+    side: (rel, end, side) => commit(ops.side(doc.raw, page.id, rel, end, side)),
   };
   // On the WIP board the route entity is either a note id or a DSL ref clicked inside a note.
   const note = page.board && boardNotes.find((n) => n.id === entity);
@@ -969,6 +991,7 @@ function App() {
         <NoteAside note={note} notes={boardNotes} issues={issues}
           onReload={() => apiRef.current?.reload()}
           onRename={(id, title) => apiRef.current?.rename(id, title)}
+          onRotate={(rel, end) => apiRef.current?.rotate(rel, end)}
           onSaveTags={(id, tags) => apiRef.current?.saveTags(id, tags) ?? Promise.reject(new Error('Board not loaded'))}
           onSaveBody={(id, body) => apiRef.current?.saveBody(id, body) ?? Promise.reject(new Error('Board not loaded'))} isRef={isRef} colorOf={colorOf}
           onRef={(id) => go(doc.id, page.id, id)} onSelect={(id) => go(doc.id, page.id, id)} />

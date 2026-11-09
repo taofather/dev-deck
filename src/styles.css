@@ -305,3 +305,12 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .modal-empty { padding: 24px; }
 .reactflow-app .panel .flow-buttons { display: flex; gap: 6px; margin: 0 0 10px; }
 .reactflow-app .panel .flow-buttons .focus-toggle { float: none; }
+
+/* WIP note aside: relations, each end rotatable (Board.jsx NoteAside). */
+.reactflow-app .note-rels li { margin-bottom: 6px; }
+.reactflow-app .note-rel-rotate { display: flex; gap: 6px; margin-top: 3px; }
+.reactflow-app .note-rel-rotate .focus-toggle { float: none; font-weight: 500; }
+/* _sdd.json relation panel: rotate the arrow ends; Card's hidden per-side handles they attach to. */
+.reactflow-app .rel-rotate { display: flex; gap: 6px; margin: 0 0 10px; }
+.reactflow-app .rel-rotate .focus-toggle { float: none; }
+.reactflow-app .card .side-handle { opacity: 0; pointer-events: none; }

@@ -34,11 +34,26 @@ const mapIds = (raw, fn) => {
   for (const p of raw.pages ?? []) {
     if (Array.isArray(p.entities)) p.entities = p.entities.map(fn).filter(Boolean);
     if (p.positions) p.positions = Object.fromEntries(Object.entries(p.positions).map(([k, v]) => [fn(k), v]).filter(([k]) => k));
+    if (p.sides) {
+      p.sides = Object.fromEntries(Object.entries(p.sides).map(([k, v]) => [k.split('~').map(fn), v])
+        .filter(([ends]) => ends.every(Boolean)).map(([ends, v]) => [ends.join('~'), v]));
+    }
   }
 };
 const sameRel = (r, [a, b, label]) => r[0] === a && r[1] === b && (r[2] ?? '') === (label ?? '');
 
+// Sides an arrow end can sit on, in the order "Rotate origin/destination" walks them (as on the WIP board).
+export const SIDES = ['right', 'bottom', 'left', 'top'];
+export const nextSide = (side) => SIDES[(SIDES.indexOf(side) + 1) % SIDES.length];
+
 export const ops = {
+  // One end of a relation's arrow on this page: page.sides["A~B"] = { from, to } (origin and destination side).
+  side: (raw, pageId, rel, end, side) => {
+    const next = clone(raw);
+    const page = pageOf(next, pageId);
+    page.sides = { ...page.sides, [rel]: { ...page.sides?.[rel], [end]: side } };
+    return next;
+  },
   move: (raw, pageId, moves) => {
     const next = clone(raw);
     const page = pageOf(next, pageId);
