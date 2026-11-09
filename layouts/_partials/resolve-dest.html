@@ -8,6 +8,7 @@
   {{- with $url.RawQuery }}{{ $suffix = printf "?%s" . }}{{ end -}}
   {{- with $url.Fragment }}{{ $suffix = printf "%s#%s" $suffix . }}{{ end -}}
   {{- $file := path.Join .PageInner.File.Dir $url.Path -}}
+  {{- $folder := and (strings.HasSuffix $url.Path "/") (.PageInner.GetPage (printf "/%s" $file)) -}}
   {{- if strings.HasSuffix $url.Path ".md" -}}
     {{- /* Relative to the file first, then by unique file name (Obsidian shortest-path links). */ -}}
     {{- with or (.PageInner.GetPage (printf "/%s" $file)) (index (partialCached "pages-by-filename.html" .) (path.Base $url.Path)) -}}
@@ -15,6 +16,9 @@
     {{- else -}}
       {{- warnf "%s: broken link %s" .PageInner.File.Path $url.Path -}}
     {{- end -}}
+  {{- else if $folder -}}
+    {{- /* A folder link (board/) is its section page, at its lower-case URL. */ -}}
+    {{- $dest = printf "%s%s" $folder.RelPermalink $suffix -}}
   {{- else if fileExists (printf "docs/%s" $file) -}}
     {{- $dest = printf "%s%s" (relURL (replace $file " " "%20")) $suffix -}}
   {{- end -}}

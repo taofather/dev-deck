@@ -37,6 +37,3 @@ Thumbs.db
 /public
 /resources
 .hugo_build.lock
-
-# WIP board notes (src/content/wip/wip.js), personal like docs/_WIP.
-/src/content/wip/board.json

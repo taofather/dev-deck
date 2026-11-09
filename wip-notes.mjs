@@ -1,12 +1,12 @@
 // WIP board storage, used by agent-bridge.mjs. Two places, one note:
-// - src/content/wip/board.json: layout and graph (id, title, x, y, from, links, linear). Outside Hugo: saving reloads nothing.
+// - docs/_WIP/board.json: layout and graph (id, title, x, y, from, links, linear). Excluded from Hugo (hugo.yaml): saving reloads nothing.
 // - docs/_WIP/board/*.md: the note body as a Hugo page, found by its `board: <note id>` front matter.
 //   Hugo renders it under /_wip/board/<file>/; editing it in an editor or Obsidian shows on the board.
 import { existsSync } from 'node:fs';
 import { copyFile, mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 
 const ROOT = import.meta.dirname;
-const BOARD = `${ROOT}/src/content/wip/board.json`;
+const BOARD = `${ROOT}/docs/_WIP/board.json`;
 const DIR = `${ROOT}/docs/_WIP/board`;
 const FM = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
