@@ -222,7 +222,7 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .session-chat { border: 1px solid var(--color-neutral-200); border-radius: 6px; padding: 8px; margin: 8px 0; }
 .reactflow-app .session-chat-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .reactflow-app .session-chat-head .focus-toggle { margin-left: auto; }
-.reactflow-app .session-log { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.reactflow-app .session-log { max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .reactflow-app .session-log .msg { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; padding: 6px 8px; border-radius: 6px; }
 .reactflow-app .session-log .msg.user { background: var(--color-dark-green-50); align-self: flex-end; max-width: 90%; }
 .reactflow-app .session-log .msg.agent { background: var(--color-neutral-100, #f4f4f4); }
@@ -314,3 +314,9 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .rel-rotate { display: flex; gap: 6px; margin: 0 0 10px; }
 .reactflow-app .rel-rotate .focus-toggle { float: none; }
 .reactflow-app .card .side-handle { opacity: 0; pointer-events: none; }
+/* ⛶ Full screen panel (App panelMax): the panel alone, content in a centered column. */
+.reactflow-app .fold-toggle.panel-max-toggle { position: absolute; top: 8px; right: 36px; z-index: 5; float: none; }
+.reactflow-app .layout.panel-folded > .panel-max-toggle, .reactflow-app .layout.focus > .panel-max-toggle { display: none; }
+.reactflow-app .layout.panel-max > .sidebar, .reactflow-app .layout.panel-max > main { display: none; }
+.reactflow-app .layout.panel-max > .panel { border-left: 0; padding-inline: max(16px, calc((100% - 960px) / 2)); }
+.reactflow-app .layout.panel-max .session-log { max-height: max(300px, calc(100vh - 380px)); }

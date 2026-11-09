@@ -768,7 +768,7 @@ const FOLDED_W = '36px';
 // Sidebar menu options: [key, icon, label]. Linear lists the current cycle and lives on the WIP board.
 const MENUS = [['browse', '🗂', 'Browse'], ['linear', '◷', 'Linear']];
 
-const columnsOf = ({ focus, folded, panelFolded, board }) => (focus ? '1fr' : [
+const columnsOf = ({ focus, folded, panelFolded, panelMax, board }) => (focus || panelMax ? '1fr' : [
   folded ? FOLDED_W : board ? '380px' : '240px',
   '1fr',
   panelFolded ? FOLDED_W : board ? '760px' : '680px',
@@ -795,6 +795,14 @@ function App() {
   };
   const folded = !menu;
   const [panelFolded, foldPanel, setPanelFolded] = useFold('panel-folded');
+  // ⛶ Full screen panel: the panel alone, its content centered (node, relation or agent chat). Esc leaves it.
+  const [panelMax, setPanelMax] = useState(false);
+  useEffect(() => {
+    if (!panelMax) return;
+    const esc = (e) => e.key === 'Escape' && !e.target.closest('input, textarea, select') && setPanelMax(false);
+    addEventListener('keydown', esc);
+    return () => removeEventListener('keydown', esc);
+  }, [panelMax]);
   // Clicking a node (board note or diagram card) brings a folded panel back, even when that node is already
   // selected and the route does not change. A node's own buttons and handles (✕, +, →) leave it folded.
   // On a _sdd.json diagram it also leaves the Agent tab for the 🔎 Node tab, and so does an edge (relation panel).
@@ -910,8 +918,13 @@ function App() {
   });
 
   return (
-    <div className={['layout', focus && 'focus', folded && 'folded', panelFolded && 'panel-folded'].filter(Boolean).join(' ')}
-      style={{ gridTemplateColumns: columnsOf({ focus, folded, panelFolded, board: page.board }) }}>
+    <div className={['layout', focus && 'focus', folded && 'folded', panelFolded && 'panel-folded', panelMax && 'panel-max'].filter(Boolean).join(' ')}
+      style={{ gridTemplateColumns: columnsOf({ focus, folded, panelFolded, panelMax, board: page.board }) }}>
+      <button className="fold-toggle panel-max-toggle" title={panelMax ? 'Exit full screen (Esc)' : 'Full screen panel'}
+        onClick={() => {
+          setPanelMax(!panelMax);
+          setPanelFolded(false);
+        }}>{panelMax ? '⤡' : '⛶'}</button>
       <button className="fold-toggle panel-fold" title={panelFolded ? 'Unfold panel' : 'Fold panel'} onClick={foldPanel}>
         {panelFolded ? '«' : '»'}
       </button>
