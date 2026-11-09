@@ -2,7 +2,7 @@
 // in the note page's claude_sessions front matter, so `cd AGENT_ROOT && claude --resume <id>` picks them up.
 // Recording a session or an agent edit livereloads the page: the open chat lives in sessionStorage and its run
 // is followed again from the last event seen (as src/agent-chat.js does).
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { marked } from 'marked';
 
 // Agent replies render as Markdown. Raw HTML is shown escaped and only http(s)/mailto/relative/anchor URLs
@@ -115,6 +115,11 @@ export function useRunChat(key, scope, onEvent) {
 
 // The conversation itself: log, input and the "running" state. Shared by note sessions and diagram orchestrators.
 export function ChatLog({ chat, input, setInput, onSend, emptyHint, onClose }) {
+  // Opens on, and follows, the latest message.
+  const log = useRef(null);
+  useEffect(() => {
+    if (log.current) log.current.scrollTop = log.current.scrollHeight;
+  }, [chat.log.length, chat.session]);
   return (
     <div className="session-chat">
       <div className="session-chat-head">
@@ -122,13 +127,13 @@ export function ChatLog({ chat, input, setInput, onSend, emptyHint, onClose }) {
         {chat.run && <span className="muted"> · running…</span>}
         {onClose && <button className="focus-toggle" onClick={onClose}>✕</button>}
       </div>
-      <div className="session-log">
+      <div className="session-log" ref={log}>
         {chat.log.map(([role, text], i) => (role === 'agent'
           ? <div key={i} className="msg agent md" dangerouslySetInnerHTML={markdown(text)} />
           : <div key={i} className={`msg ${role}`}>{role === 'tool' ? `🔧 ${text}` : text}</div>))}
         {!chat.log.length && <p className="muted">{chat.session ? 'Loading history…' : emptyHint}</p>}
       </div>
-      <textarea rows={3} value={input} disabled={!!chat.run} placeholder="Message Claude (Enter to send, Shift+Enter for a new line)"
+      <textarea rows={6} value={input} disabled={!!chat.run} placeholder="Message Claude (Enter to send, Shift+Enter for a new line)"
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
