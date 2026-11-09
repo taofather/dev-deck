@@ -133,7 +133,7 @@ export function ChatLog({ chat, input, setInput, onSend, emptyHint, onClose }) {
           : <div key={i} className={`msg ${role}`}>{role === 'tool' ? `🔧 ${text}` : text}</div>))}
         {!chat.log.length && <p className="muted">{chat.session ? 'Loading history…' : emptyHint}</p>}
       </div>
-      <textarea rows={6} value={input} disabled={!!chat.run} placeholder="Message Claude (Enter to send, Shift+Enter for a new line)"
+      <textarea rows={3} value={input} disabled={!!chat.run} placeholder="Message Claude (Enter to send, Shift+Enter for a new line)"
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {

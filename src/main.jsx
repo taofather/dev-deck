@@ -762,7 +762,7 @@ function useFold(key) {
   return [on, () => set((v) => !v), set];
 }
 
-// Grid columns: folded sides shrink to a strip; the WIP board widens both sides (Linear list, note editor, sessions).
+// Grid columns: folded sides shrink to a strip; the WIP board widens the sidebar (Linear list). The panel is one width everywhere.
 // The right panel is wide on purpose: note editor and Claude chat, entity docs with column tables.
 const FOLDED_W = '36px';
 // Sidebar menu options: [key, icon, label]. Linear lists the current cycle and lives on the WIP board.
@@ -771,7 +771,7 @@ const MENUS = [['browse', '🗂', 'Browse'], ['linear', '◷', 'Linear']];
 const columnsOf = ({ focus, folded, panelFolded, panelMax, board }) => (focus || panelMax ? '1fr' : [
   folded ? FOLDED_W : board ? '380px' : '240px',
   '1fr',
-  panelFolded ? FOLDED_W : board ? '760px' : '680px',
+  panelFolded ? FOLDED_W : '680px',
 ].join(' '));
 
 function App() {
