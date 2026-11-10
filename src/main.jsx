@@ -920,12 +920,14 @@ function App() {
   return (
     <div className={['layout', focus && 'focus', folded && 'folded', panelFolded && 'panel-folded', panelMax && 'panel-max'].filter(Boolean).join(' ')}
       style={{ gridTemplateColumns: columnsOf({ focus, folded, panelFolded, panelMax, board: page.board }) }}>
-      <button className="fold-toggle panel-max-toggle" title={panelMax ? 'Exit full screen (Esc)' : 'Full screen panel'}
+      <button className="fold-toggle panel-max-toggle" title="Full screen panel"
         onClick={() => {
-          setPanelMax(!panelMax);
+          setPanelMax(true);
           setPanelFolded(false);
-        }}>{panelMax ? '⤡' : '⛶'}</button>
-      <button className="fold-toggle panel-fold" title={panelFolded ? 'Unfold panel' : 'Fold panel'} onClick={foldPanel}>
+        }}>⛶</button>
+      {/* In full screen, » leaves it (back to the side panel) instead of folding the only thing on screen. */}
+      <button className="fold-toggle panel-fold" title={panelMax ? 'Exit full screen (Esc)' : panelFolded ? 'Unfold panel' : 'Fold panel'}
+        onClick={panelMax ? () => setPanelMax(false) : foldPanel}>
         {panelFolded ? '«' : '»'}
       </button>
       <nav className="sidebar">
