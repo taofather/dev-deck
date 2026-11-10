@@ -329,7 +329,10 @@ function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }
   }, [linkFrom]);
 
   // A relation (from~to) focuses both ends and the edge itself.
-  const focus = entity?.split('~') ?? [];
+  // In the flow modal (onPick) a click on a relation highlights it and its ends here, without navigating.
+  const [picked, setPicked] = useState(null);
+  const shown = (onPick && picked) || entity;
+  const focus = shown?.split('~') ?? [];
   const q = query.trim().toLowerCase();
   const hit = (n) => !q || (n.type === 'card' && matches(doc, n, q));
   const nodes = moved.map((n) => ({
@@ -342,7 +345,7 @@ function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }
       }),
     },
   }));
-  const edges = base.edges.map((e) => (entity && e.data.rel === entity ? { ...e, className: 'focused' } : e));
+  const edges = base.edges.map((e) => (shown && e.data.rel === shown ? { ...e, className: 'focused' } : e));
 
   // Zooms to the selection when it changes, not when the page data does: an edited _sdd.json rebuilds base on every
   // save and reload, and the view must stay where the user left it. Editable diagrams zoom only for the entity the
@@ -384,8 +387,8 @@ function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }
         }
         if (n.data.ref && (n.type === 'card' || e.target.closest('.lane-label'))) (onPick ?? ((r) => go(doc.id, page.id, r)))(n.data.ref);
       }}
-      onEdgeClick={(_, e) => !onPick && e.data.rel && go(doc.id, page.id, e.data.rel)}
-      onPaneClick={() => (linkFrom ? setLinkFrom(null) : !onPick && go(doc.id, page.id))}
+      onEdgeClick={(_, e) => e.data.rel && (onPick ? setPicked((p) => (p === e.data.rel ? null : e.data.rel)) : go(doc.id, page.id, e.data.rel))}
+      onPaneClick={() => (linkFrom ? setLinkFrom(null) : onPick ? setPicked(null) : go(doc.id, page.id))}
       // Links are relations, drawn on entity pages; flow pages (nodes + edges) only move.
       nodesConnectable={linkable}
       onConnect={linkable ? connect : undefined}
@@ -619,13 +622,9 @@ function RelationPanel({ doc, page, rel, edit, menu }) {
   );
 }
 
-// Flow around an entity ([a, b]: a precedes b), up to `depth` levels (Infinity = all). 'up': the entity and every node
+// Flow around an entity ([a, b]: a precedes b), up to `depth` levels. 'up': the entity and every node
 // that reaches it through incoming relations; 'down': every node it reaches through outgoing ones.
 // Breadth-first over all docs' relations; cycles stop at nodes already seen.
-const FLOWS = {
-  up: { icon: '⤴', title: 'Upstream', near: 'preceding', none: 'No incoming relations: nothing precedes' },
-  down: { icon: '⤵', title: 'Downstream', near: 'following', none: 'No outgoing relations: nothing follows' },
-};
 const flowOf = (id, depth, dir) => {
   const [from, to] = dir === 'up' ? [1, 0] : [0, 1];
   const seen = new Set([id]);
@@ -636,18 +635,19 @@ const flowOf = (id, depth, dir) => {
   }
   return [...seen];
 };
-const DEPTHS = [[1, '1'], [2, '2'], [3, '3'], [Infinity, 'all']];
+const DEPTHS = [[1, '1'], [2, '2'], [3, '3']];
 
-// A temporary, read-only canvas over the diagram: the node and its upstream or downstream (dir), laid out left to right.
+// A temporary, read-only canvas over the diagram: the node with what comes before and after it, `depth` levels each way.
 // Clicking a node closes it and selects that node on the main diagram (App); Esc, ✕ or the backdrop just close it.
-function FlowModal({ doc, id, dir, hidden, onPick, onClose }) {
-  const [depth, setDepth] = useState(Infinity);
-  const flow = FLOWS[dir];
-  const ids = flowOf(id, depth, dir);
+function FlowModal({ doc, id, hidden, onPick, onClose }) {
+  const [depth, setDepth] = useState(1);
+  const up = flowOf(id, depth, 'up');
+  const down = flowOf(id, depth, 'down');
+  const ids = [...new Set([...up, ...down])];
   const key = ids.join('|');
   const page = useMemo(() => ({
-    id: `${dir}-${id}`, title: `${flow.title} of ${id}`, entities: ids, direction: 'LR', edgeType: 'smoothstep',
-  }), [id, dir, key]); // eslint-disable-line react-hooks/exhaustive-deps
+    id: `flow-${id}`, title: `Flow of ${id}`, entities: ids, direction: 'LR', edgeType: 'smoothstep',
+  }), [id, key]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const esc = (e) => e.key === 'Escape' && onClose();
     addEventListener('keydown', esc);
@@ -657,8 +657,8 @@ function FlowModal({ doc, id, dir, hidden, onPick, onClose }) {
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-label={page.title}>
         <div className="modal-head">
-          <strong>{flow.icon} {flow.title} of <span style={{ color: colorOf(id) }}>{id}</span></strong>
-          <span className="muted">{ids.length - 1} {flow.near} node{ids.length === 2 ? '' : 's'}</span>
+          <strong>⇄ Flow of <span style={{ color: colorOf(id) }}>{id}</span></strong>
+          <span className="muted">{up.length - 1} before · {down.length - 1} after</span>
           <span className="modal-depth">
             Depth {DEPTHS.map(([d, label]) => (
               <button key={label} className={`focus-toggle${depth === d ? ' on' : ''}`} onClick={() => setDepth(d)}>{label}</button>
@@ -671,7 +671,7 @@ function FlowModal({ doc, id, dir, hidden, onPick, onClose }) {
             <ReactFlowProvider>
               <Diagram key={key} doc={doc} page={page} entity={id} hidden={hidden} onPick={onPick} />
             </ReactFlowProvider>
-          ) : <p className="muted modal-empty">{flow.none} {id}.</p>}
+          ) : <p className="muted modal-empty">No relations: nothing comes before or after {id}.</p>}
         </div>
       </div>
     </div>
@@ -700,8 +700,7 @@ function Panel({ doc, page, entity, edit, menu, onFlow }) {
       <h2>{entity}</h2>
       {onFlow && (
         <div className="flow-buttons">
-          <button className="focus-toggle" title="This node and everything that leads to it" onClick={() => onFlow({ id: entity, dir: 'up' })}>⤴ Upstream</button>
-          <button className="focus-toggle" title="This node and everything it leads to" onClick={() => onFlow({ id: entity, dir: 'down' })}>⤵ Downstream</button>
+          <button className="focus-toggle" title="This node with what leads to it and what it leads to" onClick={() => onFlow(entity)}>⇄ Flow</button>
         </div>
       )}
       {editable && <EntityEditor key={entity} id={entity} edit={edit} />}
@@ -867,7 +866,7 @@ function App() {
   }, []);
 
   const { doc, page, entity } = route;
-  // The open flow modal ({ id, dir: 'up' | 'down' }, FlowModal), or null.
+  // The node whose flow modal is open (FlowModal), or null.
   const [flow, setFlow] = useState(null);
   // A zoom asked from outside the canvas (a pick in the flow modal), consumed by Diagram.
   const [zoomTo, setZoomTo] = useState(null);
@@ -1020,7 +1019,7 @@ function App() {
           menu={doc.file && <SideMenu side={side} onSide={setSide} />} />
       )}
       {flow && (
-        <FlowModal doc={doc} id={flow.id} dir={flow.dir} hidden={hidden} onClose={() => setFlow(null)}
+        <FlowModal doc={doc} id={flow} hidden={hidden} onClose={() => setFlow(null)}
           onPick={(id) => {
             // A pick leaves the modal for the node itself: zoomed on the main diagram, its panel open on the Node tab.
             setFlow(null);
