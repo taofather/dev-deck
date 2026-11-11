@@ -1,10 +1,15 @@
-// WIP board page (src/content/wip/wip.js): free-positioned notes, edited in place and saved
-// through agent-bridge.mjs (GET/PUT /wip). Only works under `npm run dev`, the bridge is local.
-import { useEffect, useRef, useState } from 'react';
+// WIP board page: the `board: true` page of a JSON diagram (docs/_WIP/board/board.json), free-positioned notes edited
+// in place. The diagram loads and saves through /sdd with the SddEdit.js ops, like any other; note bodies, labels and
+// Claude sessions live in docs/_WIP/board pages, written by the bridge (note-pages.mjs, /wip/*). Only works under
+// `npm run dev`, the bridge is local.
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sessions } from './Sessions.jsx';
+import { loadSdd, ops, saveSdd } from './SddEdit.js';
 import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, useReactFlow, useConnection, useUpdateNodeInternals } from '@xyflow/react';
 
 const BRIDGE = 'http://127.0.0.1:5182/wip';
+// Relation label of a parent arrow (a note added with + under another); any other relation is a link.
+const FROM = 'from';
 const NOTE_W = 320;
 // Sides an arrow end can sit on, in the order "Rotate origin/destination" walks them. Stored per relation:
 // - parent arrow, on the child: fromSide (default bottom), toSide (default top);
@@ -17,10 +22,29 @@ const DEFAULT = { from: { origin: 'bottom', dest: 'top' }, link: { origin: 'righ
 const sidesOf = (kind, s, t) => (kind === 'from'
   ? { origin: t.fromSide ?? DEFAULT.from.origin, dest: t.toSide ?? DEFAULT.from.dest }
   : { origin: s.linkSides?.[t.id] ?? DEFAULT.link.origin, dest: s.linkToSides?.[t.id] ?? DEFAULT.link.dest });
-// A map without key `id`, or undefined when that leaves it empty (keeps board.json free of {}).
-const without = (map, id) => {
-  const { [id]: _, ...rest } = map ?? {};
-  return Object.keys(rest).length ? rest : undefined;
+// The notes the board draws, from the diagram (entities, relations, the page's positions and sides) and the note
+// pages (body, page url, sessions, tags). Parent arrows keep their sides on the child (fromSide, toSide), links on the
+// source note (linkSides, linkToSides), as Note, NoteAside and the edge menu read them.
+const notesOf = (raw, pageId, pages) => {
+  const page = raw.pages?.find((p) => p.id === pageId) ?? {};
+  const notes = Object.entries(raw.entities ?? {}).map(([id, e]) => ({
+    id, ...(typeof e === 'string' ? { title: e } : e), ...(page.positions?.[id] ?? { x: 0, y: 0 }),
+    tags: ['wip'], ...pages[id],
+  }));
+  const byId = new Map(notes.map((n) => [n.id, n]));
+  for (const [a, b, label] of raw.relations ?? []) {
+    const s = byId.get(a);
+    const t = byId.get(b);
+    if (!s || !t) continue;
+    const side = page.sides?.[`${a}~${b}`];
+    if (label === FROM) Object.assign(t, { from: a, fromSide: side?.from, toSide: side?.to });
+    else Object.assign(s, {
+      links: [...(s.links ?? []), b],
+      linkSides: side?.from ? { ...s.linkSides, [b]: side.from } : s.linkSides,
+      linkToSides: side?.to ? { ...s.linkToSides, [b]: side.to } : s.linkToSides,
+    });
+  }
+  return notes;
 };
 
 // Markdown links, bare URLs and DSL refs become links; everything else stays plain text.
@@ -170,8 +194,12 @@ const nodeTypes = { note: Note };
 const stateOf = (note, issues) => note.linear && (issues?.find((i) => i.identifier === note.linear.id)?.state ?? note.linear.state);
 
 // issues: the sidebar's Linear cycle issues. apiRef: App's handle on addIssue (sidebar +) and saveBody (aside editor).
-export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issues, apiRef }) {
-  const [notes, setNotes] = useState(null);
+// file, pageId: the diagram and its board page.
+export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect, onNotes, issues, apiRef }) {
+  // raw: the diagram file as saved; pages: note id → its page data (body, page, sessions, tags).
+  const [raw, setRaw] = useState(null);
+  const [pages, setPages] = useState({});
+  const notes = useMemo(() => raw && notesOf(raw, pageId, pages), [raw, pageId, pages]);
   const [error, setError] = useState(null);
   const [fresh, setFresh] = useState(null);
   // Node sizes React Flow measured (id → { width, height }), handed back as node.measured. Without them every
@@ -203,27 +231,31 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
   const { getNode, setCenter, getZoom } = useReactFlow();
 
   // Reloaded on focus too: board.json or a note page may have changed in another tab, an editor or by an agent.
-  const load = () => fetch(BRIDGE)
+  const loadPages = () => fetch(`${BRIDGE}/pages`)
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`bridge answered ${r.status}`))))
-    .then((b) => setNotes(b.notes))
+    .then((b) => setPages(b.pages));
+  const load = () => Promise.all([loadSdd(file).then(setRaw), loadPages()])
     .catch((e) => setError(`${e.message}. The WIP board needs the local bridge: npm run dev.`));
   useEffect(() => {
     load();
     addEventListener('focus', load);
     return () => removeEventListener('focus', load);
-  }, []);
+  }, [file]);
   useEffect(() => {
     if (notes) onNotes(notes);
   }, [notes, onNotes]);
 
-  // ponytail: last write wins; two tabs editing at the same moment still overwrite each other (add a version check if that bites).
-  const save = (next) => {
-    setNotes(next);
-    fetch(BRIDGE, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: next }) })
-      .then((r) => (r.ok ? setError(null) : Promise.reject(new Error(`save failed: ${r.status}`))))
+  // ponytail: last write wins (saveSdd); two tabs editing at the same moment still overwrite each other.
+  const commit = (next) => {
+    setRaw(next);
+    saveSdd(file, next).then(() => setError(null)).catch((e) => setError(e.message));
+  };
+  // A rename goes to board.json and, when the note has a page, to that page's title.
+  const rename = (id, title) => {
+    commit(ops.field(raw, id, 'title', title));
+    fetch(`${BRIDGE}/title`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, title }) })
       .catch((e) => setError(e.message));
   };
-  const update = (id, patch) => save(notes.map((n) => (n.id === id ? { ...n, ...patch } : n)));
   // A related note (from: parent id) goes under its parent, right of the siblings already there.
   const add = (from) => {
     const id = crypto.randomUUID();
@@ -233,7 +265,8 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
       : { x: notes.length ? Math.max(...notes.map((n) => n.x)) + NOTE_W + 40 : 0, y: 0 };
     setFresh(id);
     onSelect(id);
-    save([...notes, { id, title: 'New note', body: '', ...pos, ...(parent && { from }) }]);
+    const next = ops.put(raw, pageId, id, { title: 'New note' }, pos);
+    commit(parent ? ops.link(next, [from, id, FROM]) : next);
   };
   // A Linear issue gets one note: adding it again selects the existing one and centers the board on it.
   const addIssue = (issue) => {
@@ -247,7 +280,7 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
     const x = notes.length ? Math.max(...notes.map((n) => n.x)) + NOTE_W + 40 : 0;
     const linear = { id: issue.identifier, url: issue.url, state: { name: issue.state.name, color: issue.state.color } };
     onSelect(id);
-    save([...notes, { id, title: issue.title, body: '', x, y: 0, linear }]);
+    commit(ops.put(raw, pageId, id, { title: issue.title, linear }, { x, y: 0 }));
     setCenter(x + NOTE_W / 2, 100, { zoom: getZoom(), duration: 400 });
   };
   // The body goes to the note's docs/_WIP/board page; Hugo then rebuilds and livereloads this page.
@@ -257,60 +290,38 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
   })
     .then((r) => (r.ok ? r.json() : r.text().then((t) => Promise.reject(new Error(t || (r.status === 404
       ? 'The bridge predates labels: restart npm run dev.' : `save failed: ${r.status}`))))))
-    .then(({ tags: saved }) => setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, tags: saved } : n))));
+    .then(({ tags: saved }) => setPages((p) => ({ ...p, [id]: { ...p[id], tags: saved } })));
   const saveBody = (id, body) => fetch(`${BRIDGE}/body`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, body }),
   })
     // An empty 404 is a bridge older than this route: it needs a restart of npm run dev.
     .then((r) => (r.ok ? r.json() : r.text().then((t) => Promise.reject(new Error(t || (r.status === 404
       ? 'The bridge predates note pages: restart npm run dev.' : `save failed: ${r.status}`))))))
-    .then(({ page }) => setNotes((ns) => ns.map((n) => (n.id === id ? { ...n, body, page } : n))));
+    .then(({ page }) => setPages((p) => ({ ...p, [id]: { ...p[id], body, page } })));
   useEffect(() => {
-    if (apiRef) apiRef.current = notes ? { addIssue, saveBody, saveTags, rename: (id, title) => update(id, { title }), reload: load,
+    if (apiRef) apiRef.current = notes ? { addIssue, saveBody, saveTags, rename, reload: load,
       rotate: (r, end) => relation(r)?.rotate(end) } : null;
   });
-  const remove = (id) => save(notes.filter((n) => n.id !== id).map(({ from, fromSide, toSide, links, linkSides, linkToSides, ...n }) => {
-    const kept = links?.filter((t) => t !== id);
-    return JSON.parse(JSON.stringify({
-      ...n,
-      ...(from !== id && { from, fromSide, toSide }),
-      links: kept?.length ? kept : undefined,
-      linkSides: without(linkSides, id),
-      linkToSides: without(linkToSides, id),
-    }));
-  }));
-  // links: free associations between notes, besides the from (parent) hierarchy. Stored on the source note.
+  // Out of the diagram: its entity, relations, position and sides (ops.remove). Its page stays.
+  const remove = (id) => commit(ops.remove(raw, id));
+  // links: free associations between notes, besides the from (parent) hierarchy.
   const link = ({ source, target }) => {
     const s = notes.find((n) => n.id === source);
     if (source === target || s.links?.includes(target)) return;
-    update(source, { links: [...(s.links ?? []), target] });
+    commit(ops.link(raw, [source, target]));
   };
-  const unlink = (source, target) => {
-    const s = notes.find((n) => n.id === source);
-    const links = s.links.filter((t) => t !== target);
-    update(source, {
-      links: links.length ? links : undefined, linkSides: without(s.linkSides, target), linkToSides: without(s.linkToSides, target),
-    });
-  };
-  // The relation behind an arrow: its sides, how to move either end to the next side, how to delete it.
+  // The relation behind an arrow: its sides, how to move either end to the next side (page.sides["A~B"]), how to delete it.
   const relation = ({ kind, source, target }) => {
     const s = notes.find((n) => n.id === source);
     const t = notes.find((n) => n.id === target);
     if (!s || !t) return null;
     const sides = sidesOf(kind, s, t);
-    return kind === 'from'
-      ? {
-        s, t, sides,
-        rotate: (end) => update(target, end === 'origin' ? { fromSide: nextSide(sides.origin) } : { toSide: nextSide(sides.dest) }),
-        remove: () => update(target, { from: undefined, fromSide: undefined, toSide: undefined }),
-      }
-      : {
-        s, t, sides,
-        rotate: (end) => update(source, end === 'origin'
-          ? { linkSides: { ...s.linkSides, [target]: nextSide(sides.origin) } }
-          : { linkToSides: { ...s.linkToSides, [target]: nextSide(sides.dest) } }),
-        remove: () => unlink(source, target),
-      };
+    return {
+      s, t, sides,
+      rotate: (end) => commit(ops.side(raw, pageId, `${source}~${target}`, end === 'origin' ? 'from' : 'to',
+        nextSide(end === 'origin' ? sides.origin : sides.dest))),
+      remove: () => commit(ops.unlink(raw, kind === 'from' ? [source, target, FROM] : [source, target])),
+    };
   };
   const rel = menu && relation(menu);
 
@@ -325,7 +336,7 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
     selected: n.id === selected,
     data: {
       ...n, isRef, colorOf, onRef, fresh: n.id === fresh, state: stateOf(n, issues),
-      onChange: (p) => update(n.id, p), onDelete: () => remove(n.id), onAddRelated: () => add(n.id),
+      onChange: (p) => p.title !== n.title && rename(n.id, p.title), onDelete: () => remove(n.id), onAddRelated: () => add(n.id),
       onStartLink: () => setLinkFrom(linkFrom === n.id ? null : n.id),
       linkSource: linkFrom === n.id, linkTarget: !!linkFrom && linkFrom !== n.id,
     },
@@ -353,15 +364,13 @@ export function Board({ isRef, colorOf, onRef, selected, onSelect, onNotes, issu
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
-      onNodeDragStop={(_, node) => update(node.id, { x: Math.round(node.position.x), y: Math.round(node.position.y) })}
+      onNodeDragStop={(_, node) => commit(ops.move(raw, pageId, [{ id: node.id, ...node.position }]))}
       onNodesChange={(changes) => {
         const measured = changes.filter((c) => c.type === 'dimensions' && c.dimensions);
         if (measured.length) setSizes((m) => Object.assign({ ...m }, ...measured.map((c) => ({ [c.id]: c.dimensions }))));
-        const moves = changes.filter((c) => c.type === 'position' && c.position);
-        if (moves.length) setNotes((ns) => ns.map((n) => {
-          const c = moves.find((m) => m.id === n.id);
-          return c ? { ...n, x: c.position.x, y: c.position.y } : n;
-        }));
+        // While dragging: moved on screen only; the drop saves.
+        const moves = changes.filter((c) => c.type === 'position' && c.position).map((c) => ({ id: c.id, ...c.position }));
+        if (moves.length) setRaw((r) => ops.move(r, pageId, moves));
       }}
       onNodeClick={(_, n) => {
         if (!linkFrom) return onSelect(n.id);

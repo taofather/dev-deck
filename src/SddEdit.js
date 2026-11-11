@@ -82,6 +82,15 @@ export const ops = {
     page.positions = { ...page.positions, [id]: { x: Math.round(pos.x), y: Math.round(pos.y) } };
     return { raw: next, id };
   },
+  // A node with a given id and value at pos, on this page (WIP board notes: a UUID and { title, linear }).
+  put: (raw, pageId, id, value, pos) => {
+    const next = clone(raw);
+    next.entities = { ...next.entities, [id]: value };
+    const page = pageOf(next, pageId);
+    if (Array.isArray(page.entities)) page.entities.push(id);
+    page.positions = { ...page.positions, [id]: { x: Math.round(pos.x), y: Math.round(pos.y) } };
+    return next;
+  },
   // text and why: a plain string when there is no why, else { text, why } keeping any other field (columns, icon).
   // `properties` and `methods` (UML entities) are replaced when given; an empty methods list is dropped.
   describe: (raw, id, { text, why, properties, methods }) => {

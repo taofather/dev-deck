@@ -1,22 +1,28 @@
-// WIP board storage, used by agent-bridge.mjs. Two places, one note:
-// - docs/_WIP/board.json: layout and graph (id, title, x, y, from, links, linear). Excluded from Hugo (hugo.yaml): saving reloads nothing.
-// - docs/_WIP/board/*.md: the note body as a Hugo page, found by its `board: <note id>` front matter.
-//   Hugo renders it under /_wip/board/<file>/; editing it in an editor or Obsidian shows on the board.
+// WIP note pages, used by agent-bridge.mjs. A note lives in two places:
+// - docs/_WIP/board/board.json: a JSON diagram like any other (src/content/index.js), loaded and saved by the
+//   browser through /sdd (src/SddEdit.js): one entity per note (title, linear, …), relations, positions and sides.
+//   Read here only, for the title and Linear ticket a page needs.
+// - docs/_WIP/board/*.md: the note body as a Hugo page, found by its `board: <note id>` front matter. Files can only
+//   be written from Node, so this module owns them. Hugo renders them under /_wip/board/<file>/; editing one in an
+//   editor or Obsidian shows on the board.
 import { existsSync } from 'node:fs';
-import { copyFile, mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 
 const ROOT = import.meta.dirname;
-const BOARD = `${ROOT}/docs/_WIP/board.json`;
 const DIR = `${ROOT}/docs/_WIP/board`;
+export const BOARD_FILE = 'docs/_WIP/board/board.json';
 const FM = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
 // Write then rename: a crash mid-write never leaves a truncated file.
 const writeAtomic = (file, text) => writeFile(`${file}.tmp`, text).then(() => rename(`${file}.tmp`, file));
 
-const readBoard = () => readFile(BOARD, 'utf8')
-  .then((json) => JSON.parse(json))
-  .catch((err) => (err.code === 'ENOENT' ? { notes: [] } : Promise.reject(err)));
-const writeBoard = (notes) => writeAtomic(BOARD, `${JSON.stringify({ notes }, null, 2)}\n`);
+// The note as board.json declares it: { id, title, linear }, or null when there is no such note.
+async function noteOf(id) {
+  const doc = await readFile(`${ROOT}/${BOARD_FILE}`, 'utf8').then(JSON.parse).catch(() => ({}));
+  const e = doc.entities?.[id];
+  if (e === undefined) return null;
+  return { id, ...(typeof e === 'string' ? { title: e } : e) };
+}
 
 const fmValue = (fm, key) => {
   const v = fm.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'))?.[1].trim();
@@ -28,7 +34,7 @@ const fmValue = (fm, key) => {
   return v;
 };
 
-// note id → { file, title, body } for every board page in docs/_WIP/board.
+// note id → { file, fm, title, body } for every board page in docs/_WIP/board.
 async function scan() {
   const pages = new Map();
   const files = await readdir(DIR).catch((err) => (err.code === 'ENOENT' ? [] : Promise.reject(err)));
@@ -45,7 +51,7 @@ export const pageUrl = (file) => `/_wip/board/${file.replace(/\.md$/, '').toLowe
 // AGENTS.md file naming: YYYYMMDD, the ticket code when there is one, then a slug of the title.
 function newFileName(note) {
   const day = new Date().toISOString().slice(0, 10).replaceAll('-', '');
-  const slug = note.title.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+  const slug = (note.title ?? '').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
   const base = [day, note.linear?.id, slug || note.id.slice(0, 8)].filter(Boolean).join('-');
   // Two notes with the same title on the same day must not share a page.
   for (let i = 1; ; i++) {
@@ -81,10 +87,10 @@ const withSessions = (fm, sessions) => [
 ].join('\n');
 
 // Writes the note's page: keeps any extra front matter of an existing page, refreshes its title.
-// edit: optional front matter transform (claude_sessions).
+// edit: optional front matter transform (tags, claude_sessions).
 async function writePage(note, body, page, edit = (fm) => fm) {
   await mkdir(DIR, { recursive: true });
-  const title = `title: ${JSON.stringify(note.title)}`;
+  const title = `title: ${JSON.stringify(note.title ?? 'Untitled')}`;
   const fm = edit(page
     ? (/^title:.*$/m.test(page.fm) ? page.fm.replace(/^title:.*$/m, title) : `${title}\n${page.fm}`)
     : [title, `board: ${note.id}`, note.linear && `linear: ${note.linear.url}`, 'tags: [wip]'].filter(Boolean).join('\n'));
@@ -93,39 +99,28 @@ async function writePage(note, body, page, edit = (fm) => fm) {
   return file;
 }
 
-// GET /wip: board.json joined with the pages; the page wins for title and body.
-export async function loadNotes() {
-  const [{ notes }, pages] = await Promise.all([readBoard(), scan()]);
-  return notes.map((n) => {
-    const p = pages.get(n.id);
-    return {
-      ...n, title: p?.title ?? n.title, body: p?.body ?? n.body ?? '', page: p ? pageUrl(p.file) : null,
-      sessions: p ? sessionsOf(p.fm) : [],
-      tags: p ? tagsOf(p.fm) : ['wip'],
-    };
-  });
+// GET /wip/pages: note id → { body, page, sessions, tags } for every note page.
+export async function loadPages() {
+  const pages = await scan();
+  return Object.fromEntries([...pages].map(([id, p]) => [id, { body: p.body, page: pageUrl(p.file), sessions: sessionsOf(p.fm), tags: tagsOf(p.fm) }]));
 }
 
-// PUT /wip: layout and graph only. A title renamed on the board is carried to the page; bodies go through saveBody.
-export async function saveNotes(notes) {
-  const pages = await scan();
-  for (const n of notes) {
-    const p = pages.get(n.id);
-    if (p && p.title !== n.title) await writePage(n, undefined, p);
-  }
-  await writeBoard(notes.map(({ body, page, sessions, tags, ...n }) => n));
+// PUT /wip/title: a note renamed on the board carries its title to its page, when it has one.
+export async function saveTitle(id, title) {
+  const page = (await scan()).get(id);
+  if (page && page.title !== title) await writePage({ id, title }, undefined, page);
 }
 
 // PUT /wip/body: writes one note's body to its page, creating the page on first save.
 export async function saveBody(id, body) {
-  const note = (await readBoard()).notes.find((n) => n.id === id);
+  const note = await noteOf(id);
   if (!note) return null;
   return pageUrl(await writePage(note, body, (await scan()).get(id)));
 }
 
 // PUT /wip/tags: the note page's tags (page created if needed). `wip` stays first: every board page carries it.
 export async function saveTags(id, tags) {
-  const note = (await readBoard()).notes.find((n) => n.id === id);
+  const note = await noteOf(id);
   if (!note) return null;
   const clean = ['wip', ...new Set(tags.map((t) => String(t).trim()).filter((t) => t && t !== 'wip'))];
   await writePage(note, undefined, (await scan()).get(id), (fm) => withTags(fm, clean));
@@ -134,7 +129,7 @@ export async function saveTags(id, tags) {
 
 // Records a Claude session on the note's page (created if needed); an id already listed is left as is.
 export async function addSession(id, session) {
-  const note = (await readBoard()).notes.find((n) => n.id === id);
+  const note = await noteOf(id);
   if (!note) return null;
   const page = (await scan()).get(id);
   const sessions = page ? sessionsOf(page.fm) : [];
@@ -144,19 +139,7 @@ export async function addSession(id, session) {
 
 // What a new session is told about its note: title, page file, Linear ticket and body.
 export async function noteContext(id) {
-  const note = (await readBoard()).notes.find((n) => n.id === id);
+  const note = await noteOf(id);
   const page = note && (await scan()).get(id);
   return note && { note, file: page && `${DIR}/${page.file}`, body: page?.body ?? '' };
-}
-
-// One-time move of the bodies still stored in board.json into pages; board.json is backed up first.
-export async function migrateBodies() {
-  const { notes } = await readBoard();
-  const legacy = notes.filter((n) => typeof n.body === 'string');
-  if (!legacy.length) return 0;
-  if (!existsSync(`${BOARD}.pre-pages.bak`)) await copyFile(BOARD, `${BOARD}.pre-pages.bak`);
-  const pages = await scan();
-  for (const n of legacy) if (n.body.trim() && !pages.has(n.id)) await writePage(n, n.body);
-  await writeBoard(notes.map(({ body, ...n }) => n));
-  return legacy.length;
 }

@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, Handle, Position, MarkerType, useReactFlow, useNodesState, useConnection, useUpdateNodeInternals, Panel as FlowPanel } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
 import '@xyflow/react/dist/style.css';
-import '../docs/assets/custom.css';
+import '../assets/custom/custom.css';
 import './styles.css';
 
 import { docs, replaceSdd } from './content/index.js';
@@ -1027,7 +1027,7 @@ function App() {
         <div className="canvas" onClickCapture={showPanelOnNode}>
           {page.board ? (
             <ReactFlowProvider>
-              <Board isRef={isRef} colorOf={colorOf} onRef={(id) => go(doc.id, page.id, id)}
+              <Board file={doc.file} pageId={page.id} isRef={isRef} colorOf={colorOf} onRef={(id) => go(doc.id, page.id, id)}
                 selected={entity} onSelect={(id) => go(doc.id, page.id, id)} onNotes={setBoardNotes}
                 issues={issues} apiRef={apiRef} />
             </ReactFlowProvider>

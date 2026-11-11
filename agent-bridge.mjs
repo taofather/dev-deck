@@ -9,7 +9,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { LinearClient } from '@linear/sdk';
 import { randomUUID } from 'node:crypto';
 import { relative, resolve, sep } from 'node:path';
-import { addSession, loadNotes, migrateBodies, noteContext, saveBody, saveNotes, saveTags } from './wip-notes.mjs';
+import { addSession, loadPages, noteContext, saveBody, saveTags, saveTitle } from './note-pages.mjs';
 import { AGENT_ROOT, isSessionId, listSessions, transcript } from './claude-sessions.mjs';
 
 const PORT = 5182;
@@ -33,15 +33,17 @@ const CYCLE_ISSUES = `query {
     }
   }
 }`;
-// WIP board notes (src/Board.jsx): layout in board.json, bodies in docs/_WIP/board pages (wip-notes.mjs).
-const isNote = (n) => n && typeof n.id === 'string' && typeof n.title === 'string' && Number.isFinite(n.x) && Number.isFinite(n.y);
 const json = (res, data) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
 
-// Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json only.
+// Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json and
+// docs/<reign>/<folder>/<folder>.json only.
 const DOCS = resolve(import.meta.dirname, 'docs');
 const sddPath = (file) => {
   const abs = typeof file === 'string' && resolve(import.meta.dirname, file);
-  return abs && abs.startsWith(DOCS + sep) && abs.endsWith(`${sep}_sdd.json`) ? abs : null;
+  if (!abs || !abs.startsWith(DOCS + sep)) return null;
+  const parts = abs.slice(DOCS.length + 1).split(sep);
+  const named = parts.length === 3 && parts[2] === `${parts[1]}.json`;
+  return parts.at(-1) === '_sdd.json' || named ? abs : null;
 };
 const isSdd = (d) => d && typeof d === 'object' && !Array.isArray(d) && typeof (d.entities ?? {}) === 'object'
   && Array.isArray(d.relations ?? []) && Array.isArray(d.pages ?? []);
@@ -142,13 +144,15 @@ createServer((req, res) => {
     return res.on('close', () => run.listeners.delete(res));
   }
 
-  if (url.pathname === '/wip' && req.method === 'GET') {
-    return loadNotes().then((notes) => json(res, { notes })).catch((err) => res.writeHead(500).end(err.message));
+  // The board itself (board.json) loads and saves through /sdd like any diagram; these routes are its note pages.
+  if (url.pathname === '/wip/pages' && req.method === 'GET') {
+    return loadPages().then((pages) => json(res, { pages })).catch((err) => res.writeHead(500).end(err.message));
   }
-  if (url.pathname === '/wip' && req.method === 'PUT') {
-    return readBody(req, (board) => {
-      if (!Array.isArray(board?.notes) || !board.notes.every(isNote)) return res.writeHead(400).end();
-      saveNotes(board.notes).then(() => res.writeHead(204).end()).catch((err) => res.writeHead(500).end(err.message));
+  // A note renamed on the board: its page title follows.
+  if (url.pathname === '/wip/title' && req.method === 'PUT') {
+    return readBody(req, (b) => {
+      if (typeof b?.id !== 'string' || typeof b.title !== 'string') return res.writeHead(400).end();
+      saveTitle(b.id, b.title).then(() => res.writeHead(204).end()).catch((err) => res.writeHead(500).end(err.message));
     });
   }
   // One note's body, saved to its docs/_WIP/board page (the aside editor in src/Board.jsx).
@@ -174,7 +178,7 @@ createServer((req, res) => {
   // A _sdd.json diagram: read on load and focus, written on every edit (src/SddEdit.js).
   if (url.pathname === '/sdd') {
     const file = sddPath(url.searchParams.get('file'));
-    if (!file) return res.writeHead(400).end('file must be docs/**/_sdd.json');
+    if (!file) return res.writeHead(400).end('file must be docs/**/_sdd.json or docs/<reign>/<folder>/<folder>.json');
     if (req.method === 'GET') {
       return readSdd(file)
         .then((d) => json(res, d))
@@ -307,6 +311,3 @@ createServer((req, res) => {
     res.writeHead(202).end();
   });
 }).listen(PORT, '0.0.0.0', () => console.log(`agent bridge on http://0.0.0.0:${PORT}`));
-
-migrateBodies().then((n) => n && console.log(`moved ${n} WIP note bodies to docs/_WIP/board`))
-  .catch((err) => console.error('WIP body migration failed:', err.message));
