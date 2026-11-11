@@ -1,10 +1,17 @@
 // Every src/content/<folder>/**/<doc>.js is a top-level tab under <folder>; tab order = path order.
 const modules = import.meta.glob('./*/**/*.js', { eager: true });
 
-// Every docs/**/_sdd.json is a doc too, filed under its docs path (docs/_WIP/x/design → wip/x/design).
+// Every docs/**/_sdd.json is a doc too, filed under its docs path (docs/_WIP/x/design → wip/x/design), and so is
+// the diagram of a root domain folder: docs/<reign>/<folder>/<folder>.json (docs/domains/tender/tender.json).
 // Bundled as the starting point; under `npm run dev` the app reads and saves it live through agent-bridge.mjs (src/SddEdit.js).
-// Raw import: an empty or broken _sdd.json is skipped instead of breaking the app.
-const sdds = import.meta.glob('../../docs/**/_sdd.json', { eager: true, query: '?raw', import: 'default' });
+// Raw import: an empty or broken file is skipped instead of breaking the app.
+const isDiagram = (path) => {
+  const [dir, name] = path.split('/').slice(-2);
+  return name === '_sdd.json' || name === `${dir}.json`;
+};
+const sdds = Object.fromEntries(Object.entries(
+  import.meta.glob(['../../docs/**/_sdd.json', '../../docs/*/*/*.json'], { eager: true, query: '?raw', import: 'default' }),
+).filter(([path]) => isDiagram(path)));
 
 // raw: the file content, kept as is for saving. The doc is derived from it: JSON has no Object.keys, so a page's
 // `"entities"` may be a glob string over this file's entity ids: "*" (every entity), "TASK-*", or "COD-*, OP-*".

@@ -6,10 +6,10 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-// `vite build --watch` (npm run dev): docs/**/_sdd.json is saved live from the diagram through agent-bridge.mjs,
-// and the app reads it back from there. Loaded as a virtual module (\0 id), Rollup never watches it, so a save
-// does not rebuild the bundle and reload the page. Plain `vite build` bundles it as a normal file.
-const SDD = /\/_sdd\.json\?raw$/;
+// `vite build --watch` (npm run dev): a docs/ diagram (_sdd.json, <folder>/<folder>.json) is saved live from the
+// diagram through agent-bridge.mjs, and the app reads it back from there. Loaded as a virtual module (\0 id), Rollup
+// never watches it, so a save does not rebuild the bundle and reload the page. Plain `vite build` bundles it as a normal file.
+const SDD = /\/docs\/.+\.json\?raw$/;
 const sddUnwatched = {
   name: 'sdd-unwatched',
   enforce: 'pre',
