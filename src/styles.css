@@ -321,3 +321,13 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .layout.panel-max > .panel { border-left: 0; padding-inline: max(16px, calc((100% - 960px) / 2)); }
 .reactflow-app .layout.panel-max .session-log { max-height: max(300px, calc(100vh - 380px)); }
 .reactflow-app .layout.panel-max .session-chat textarea { min-height: 8.5em; }
+/* UML entity (_sdd.json type "uml"): a class box, name compartment over the properties. */
+.reactflow-app .card.uml { border-width: 5px 1px 1px; border-radius: 2px; }
+.reactflow-app .card.uml .card-label { text-align: center; padding-bottom: 4px; }
+.reactflow-app .card.uml .card-cols { margin-top: 0; border-top: 1px solid var(--color-neutral-400, #999); }
+.reactflow-app .card.uml .card-cols.methods { border-top: 1px solid var(--color-neutral-400, #999); }
+
+/* QUERY nodes: the command, wrapped so long kubectl lines stay readable in the panel. */
+.panel pre.query { white-space: pre-wrap; word-break: break-all; font-size: 11px; padding: 6px 8px; border-radius: 4px; background: rgba(127, 127, 127, 0.12); }
+/* CMD nodes change an environment: a red edge marks the block. */
+.panel pre.query.cmd { border-left: 3px solid #9f1239; }

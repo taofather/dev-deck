@@ -6,13 +6,15 @@ const modules = import.meta.glob('./*/**/*.js', { eager: true });
 // Raw import: an empty or broken _sdd.json is skipped instead of breaking the app.
 const sdds = import.meta.glob('../../docs/**/_sdd.json', { eager: true, query: '?raw', import: 'default' });
 
-// raw: the file content, kept as is for saving. The doc is derived from it: JSON has no Object.keys, so
-// `"entities": "*"` on a page means every entity, and no pages means one overview page.
+// raw: the file content, kept as is for saving. The doc is derived from it: JSON has no Object.keys, so a page's
+// `"entities"` may be a glob string over this file's entity ids: "*" (every entity), "TASK-*", or "COD-*, OP-*".
+// No pages means one overview page.
+const glob = (pattern) => new RegExp(`^(${pattern.split(',').map((g) => g.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')).join('|')})$`);
 export const sddDoc = (file, raw) => {
   const dirs = file.split('/').slice(1, -1).map((d, i) => (i === 0 ? d.replace(/^_/, '').toLowerCase() : d));
   const entities = raw.entities ?? {};
   const pages = (raw.pages ?? [{ id: 'overview', section: 'Home', title: 'Everything', entities: '*' }])
-    .map((p) => (p.entities === '*' ? { ...p, entities: Object.keys(entities) } : p));
+    .map((p) => (typeof p.entities === 'string' ? { ...p, entities: Object.keys(entities).filter((k) => glob(p.entities).test(k)) } : p));
   return {
     id: raw.id ?? dirs.slice(1).join('-').toLowerCase(),
     title: raw.title ?? dirs.at(-1),

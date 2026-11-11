@@ -8,7 +8,16 @@ export const NEW_KINDS = {
   PRD: { text: '', why: '' }, ADR: { text: '', why: '' }, PLAN: { text: '', why: '' },
   TASK: { text: '', status: 'todo' }, ACC: { text: '', status: 'open' },
   COD: { text: '', status: 'wip' }, OP: { text: '', status: [] },
+  // VERIF: a check with an expected result, per environment like an OP. QUERY: the read-only command it runs.
+  VERIF: { text: '', status: [] }, QUERY: { text: '', query: '' },
+  // CMD: a command that changes an environment (helm upgrade, script step, kubectl scale); an OP runs it.
+  CMD: { text: '', cmd: '', status: [] },
+  // A UML entity (class box): no status, only properties [name, type] and optional methods [signature, note]. Its id keeps a DSL prefix (BENT-, DBT-, FDTO-…).
+  UML: { type: 'uml', text: '', properties: [['id', 'uuid']] },
 };
+// The id prefix a toolbar kind creates (UML boxes start as back-end entities; rename to DBT-, FDTO-… as needed).
+export const prefixOf = (kind) => (kind === 'UML' ? 'BENT' : kind);
+export const isUml = (entry) => typeof entry === 'object' && entry?.type === 'uml';
 // `status` values offered per kind (any string is accepted; the LED colour comes from LEDS in main.jsx).
 // OP is not here: its status is a list of { env, state } (OP_STATES), edited as environment checkboxes.
 const STATUSES = {
@@ -17,7 +26,8 @@ const STATUSES = {
   TASK: ['todo', 'wip', 'review', 'blocked', 'done'],
 };
 export const statusesOf = (kind) => STATUSES[kind] ?? [...new Set(Object.values(STATUSES).flat())];
-export const OP_STATES = ['pending', 'done'];
+// `fail` is for VERIF targets: checked, and the expected result is not there.
+export const OP_STATES = ['pending', 'done', 'fail'];
 // Environments: one `env` per node (an ACC holds there), or OP targets (`status: [{ env, state }]`).
 export const ENVS = ['eph', 'dev', 'staging', 'sandbox', 'prod'];
 export const ID = /^[A-Z][A-Z0-9]*-[\w.-]+$/;
@@ -64,8 +74,8 @@ export const ops = {
   add: (raw, pageId, kind, pos) => {
     const next = clone(raw);
     next.entities ??= {};
-    let id = `${kind}-New`;
-    for (let n = 2; next.entities[id] !== undefined; n++) id = `${kind}-New${n}`;
+    let id = `${prefixOf(kind)}-New`;
+    for (let n = 2; next.entities[id] !== undefined; n++) id = `${prefixOf(kind)}-New${n}`;
     next.entities[id] = clone(NEW_KINDS[kind]);
     const page = pageOf(next, pageId);
     if (Array.isArray(page.entities)) page.entities.push(id);
@@ -73,10 +83,15 @@ export const ops = {
     return { raw: next, id };
   },
   // text and why: a plain string when there is no why, else { text, why } keeping any other field (columns, icon).
-  describe: (raw, id, { text, why }) => {
+  // `properties` and `methods` (UML entities) are replaced when given; an empty methods list is dropped.
+  describe: (raw, id, { text, why, properties, methods }) => {
     const next = clone(raw);
     const old = next.entities?.[id];
-    const rest = old && typeof old === 'object' ? old : {};
+    const rest = { ...(old && typeof old === 'object' ? old : {}), ...(properties && { properties }) };
+    if (methods) {
+      if (methods.length) rest.methods = methods;
+      else delete rest.methods;
+    }
     next.entities = { ...next.entities, [id]: why || Object.keys(rest).some((k) => k !== 'text' && k !== 'why') ? { ...rest, text, why: why || undefined } : text };
     return next;
   },

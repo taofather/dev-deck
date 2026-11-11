@@ -7,7 +7,7 @@ import '../docs/assets/custom.css';
 import './styles.css';
 
 import { docs, replaceSdd } from './content/index.js';
-import { ENVS, ID, NEW_KINDS, OP_STATES, SIDES, loadSdd, nextSide, ops, saveSdd, statusesOf } from './SddEdit.js';
+import { ENVS, ID, NEW_KINDS, OP_STATES, SIDES, isUml, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf } from './SddEdit.js';
 
 const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
 import { Board, Labels, NoteAside, Stickies } from './Board.jsx';
@@ -31,6 +31,9 @@ const DIMENSIONS = {
   acc: { label: 'Acceptance criterion', color: '#0f7b6c', prefixes: ['ACC'] },
   cod: { label: 'Code change', color: '#0284c7', prefixes: ['COD'] },
   op: { label: 'Operation', color: '#7c3aed', prefixes: ['OP'] },
+  verif: { label: 'Verification', color: '#b45309', prefixes: ['VERIF'] },
+  query: { label: 'Query', color: '#475569', prefixes: ['QUERY'] },
+  cmd: { label: 'Command', color: '#9f1239', prefixes: ['CMD'] },
   step: { label: 'Decision step', color: '#56616e', prefixes: [] },
 };
 
@@ -38,6 +41,8 @@ const dimOf = (id) =>
   Object.keys(DIMENSIONS).find((d) => DIMENSIONS[d].prefixes.includes(id?.split('-')[0])) ?? 'step';
 const isRef = (id) => dimOf(id) !== 'step';
 const colorOf = (id) => DIMENSIONS[dimOf(id)].color;
+// Kinds whose value carries a command, shown as a code block and edited in the panel: QUERY reads, CMD changes.
+const COMMAND_FIELDS = { query: { field: 'query', label: 'Query' }, cmd: { field: 'cmd', label: 'Command' } };
 
 // Entities and relations are shared by all docs: the same id in two docs is the same thing.
 const entityDocs = (entity) =>
@@ -53,7 +58,10 @@ const NODE_W = 230;
 const NODE_H = 66;
 // Cards with columns grow one row per column; must match .card-cols in styles.css.
 const ROW_H = 17;
-const colsOf = (id) => entityDocs(id).find((e) => e.columns)?.columns;
+// UML entities (_sdd.json `type: "uml"`) list `properties`, drawn like `columns`.
+const colsOf = (id) => entityDocs(id).map((e) => e.columns ?? e.properties).find(Boolean);
+const umlOf = (id) => entityDocs(id).some((e) => e.type === 'uml');
+const methodsOf = (id) => entityDocs(id).map((e) => e.methods).find(Boolean);
 const iconOf = (id) => entityDocs(id).find((e) => e.icon)?.icon;
 // Labels (post-its, like WIP board notes): an entity's `tags` in any doc, merged.
 const tagsOf = (id) => [...new Set(entityDocs(id).flatMap((e) => e.tags ?? []))];
@@ -69,7 +77,9 @@ const statusOf = (id) => {
   if (!s) return null;
   if (Array.isArray(s)) {
     const done = s.filter((t) => t.state === 'done').length;
-    return { text: s.map((t) => `${t.env} ${t.state}`).join(' · '), led: done === s.length ? 'green' : done ? 'yellow' : 'grey', targets: s };
+    // A failed target (VERIF) wins: red.
+    const led = s.some((t) => t.state === 'fail') ? 'red' : done === s.length ? 'green' : done ? 'yellow' : 'grey';
+    return { text: s.map((t) => `${t.env} ${t.state}`).join(' · '), led, targets: s };
   }
   return { text: s, led: LEDS.find(([, re]) => re.test(s.toLowerCase()))[0] };
 };
@@ -77,7 +87,8 @@ const statusOf = (id) => {
 const envOf = (id) => entityDocs(id).map((e) => e.env).find(Boolean);
 // An icon is an emoji or a path/URL to an image (e.g. '/icons/gcp/cloud-sql.svg' under static/).
 const Icon = ({ icon }) => (!icon ? null : /[./]/.test(icon) ? <img className="icon" src={icon} alt="" /> : <span className="icon">{icon}</span>);
-const heightOf = (n) => (n.columns ? 42 + n.columns.length * ROW_H : NODE_H);
+// A UML box's methods are a second compartment of rows, under the properties.
+const heightOf = (n) => (n.columns || n.methods ? 42 + ((n.columns?.length ?? 0) + (n.methods?.length ?? 0)) * ROW_H : NODE_H);
 
 // Normalize all page styles to the same node/edge shape.
 function pageGraph(page) {
@@ -98,7 +109,7 @@ function pageGraph(page) {
 
 function layout(page) {
   const { edges } = pageGraph(page);
-  const nodes = pageGraph(page).nodes.map((n) => ({ ...n, columns: colsOf(n.ref), icon: n.icon ?? iconOf(n.ref), tags: tagsOf(n.ref), status: statusOf(n.ref), env: envOf(n.ref) }));
+  const nodes = pageGraph(page).nodes.map((n) => ({ ...n, columns: colsOf(n.ref), uml: umlOf(n.ref), methods: methodsOf(n.ref), icon: n.icon ?? iconOf(n.ref), tags: tagsOf(n.ref), status: statusOf(n.ref), env: envOf(n.ref) }));
   // Optional page.groups: [{ id, label, color, icon, ref?, members: [nodeId | groupId] }], drawn as containers.
   // A group with a ref opens that entity's panel when its label is clicked.
   // A group listed in another group's members nests inside it. Groups without any page node are dropped.
@@ -192,10 +203,10 @@ function Card({ id, data, selected }) {
   useEffect(() => {
     if (data.editable) updateNodeInternals(id);
   }, [dragging, data.editable, id, updateNodeInternals]);
-  const cls = ['card', data.kind, data.focused && 'focused', data.faded && 'faded', data.match && 'match', selected && 'selected',
+  const cls = ['card', data.kind, data.uml && 'uml', data.focused && 'focused', data.faded && 'faded', data.match && 'match', selected && 'selected',
     (dragging || data.linkTarget) && 'droppable', data.linkSource && 'linking'];
   return (
-    <div className={cls.filter(Boolean).join(' ')} style={{ borderLeftColor: color }}>
+    <div className={cls.filter(Boolean).join(' ')} style={data.uml ? { borderColor: color } : { borderLeftColor: color }}>
       <Stickies labels={data.tags ?? []} />
       <Handle type="target" position={data.horizontal ? Position.Left : Position.Top} />
       {data.editable && dragging && <Handle id="drop" type="target" position={Position.Left} className="card-drop" isConnectableStart={false} />}
@@ -217,6 +228,15 @@ function Card({ id, data, selected }) {
         <table className="card-cols">
           <tbody>
             {data.columns.map(([name, type]) => (
+              <tr key={name}><td>{name}</td><td>{type}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {data.methods && (
+        <table className="card-cols methods">
+          <tbody>
+            {data.methods.map(([name, type]) => (
               <tr key={name}><td>{name}</td><td>{type}</td></tr>
             ))}
           </tbody>
@@ -406,7 +426,7 @@ function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }
       {edit && (
         <FlowPanel position="top-left">
           {page.entities && Object.keys(NEW_KINDS).map((k) => (
-            <button key={k} className="focus-toggle" style={{ borderColor: colorOf(`${k}-x`) }} onClick={() => addAtCenter(k)}>+ {k}</button>
+            <button key={k} className="focus-toggle" style={{ borderColor: colorOf(`${prefixOf(k)}-x`) }} onClick={() => addAtCenter(k)}>+ {k}</button>
           ))}
           <span className="board-hint">
             {linkFrom ? 'Click a node to link it · Esc to cancel' : 'Drag nodes to place them · → on a node to link it'}
@@ -475,18 +495,29 @@ function EntityEditor({ id, edit }) {
     id, text: typeof entry === 'string' ? entry : entry?.text ?? '', why: typeof entry === 'object' ? entry?.why ?? '' : '',
   }));
   const kind = id.split('-')[0];
+  // UML: a class box, no status or env; properties edited as `name: type` lines.
+  const uml = isUml(entry);
+  const lines = (list) => (list ?? []).map(([n, t]) => (t ? `${n}: ${t}` : n)).join('\n');
+  const pairs = (text) => text.split('\n').map((l) => l.split(':').map((x) => x.trim())).filter(([n]) => n)
+    .map(([n, ...t]) => (t.join(':') ? [n, t.join(':')] : [n]));
+  const [props, setProps] = useState(() => lines(entry?.properties));
+  // Methods: `signature: note` lines; the first colon splits, so a signature cannot hold one.
+  const [meths, setMeths] = useState(() => lines(entry?.methods));
   const raw = typeof entry === 'object' ? entry?.status : undefined;
   const status = typeof raw === 'string' ? raw : '';
   const env = typeof entry === 'object' ? entry?.env ?? '' : '';
   // OP: status is its target environments, [{ env, state }]; COD lives in a repo, so it has no env.
-  const isOp = kind === 'OP';
+  // VERIF and CMD: per-environment targets too, like an OP (a CMD's target is done once it ran there).
+  const isOp = ['OP', 'VERIF', 'CMD'].includes(kind);
   const targets = Array.isArray(raw) ? raw : [];
   const needsWhy = ['PRD', 'ADR', 'PLAN'].includes(kind) || draft.why;
   const nextId = draft.id.trim();
   const problem = !ID.test(nextId) ? 'Id: PREFIX-Name' : nextId !== id && edit.raw.entities?.[nextId] !== undefined ? `${nextId} already exists`
     : (kind === 'PRD' && !draft.why.trim()) ? 'A PRD states its why' : null;
   const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value });
-  const save = () => !problem && edit.save(id, nextId, { text: draft.text.trim(), why: draft.why.trim() });
+  const properties = pairs(props);
+  const methods = pairs(meths);
+  const save = () => !problem && edit.save(id, nextId, { text: draft.text.trim(), why: draft.why.trim(), ...(uml && { properties, methods }) });
   const keys = (e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && save();
   return (
     <section className="sdd-editor" onKeyDown={keys}>
@@ -495,17 +526,21 @@ function EntityEditor({ id, edit }) {
       <label>Id <input value={draft.id} onChange={set('id')} /></label>
       <label>Text <textarea rows={4} value={draft.text} onChange={set('text')} /></label>
       {needsWhy && <label>Why <textarea rows={3} value={draft.why} onChange={set('why')} /></label>}
+      {uml && <label>Properties <span className="muted">one per line, name: type</span><textarea rows={Math.max(4, properties.length + 1)} value={props} onChange={(e) => setProps(e.target.value)} /></label>}
+      {uml && <label>Methods <span className="muted">one per line, signature: note</span><textarea rows={Math.max(3, methods.length + 1)} value={meths} onChange={(e) => setMeths(e.target.value)} /></label>}
       {isOp && <OpTargets targets={targets} onChange={(next) => edit.field(id, 'status', next)} />}
       <div className="note-editor-bar">
         <button className="focus-toggle" onClick={save} disabled={!!problem}>Save ⌘↵</button>
         {/* Saved on change. A custom value from the file ("done ⚠") stays in the list so it is not lost. */}
-        {!isOp && (
+        {/* A plain UML box has no status; one on a status kind (a COD's script) keeps its selector. */}
+        {/* A QUERY is a read-only command: no status, no env (its <env> placeholder serves every env). */}
+        {!isOp && kind !== 'QUERY' && (!uml || raw !== undefined) && (
           <select className="sdd-status" aria-label="Status" value={status} onChange={(e) => edit.field(id, 'status', e.target.value)}>
             <option value="">— no status</option>
             {[...new Set([...statusesOf(kind), status].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         )}
-        {!isOp && kind !== 'COD' && (
+        {!isOp && !uml && kind !== 'COD' && kind !== 'QUERY' && (
           <select className="sdd-status" aria-label="Environment" value={env} onChange={(e) => edit.field(id, 'env', e.target.value)}>
             <option value="">— no env</option>
             {[...new Set([...ENVS, env].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
@@ -711,11 +746,19 @@ function Panel({ doc, page, entity, edit, menu, onFlow }) {
         </p>
       )}
       {described.length === 0 && !editable && <p>⚠ Not documented yet.</p>}
-      {described.filter((e) => !(editable && e.doc.file === edit.file)).map(({ doc: d, text, why, columns }) => (
+      {editable && COMMAND_FIELDS[dimOf(entity)] && (
+        <label className="sdd-editor">{COMMAND_FIELDS[dimOf(entity)].label}
+          <textarea key={entity} rows={4} defaultValue={edit.raw.entities[entity]?.[COMMAND_FIELDS[dimOf(entity)].field] ?? ''}
+            onBlur={(e) => edit.field(entity, COMMAND_FIELDS[dimOf(entity)].field, e.target.value.trim())} />
+        </label>
+      )}
+      {described.filter((e) => !(editable && e.doc.file === edit.file)).map(({ doc: d, text, why, query, cmd, columns }) => (
         <section key={d.id}>
           {described.length > 1 && <h3>From {d.title}</h3>}
           <p>{text}</p>
           {why && <p><strong>Why:</strong> {why}</p>}
+          {query && <pre className="query">{query}</pre>}
+          {cmd && <pre className="query cmd">{cmd}</pre>}
           {columns && (
             <table>
               <tbody>
