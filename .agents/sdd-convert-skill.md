@@ -14,9 +14,9 @@ On conflict, this file wins for the diagram storage and node set.
 
 ## 1. Input
 
-- A spec file path, usually outside dev-deck. Prompt user for file paths.
+- A spec file path, usually outside dev-deck (e.g. `knowledge/prds/...`, `src/rtapi-1/docs/...`).
 - Read it fully. Never invent a requirement, decision, plan step or entity the spec does not state.
-- Skip RESTRICTED folders unless the user names them.
+- Skip RESTRICTED folders (`omnologus-consentio`, `omnologus-taofather`) unless the user names them.
 
 ## 2. Output: `_sdd.json`, one per folder
 
@@ -57,6 +57,9 @@ A spec diagram uses **only** these node kinds. The kind comes from the id prefix
 
 | **COD** | `COD-` | `{ "status", "text" }` | One per code change: a pull request, including one that only commits manifests or Helm values. Name it by repo and PR: `COD-Rtapi5699`. `status`: `wip`, `review`, `dev` (merged into dev), `released`. No `env`: it lives in a repo. |
 | **OP** | `OP-` | `{ "status": [{ "env", "state" }], "text" }` | One per operation applied to environments: `helm upgrade`, manifest or values applied, secret created, Terraform apply, CronJob run. Name it by what it changes: `OP-TransformNatsValues`. `status` lists its target environments, each `pending` or `done`. |
+| **VERIF** | `VERIF-` | `{ "status": [{ "env", "state" }], "text" }` | One per operational verification after an OP: a check with its expected result (`"nats-svc exposes only 4222"`). Per environment like an OP; state `pending` (not checked yet), `done` (holds) or `fail` (checked, does not hold; LED red). Name it by the expected result: `VERIF-OnlyClientPortExposed`. |
+| **QUERY** | `QUERY-` | `{ "text", "query" }` | One per read-only command a VERIF runs (`kubectl get`, `gcloud … list`, `helm history`, a log grep, a script's read-only step). `query` holds the command with `<env>` and `$CTX` placeholders; the panel shows it as a code block. No `status` and no `env`: the `<env>` placeholder serves every environment. Never a mutating command (that is a CMD). |
+| **CMD** | `CMD-` | `{ "status": [{ "env", "state" }], "text", "cmd" }` | One per command that changes an environment and an OP runs: a script step, `helm upgrade`, `kubectl scale`. `cmd` holds it with `<env>` / `$CTX` placeholders (code block with a red edge). `status` lists its environments like an OP: `done` once it ran there, `fail` when the run failed. A dry-run variant is its own CMD, `before` the real one. Name it by the command: `CMD-DeployOrderparseImage`. |
 
 **TASK, COD, OP or ACC?**
 - **TASK:** work to plan ("add a NetworkPolicy template"). It may need several OPs.
@@ -109,6 +112,19 @@ plus any prefix already in `DIMENSIONS` for infrastructure specs (`K8S-`, `NATS-
 - Declare a new implementation id only when no diagram has it yet.
 - When the spec already has action points as `AP-` ids, TASKs point to them (`changes`), they do not restate them.
 
+#### UML entities (data model)
+
+When the spec defines a data shape (a table, a struct, a DTO), declare it as a **UML entity**: a class box with its
+properties, no status, no env. The id keeps its DSL prefix (`DBT-`, `BENT-`, `FDTO-`, `BDTO-`), which sets the colour.
+
+```json
+"DBT-NatsUsers": { "type": "uml", "text": "One NATS user per client", "properties": [["id", "uuid"], ["account", "text"], ["revoked_at", "timestamptz"]] }
+```
+
+- `properties`: `[name, type]` pairs (`[name]` when the type is unknown), in spec order.
+- Link it like any node: a TASK or COD `changes` it, an ACC `checks` it.
+- In the diagram: **+ UML** creates a `BENT-New` box; rename the id to change the prefix.
+
 ### Flow-only nodes
 
 Decision/step nodes with no `ref` are allowed inside `nodes` pages (`"kind": "entry" | "refused"`).
@@ -122,18 +138,23 @@ Decision/step nodes with no `ref` are allowed inside `nodes` pages (`"kind": "en
 - `PLAN → TASK`, label `step`. `TASK → TASK`, label `before`, for ordering.
 - `PRD → ACC`, label `accepted when`. `PLAN → ACC`, label `done when`.
 - `TASK → ACC`, `COD → ACC` or `OP → ACC`, label `satisfies`. `TASK → COD` or `TASK → OP`, label `done by`. `COD → OP`, label `deployed by`. Between TASK, COD and OP, label `before`.
+- `OP → VERIF` or `TASK → VERIF`, label `verified by`. `VERIF → QUERY`, label `runs`. `VERIF → PRD` or `VERIF → ACC`, label `evidence for`. `OP → QUERY`, label `uses` (a read the operation needs, not a verification).
+- `OP → CMD`, label `runs`. `COD → CMD`, label `provides` (the script that holds the step). `CMD → VERIF`, label `checked by`.
+- **Operations pages:** one page per operation in an `Operations` section, listing the OP with its CMDs, VERIFs and QUERYs (explicit `entities`), so an operator reads the whole procedure on one canvas.
+- **VERIF or ACC?** An ACC is the product condition a PRD is accepted on; a VERIF is the operator's check that an OP worked in one env. Several VERIFs are usually evidence for one ACC or PRD.
 - `ADR → DBT-/BFUN-/FCOM-…`, label `shapes`.
 - `TASK → DBT-/BFUN-/FCOM-…`, label `changes`. `ACC → K8S-/NATS-/BFUN-…`, label `checks` (what the criterion inspects).
 
 Every PRD reaches at least one PLAN or implementation node. An orphan PRD is a spec gap: list it in the folder's Hugo page under `## Gaps`.
 Every ACC has at least one `satisfies` TASK, unless it is already `[met]`. An unsatisfied open ACC is a gap too.
 
-Column layout of a single spec page (left to right): PRD · ADR · PLAN · TASK · COD · OP · ACC (x = 0, 360, 720, 1080, 1440, 1800, 2160).
+Column layout of a single spec page (left to right): PRD · ADR · PLAN · TASK · COD · OP · ACC · VERIF · QUERY · CMD (x = 0, 360, 720, 1080, 1440, 1800, 2160, 2520, 2880, 3240).
 
 ## 5. Pages
 
 - No `pages` key → one `overview` page with every entity.
-- `"entities": "*"` on a page means every entity (JSON has no `Object.keys`).
+- A page's `"entities"` may be a glob string over the file's entity ids (JSON has no `Object.keys`): `"*"` (every entity), `"TASK-*"`, or `"COD-*, OP-*"`. New entities land on matching glob pages by themselves.
+- Big diagrams: keep one `"*"` Home page and add one page per kind (`"PRD-*"`, `"TASK-*"`, …) in a `By kind` section.
 - Recommended set, in this order:
   1. `overview` · Home · `"entities": "*"`.
   2. `requirements` · PRDs and ADRs (`entities` page).

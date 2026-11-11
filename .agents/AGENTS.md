@@ -62,9 +62,9 @@ Use this set of DSL prefixes for EVERY entity:
 *DBT-*: Database table. E.g `DBT-Orders`. We talk about the database entity.
 *DBQ-*: Database query. E.g `DBQ-GetWorkspaceSettings`. Queries found in database layer code.
 *DOM-*: Example `DOM-order`. Pure domain, used only when talking to the entity in terms beyond apps or database.
-*MET-*: Metric. It should include a link to a markdown doc, explaining how to get metrics on that Flow/Model, GoogleCloudLogging, Sentry or Postgres.  
+*MET-*: Metric. It should include a link to a markdown doc, explaining hot to get metrics on that Flow/Model, GoogleCloudLogging, Sentry or Postgres.  
 
-These elements will be always written with the prefix, followed by CamelCase word (`FDTO-CreateOrderRequest`, `BENT-OrderItem`, etc).
+This elements will be always written with the prefix, followed by CamelCase word (`FDTO-CreateOrderRequest`, `BENT-OrderItem`, etc).
 
 ## An interconnected JavaScript database
 Take advantage of react-flow JavaScript declaration of entities. Always try to relate with diagrams existing in src/content files.
@@ -74,7 +74,7 @@ A docs folder can also hold its diagram as data in a `_sdd.json` (same shape as 
 ## Interconnected files
 Link files to directories or other files if possible, using `intention/boundedContext/domain` hierarchy.
 
-- Use canonical syntax
+- Use cannonical syntax
 ```markdown
 [**Keyword** identifier](reign/boundedContext/flow/01-target.md)
 ```
@@ -87,19 +87,30 @@ In a folder, prefix the files with `YYYYmmddd` (`20261102`), to keep an order. A
 * Speak in absolute present: except for `ticket` files, use a descriptive, behavioral language, not related to changes made in pull requests. Do not use for example word `unchanged`.
 
 ### React Flow links
-Include in frontmatter:
-```yaml
+
+DO NOT embed diagrams like this: `{{< reactflow "#/nats-broker-availability/action-points" >}}`
+But include in frontmatter:
+```
 reactflow:
-  - "#/example/overview"
-  - "#/example/overview/DBT-Users"
+  - "#/recurring-tenders"
+  - "#/tender/schema/DBT-Tenders"
 ```
 
-- Link a flow to its React Flow diagram when one exists in `src/content/`.
-- Link its core domain too, when present in `src/content/`.
+- Link a flow to its React Flow diagram when one exists in `src/content/flow/`.
+- Link its core domain too, when present in `src/content/domain/`.
 - Value is the route only, from `#` on. Never the host.
 - Route shape: `#/<doc id>/<page id>/<entity>`; page and entity optional.
 - `<doc id>` is the `id` exported by the `.js` content file.
-- `reactflow` is an array of routes.
-- Hugo renders them above the content as `Diagrams: example/overview, ...`, each link named by its route (`layouts/_partials/custom/content-begin.html`).
+- `reactflow` is an array, for flow, domain and infrastructure diagrams alike.
+- Hugo renders them above the content as `Diagrams: tender/schema/DBT-Tenders, ...`, each link named by its route (`layouts/_partials/custom/content-begin.html`).
+- The diagram back link prefers a page under `domains/` or `infrastructure/` (`layouts/diagrams.html`).
+- They link to the React Flow app served by the same site at `/diagrams/`.
 - To embed a diagram in the body: `{{< reactflow "#/<doc id>/<page id>" >}}` (optional 2nd arg: height).
 - Omit `reactflow` when no diagram exists. Never point to a missing doc.
+
+Example (`flows/tenders/recurring-tenders/TenderSeriesLifecycle.flow.md`):
+```yaml
+reactflow:
+  - "#/recurring-tenders"
+  - "#/tender/schema/DBT-Tenders"
+```
