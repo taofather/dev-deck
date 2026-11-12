@@ -270,6 +270,8 @@ const parseHash = () => {
   const page = doc.pages.find((p) => p.id === pageId) ?? doc.pages[0];
   return { doc, page, entity: entity || null };
 };
+// Hugo's "<page> – <site>" title, read once before App renames the tab.
+const SITE_TITLE = document.title.split(' – ').at(-1);
 const go = (docId, pageId, entity) => (location.hash = `/${docId}/${pageId}${entity ? `/${entity}` : ''}`);
 
 // Folder > doc > section > page, from the src/content folder layout. The branch holding the current page is open.
@@ -916,6 +918,10 @@ function App() {
   // Diagram search (header input); cleared when the page changes.
   const [query, setQuery] = useState('');
   useEffect(() => setQuery(''), [doc.id, page.id]);
+  // Browser tab: the open diagram's title in place of Hugo's "Diagrams", keeping the site name after it.
+  useEffect(() => {
+    document.title = `${doc.title} – ${SITE_TITLE}`;
+  }, [doc.title]);
   // Every change is applied at once, then written; a failed write shows in the toolbar and the next load restores the file.
   const commit = (raw, then) => {
     replaceSdd(doc.file, raw);

@@ -140,6 +140,7 @@ createServer((req, res) => {
   if (req.method === 'OPTIONS') return res.writeHead(204).end();
   const url = new URL(req.url, 'http://bridge');
 
+  // href: where the run was started. A WIP note links to its node: #/<board.json id>/<page id>/<note id>, the board's selection route.
   // Every run still buffered (running, or finished less than KEEP_MS ago), newest first.
   if (req.method === 'GET' && url.pathname === '/runs') {
     return json(res, [...runs].reverse().map(([id, r]) => ({
@@ -304,7 +305,7 @@ createServer((req, res) => {
         }
         // dev-deck outside AGENT_ROOT: the agent still needs to reach the note page.
         if (relative(AGENT_ROOT, import.meta.dirname).startsWith('..')) args.push('--add-dir', import.meta.dirname);
-        const emit = start(b.run, args, AGENT_ROOT, { label: ctx.note.title, href: '/_wip/board/', prompt: b.message });
+        const emit = start(b.run, args, AGENT_ROOT, { label: ctx.note.title, href: `/diagrams/#/wip-board/board/${b.note}`, prompt: b.message });
         if (b.newSession) emit({ session: b.newSession });
         res.writeHead(202).end();
       } catch (err) {
