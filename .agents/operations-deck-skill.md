@@ -1,197 +1,222 @@
 ---
 name: operations-deck
-description: create React Flow diagram from folder-local json files, next to its Hugo pages.
+description: Build and maintain an infrastructure operations deck as a dev-deck React Flow diagram stored in a folder-local `_ops.json`, next to its Hugo pages. Use for rollouts, migrations and runbooks (broker setup, secrets, Helm releases, switches and reverts across environments) where the unit of work is an operation applied per environment, run by commands and checked by verifications. Not for product specs: use sdd-convert for PRD/ADR/PLAN material.
 ---
 
+# operations-deck
 
 ## 0. Load unified-docs first (mandatory)
 
 Invoke the `unified-docs` skill (`Skill` tool, `unified-docs`) before anything else.
-This skill is **the union of both**: every rule of `unified-docs` applies (reigns, BoundedContexts,
-intentions, IntentionTags, DSL prefixes, `reactflow` frontmatter, file naming). The rules below only add to it.
-On conflict, this file wins for the diagram storage and node set.
+Every rule of `unified-docs` applies (reigns, BoundedContexts, intentions, IntentionTags, DSL prefixes, `reactflow`
+frontmatter, file naming). The rules below add to it; on conflict this file wins for the diagram storage and node set.
 
 ## 1. Input
 
-- A spec file path, usually outside dev-deck (e.g. `knowledge/prds/...`, `src/rtapi-1/docs/...`).
-- Read it fully. Never invent a requirement, decision, plan step or entity the spec does not state.
+- A rollout ticket, runbook, deploy log or ops doc, plus the code it deploys (charts, values files, scripts, CI config).
+- Read them fully and check the facts that change (PR state, values on the target branch, what CI applies, Secret Manager)
+  before writing them down. Never invent an operation, command or verification the sources do not support; a gap is
+  written as a gap (`⚠️`), a guess as a hypothesis (`❓`).
 - Skip RESTRICTED folders (`omnologus-consentio`, `omnologus-taofather`) unless the user names them.
 
-## 2. Output: `_sdd.json`, one per folder
-
-The diagram is **JSON data, not JavaScript** (same approach as the WIP board `board.json`).
+## 2. Output: `_ops.json`, one per folder
 
 | File | Where |
 |------|-------|
-| Diagram | `dev-deck/docs/<reign>/<bounded-context>/<intention>/_sdd.json` (e.g. `docs/_WIP/NATS-secure/design/_sdd.json`) |
-| Hugo pages | Markdown files in the **same folder**, named per `unified-docs` (`YYYYmmdd-<ticket>-<slug>.md`) |
+| Diagram | `docs/<reign>/<bounded-context>/<intention>/_ops.json` (e.g. `docs/_WIP/document-transform-retry/_ops.json`); also loaded: `docs/*/*/<folder>.json` |
+| Hugo pages | Markdown files in the **same folder** (ticket, deploy log, runbook), named per `unified-docs` (`YYYYmmdd-<ticket>-<slug>.md`) |
 
-- `src/content/index.js` loads every `docs/**/_sdd.json` at build time. No registration.
-- The diagram tab follows the docs path: `docs/_WIP/NATS-secure/design` shows under `wip › NATS-secure › design`.
-- Doc id: the JSON `id`, else the folder path below the reign, lower-cased and joined with `-`
-  (`docs/_WIP/NATS-secure/design` → `nats-secure-design`). Set `id` explicitly when the folder may move out of `_WIP`, so `reactflow` routes stay stable.
-- An empty or invalid `_sdd.json` is skipped (a warning in the browser console). It never breaks the app.
-- One `_sdd.json` per folder. If the folder already has one, merge into it: add entities, relations and pages, keep existing ids.
-- Each Hugo page in the folder lists the diagram in `reactflow:` (`"#/<doc-id>"`, plus page routes) and its core ids in `entities:`.
+- `src/content/index.js` loads them at build time; under `npm run dev` the app reads and saves them live. No registration.
+- Doc id: the JSON `id`, else the folder path below the reign. Set `id` explicitly so `reactflow` routes survive moves.
+- An empty or invalid file is skipped with a console warning; it never breaks the app.
+- One file per folder. Merge into an existing one: add nodes, relations and pages, keep existing ids.
+- Each Hugo page in the folder lists the diagram in `reactflow:` and its core ids in `entities:`; when an id is renamed
+  or removed, update those pages too.
 
 ### Orchestrator
 
-Each `_sdd.json` keeps **one** agent conversation, its orchestrator: `"orchestrator": { "id": "<session uuid>", "started": "<ISO>" }`.
-The bridge writes it on the first message from the diagram's **🤖 Agent** panel; later messages resume it (`claude --resume <id>` from the agent root).
-When you run as that orchestrator: edit the `_sdd.json` in place, never remove or change `orchestrator`, and give every new node a position in its kind column.
+Each `_ops.json` keeps **one** agent conversation: `"orchestrator": { "id": "<session uuid>", "started": "<ISO>" }`,
+written by the bridge on the first message from the diagram's **🤖 Agent** panel. As that orchestrator: edit the file in
+place, never remove or change `orchestrator`, give every new node a position in its kind column, and expect the user to
+edit the same file from the UI: re-read it before each change and build on what is there (renamed or deleted nodes are
+deliberate).
 
 ## 3. Node set
 
-A spec diagram uses **only** these node kinds. The kind comes from the id prefix (`DIMENSIONS` in `src/main.jsx`).
+The kind comes from the id prefix (`DIMENSIONS` in `src/main.jsx`).
 
-### Spec layer (from the spec itself)
+### Operations layer
 
-| Kind      | Prefix   | Entity value                                        | Rule                                                                                                                                                                                                                                                                                                                                                                                                        |
-|-----------|----------|-----------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **PRD**   | `PRD-`   | `{ "text", "why" }`                                 | One per product requirement. `text` = what the user gets. `why` is **mandatory**: the business reason, from the spec.                                                                                                                                                                                                                                                                                       |
-| **ADR**   | `ADR-`   | `{ "text", "why" }`                                 | One per architectural decision. `text` = the decision (present tense). `why` = context and the rejected alternative.                                                                                                                                                                                                                                                                                        |
-| **PLAN**  | `PLAN-`  | `{ "text", "why" }` or string                       | One per implementation plan or phase. `text` = scope and order. `why` optional.                                                                                                                                                                                                                                                                                                                             |
-| **TASK**  | `TASK-`  | `{ "status", "text" }`                              | One per unit of work in a plan. Put the Jira/Linear code in the id when there is one (`TASK-C14622`). `status`: `todo`, `wip`, `review`, `blocked`, `done`.                                                                                                                                                                                                                                                 |
-| **ACC**   | `ACC-`   | `{ "status", "text" }`                              | One per acceptance criterion: a verifiable condition that must hold for a PRD or PLAN to be accepted. `text` = the condition in present tense, then its evidence (`"Broker memory cap ≤ pod limit. Today: 11.72 GB reported."`). `status`: `open`, `partial`, `met`, `regressed`.                                                                                                                           |
-| **COD**   | `COD-`   | `{ "status", "text" }`                              | One per code change: a pull request, including one that only commits manifests or Helm values. Name it by repo and PR: `COD-Rtapi5699`. `status`: `wip`, `review`, `dev` (merged into dev), `released`. No `env`: it lives in a repo.                                                                                                                                                                       |
-| **OP**    | `OP-`    | `{ "status": [{ "env", "state" }], "text" }`        | One per operation applied to environments: `helm upgrade`, manifest or values applied, secret created, Terraform apply, CronJob run. Name it by what it changes: `OP-TransformNatsValues`. `status` lists its target environments, each `pending` or `done`.                                                                                                                                                |
-| **VERIF** | `VERIF-` | `{ "status": [{ "env", "state" }], "text" }`        | One per operational verification after an OP: a check with its expected result (`"nats-svc exposes only 4222"`). Per environment like an OP; state `pending` (not checked yet), `done` (holds) or `fail` (checked, does not hold; LED red). Name it by the expected result: `VERIF-OnlyClientPortExposed`.                                                                                                  |
-| **QUERY** | `QUERY-` | `{ "text", "query" }`                               | One per read-only command a VERIF runs (`kubectl get`, `gcloud … list`, `helm history`, a log grep, a script's read-only step). `query` holds the command with `<env>` and `$CTX` placeholders; the panel shows it as a code block. No `status` and no `env`: the `<env>` placeholder serves every environment. Never a mutating command (that is a CMD).                                                   |
-| **CMD**   | `CMD-`   | `{ "status": [{ "env", "state" }], "text", "cmd" }` | One per command that changes an environment and an OP runs: a script step, `helm upgrade`, `kubectl scale`. `cmd` holds it with `<env>` / `$CTX` placeholders (code block with a red edge). `status` lists its environments like an OP: `done` once it ran there, `fail` when the run failed. A dry-run variant is its own CMD, `before` the real one. Name it by the command: `CMD-DeployOrderparseImage`. |
+| Kind | Prefix | Value | Rule |
+|------|--------|-------|------|
+| **TASK** | `TASK-` | `{ "status", "text", "env"? }` | Work to plan that is not itself applied to an env: a code fix, a decision, a blocker to clear (`TASK-TransformBridgeValues`). `status`: `todo`, `open`, `wip`, `review`, `blocked`, `done`. `env` only when it applies to one env (`TASK-MaintenanceWindow`, `env: prod`). |
+| **COD** | `COD-` | `{ "status", "text" }` | One per code change: a pull request (also one that only commits manifests, values or a script). Name it by repo and PR: `COD-Rtapi6197`; a local script outside any repo is a COD with status `local` (`COD-nats-secure.sh`). `status`: `wip`, `review`, `dev` (merged into dev), `released`, `closed`, `local`. No `env`: it lives in a repo. Merged is not applied. |
+| **OP** | `OP-` | `{ "status": [{ "env", "state" }], "text" }` | One per operation applied to environments: set up a broker, create secrets, switch a service, revert. Name it by what it achieves, **never by an environment** (`OP-SetupNats`, not `OP-StagingBrokerHelm`). Its text holds the procedure and the preconditions, written env-agnostic (§3 Environments). |
+| **CMD** | `CMD-` | `{ "status": [{ "env", "state" }], "text", "cmd" }` | One per command that changes an environment and an OP runs: a script step, `helm upgrade`, `kubectl scale`. `cmd` holds it with `<env>` / `$CTX` placeholders, and when it wraps a script, the commands the script runs. A target is `done` once it ran there, `fail` when the run failed. |
+| **VERIF** | `VERIF-` | `{ "status": [{ "env", "state" }], "text" }` | One per operational check with its expected result (`VERIF-OnlyClientPortExposed`: "nats-svc exposes only 4222"). Name it by the expected result. State `pending` (not checked), `done` (holds), `fail` (checked, does not hold). |
+| **QUERY** | `QUERY-` | `{ "text", "query" }` | One per read-only command a VERIF runs: `kubectl get`, `gcloud … list`, `helm history`, a log grep, a script's read-only step. No `status`, no `env`: the `<env>` placeholder serves every env. Never a mutating command (that is a CMD). |
+| **ACC** | `ACC-` | `{ "status", "text" }` | Optional: a lasting condition the whole rollout is accepted on (`ACC-BrokerMemoryCapped`). `status`: `open`, `partial`, `met`, `regressed`. Several VERIFs are evidence for one ACC. |
 
-**TASK, COD, OP or ACC?**
-- **TASK:** work to plan ("add a NetworkPolicy template"). It may need several OPs.
-- **COD:** one code change in a repo, a PR ("PR #6076"). Merged is not applied: a PR that commits manifests changes nothing until an OP applies them.
-- **OP:** one change applied to environments ("staging values rolled out"), pending or done per environment.
-- **ACC:** a condition to verify, true or not regardless of who did what ("4222 accepts only rtapi and transform pods").
-- Typical chain: `TASK → COD` *done by*, `COD → OP` *deployed by*, `OP → ACC` *satisfies*. A code-only change skips the OP (`COD → ACC`).
-- A ticked checkbox in a spec ("[x] Close blocker 1") is usually a COD or OP that is done plus an ACC that is met, not a TASK.
+### Infrastructure layer
 
-**OP environments.** An OP's `status` is a list of targets: `[{ "env": "dev", "state": "done" }, { "env": "prod", "state": "pending" }]`.
-The panel shows one checkbox per environment (`eph`, `dev`, `staging`, `sandbox`, `prod`) and a state for each ticked one.
-The card shows one chip per target (✓ green when done); its LED is green when every target is done, yellow when some are, grey when none is.
-An OP has no single `env` property.
+Reuse the ids already declared in `src/content` and `_sdd.json` / other `_ops.json` files (`K8S-`, `NATS-`, `GCP-`, `OPS-`, `AP-`, and
+the `unified-docs` DSL for code: `BFUN-`, `BENT-`, …). Grep before naming: the same id is the same thing across docs, and
+renaming an id declared elsewhere breaks that diagram's links. Declare a new one only when no diagram has it.
 
-**TASK or ACC?** Ask "is it work, or a state to verify?"
+### Environments and states
 
-| It is an **ACC** when the spec item… | It is a **TASK** when the spec item… |
+- **Targets, not names.** An OP, CMD or VERIF carries its environments as targets
+  `[{ "env": "dev", "state": "done" }, { "env": "prod", "state": "pending" }]`; `env` ∈ `eph`, `dev`, `staging`,
+  `sandbox`, `prod`. One node per concept; a second node for one env is a duplicate: merge it and add a target.
+- **Env-agnostic text.** The env lives only in properties: an OP/CMD/VERIF `status` target, a TASK `env`, a link
+  label. Ids, `text`, `cmd`, `query`, page titles and the doc `subtitle` never name an env: write `<env>`, "the env",
+  or the condition that makes an env a target ("an env on the NATS bridge joins the .nats steps once …"). Which env
+  runs which variant is read from the targets, so moving an env is a status edit, not a text rewrite.
+  Not env names: git branches (`→ dev`), cluster or project names (`consentio-non-prod-cluster`, `consentio-prod`).
+
+  ❌ The text names one env while the targets cover four; it is wrong for three of them:
+
+  ```json
+  "OP-BrokerReloader": { "text": "Rerun nats-secure.sh staging broker so nats-0 gets the #6163 reloader sidecar, before the certificate renewal window (~2027-01-17).", "status": [ { "env": "dev", "state": "done" }, { "env": "staging", "state": "pending" }, { "env": "sandbox", "state": "pending" }, { "env": "prod", "state": "pending" } ] },
+  ```
+
+  ✅ The text holds for every target; the targets say where it is done:
+
+  ```json
+  "OP-BrokerReloader": { "text": "Rerun nats-secure.sh <env> broker so nats-0 gets the #6163 reloader sidecar, before the certificate renewal window (~2027-01-17).", "status": [ { "env": "dev", "state": "done" }, { "env": "staging", "state": "pending" }, { "env": "sandbox", "state": "pending" }, { "env": "prod", "state": "pending" } ] },
+  ```
+
+  A note that is true for one env only is a precondition or a TASK with `env`, or a link label `(staging)`, not prose.
+- A link that applies to one env carries it in its label: `before (prod)`, `includes (staging)`.
+- LED: red if any target is `fail`, green when every target is `done`, yellow when some are, grey when none is.
+- `tags` for cross-cutting state the id cannot hold: `conditional` (revert), `OutOfScope`, `🧹 cleanup`.
+
+### Which kind?
+
+| The item… | Kind |
 |---|---|
-| is a condition, check or gate (deploy conditions, verification lists, "must", "only", "≤", "rejected") | is an action someone performs (merge, deploy, create, write, decide) |
-| has evidence instead of steps (a config value, a log line, a metric, a ✅/❌ cell) | has steps or a PR |
-| stays true after the work is done, and can regress | is finished once done |
+| changes an environment, tracked per env | **OP** |
+| is the literal command that does it | **CMD** (run by the OP) |
+| is a check with an expected result, per env | **VERIF** |
+| is the read-only command that check runs | **QUERY** |
+| is code or config in a repo (PR, script) | **COD** |
+| is work to do before an OP can run (fix, decision, blocker) | **TASK** |
 
-- One spec line often holds both: "add `MaxBytes` (TASK) so the broadcast stream is capped (ACC)". Split it, then link `TASK → ACC` `satisfies`.
-- An ACC states the outcome, not the means: `ACC-BrokerMemoryCapped`, not `ACC-AddGomemlimit`.
-**Status LED.** An entity's `status` property (like `tags`, never a `[…]` prefix in `text`) shows as a LED on its card.
-Any string is accepted; the panel suggests the usual ones. The colour comes from the words in it:
-
-| LED | Status words |
-|-----|--------------|
-| 🔴 red | `blocked`, `regressed`, `fail` |
-| 🟡 yellow, pulsing | `partial`, `review`, `progress`, `wip`, `dev` (COD), or any status with `⚠` (`[done ⚠]`) |
-| 🟢 green | `done`, `met`, `ok`, `released` |
-| ⚪ grey | `open`, `todo`, `planned`, or any other word |
-
-No `status`, no LED: PRD, ADR and PLAN usually have none.
-
-**Environment.** `"env"`: one of `eph`, `dev`, `staging`, `sandbox`, `prod`, shown as a badge on the card (prod in red).
-Set it where it means something, on any kind but COD and OP: where an ACC is verified, where a TASK applies. An ACC met in staging but not in prod is two ACCs, one per env, or one ACC whose `env` moves as it is verified further.
-
-Any entity object may carry `"tags": ["blocker", "prod"]`: labels shown as post-its on the node, like WIP board labels.
-Use them for cross-cutting state the id cannot hold (`blocker`, `prod`, `roast-1`), not for the kind (the prefix already says it).
-
-### Implementation layer (what the spec touches)
-
-The `unified-docs` DSL prefixes (`FCOM-`, `FDTO-`, `BDTO-`, `BENT-`, `BPRO-`, `BAGG-`, `BFUN-`, `DBT-`, `DBP-`, `DBQ-`, `DBI-`, `EVT-`),
-plus any prefix already in `DIMENSIONS` for infrastructure specs (`K8S-`, `NATS-`, `GCP-`, `OPS-`, `AP-`).
-
-- **Reuse first.** Grep `src/content` and `docs/**/_sdd.json` before naming; the same id is the same thing across docs.
-  A reused id needs no entry in this file's `entities`: its text comes from the doc that declares it.
-- Declare a new implementation id only when no diagram has it yet.
-- When the spec already has action points as `AP-` ids, TASKs point to them (`changes`), they do not restate them.
-
-#### UML entities (data model)
-
-When the spec defines a data shape (a table, a struct, a DTO), declare it as a **UML entity**: a class box with its
-properties, no status, no env. The id keeps its DSL prefix (`DBT-`, `BENT-`, `FDTO-`, `BDTO-`), which sets the colour.
-
-```json
-"DBT-NatsUsers": { "type": "uml", "text": "One NATS user per client", "properties": [["id", "uuid"], ["account", "text"], ["revoked_at", "timestamptz"]] }
-```
-
-- `properties`: `[name, type]` pairs (`[name]` when the type is unknown), in spec order.
-- Link it like any node: a TASK or COD `changes` it, an ACC `checks` it.
-- In the diagram: **+ UML** creates a `BENT-New` box; rename the id to change the prefix.
-
-### Flow-only nodes
-
-Decision/step nodes with no `ref` are allowed inside `nodes` pages (`"kind": "entry" | "refused"`).
+- A dry run is usually a `DRY_RUN=1` variant inside the same CMD's `cmd`; give it its own CMD only when it is a separate step in the order.
+- Remove what other nodes cover: a generic OP whose envs are all covered by more precise OPs, a CMD made obsolete by a
+  merged PR, a TASK nobody needs. Before removing, move its links and any history worth keeping into the node that covers it.
 
 ## 4. Relations
 
 `"relations": [[from, to, label], …]`:
 
-- `PRD → ADR`, label `decided by`.
-- `PRD → PLAN`, label `planned by`.
-- `PLAN → TASK`, label `step`. `TASK → TASK`, label `before`, for ordering.
-- `PRD → ACC`, label `accepted when`. `PLAN → ACC`, label `done when`.
-- `TASK → ACC`, `COD → ACC` or `OP → ACC`, label `satisfies`. `TASK → COD` or `TASK → OP`, label `done by`. `COD → OP`, label `deployed by`. Between TASK, COD and OP, label `before`.
-- `OP → VERIF` or `TASK → VERIF`, label `verified by`. `VERIF → QUERY`, label `runs`. `VERIF → PRD` or `VERIF → ACC`, label `evidence for`. `OP → QUERY`, label `uses` (a read the operation needs, not a verification).
-- `OP → CMD`, label `runs`. `COD → CMD`, label `provides` (the script that holds the step). `CMD → VERIF`, label `checked by`.
-- **Operations pages:** one page per operation in an `Operations` section, listing the OP with its CMDs, VERIFs and QUERYs (explicit `entities`), so an operator reads the whole procedure on one canvas.
-- **VERIF or ACC?** An ACC is the product condition a PRD is accepted on; a VERIF is the operator's check that an OP worked in one env. Several VERIFs are usually evidence for one ACC or PRD.
-- `ADR → DBT-/BFUN-/FCOM-…`, label `shapes`.
-- `TASK → DBT-/BFUN-/FCOM-…`, label `changes`. `ACC → K8S-/NATS-/BFUN-…`, label `checks` (what the criterion inspects).
+- `OP → OP`, label `before`: the execution order (see §5). Keep this graph **acyclic**; a "then, if …" step of a revert
+  goes in the OP text, not in a link back.
+- `OP → CMD`, label `runs`. `CMD → CMD`, label `before`. `COD → CMD`, label `provides` (the script that holds the step).
+- `OP → VERIF`, label `verified by` (`verified by (before)` for a precondition). `CMD → VERIF`, label `checked by`.
+- `VERIF → QUERY`, label `runs`. `OP → QUERY`, label `uses` (a read the operation needs, not a verification).
+- `COD → OP`, label `deployed by`. `TASK → OP`, label `done by`; `TASK → OP` or `TASK → TASK`, label `before` for preconditions.
+- `TASK → TASK`, label `blocker` (from the switch or window TASK to what blocks it).
+- `VERIF → ACC`, label `evidence for`. `OP → K8S-/GCP-/NATS-…`, label `changes`.
 
-Every PRD reaches at least one PLAN or implementation node. An orphan PRD is a spec gap: list it in the folder's Hugo page under `## Gaps`.
-Every ACC has at least one `satisfies` TASK, unless it is already `[met]`. An unsatisfied open ACC is a gap too.
+## 5. Operations: sorted and numbered
 
-Column layout of a single spec page (left to right): PRD · ADR · PLAN · TASK · COD · OP · ACC · VERIF · QUERY · CMD (x = 0, 360, 720, 1080, 1440, 1800, 2160, 2520, 2880, 3240).
+The Operations section is the runbook. Its order is the execution order, and every operation shows it.
 
-## 5. Pages
+1. **One page per OP** in a section `Operations`, page id `op-<kebab name>` (`op-setup-nats`).
+2. **Titles numbered** `1- `, `2- `, …, `N- ` in execution order: `1- CreateNATSSecrets`, `2- SetupNats`, ….
+   Renumbering strips an existing `N- ` prefix first, so prefixes never stack. Page ids stay unchanged.
+   A step that differs per variant (broker, provider) is one OP per variant, numbered `N.<variant>- ` under the same N:
+   `2.pubsub- ConfigureRetry`, `2.nats- ConfigureRetry`. Each variant OP has its own page, CMDs, VERIFs and QUERYs;
+   only nodes that hold for every variant are shared.
+3. **One order everywhere.** The order follows the OP `before` chain. Save it twice: the sidebar order of the
+   Operations pages, and the positions of the By kind › OP page (one left-to-right line, `x = i * 280`), so the kind
+   page never depends on dagre's layout of an unordered or cyclic graph.
+4. Out-of-scope or conditional OPs go last (a revert after the forward steps, an out-of-scope OP at the end).
+5. A cross-cutting procedure (a switch, a maintenance window) is an OP with its own page in the same numbered
+   sequence, not an overview page beside it. It names the OPs it depends on in its text and keeps the `before` links,
+   but its page does not show them: each OP and its CMDs live on their own page.
 
-- No `pages` key → one `overview` page with every entity.
-- A page's `"entities"` may be a glob string over the file's entity ids (JSON has no `Object.keys`): `"*"` (every entity), `"TASK-*"`, or `"COD-*, OP-*"`. New entities land on matching glob pages by themselves.
-- Big diagrams: keep one `"*"` Home page and add one page per kind (`"PRD-*"`, `"TASK-*"`, …) in a `By kind` section.
-- Recommended set, in this order:
-  1. `overview` · Home · `"entities": "*"`.
-  2. `requirements` · PRDs and ADRs (`entities` page).
-  3. `plan` · PLANs and TASKs (`entities` page, or `nodes`/`edges` with `"direction": "LR"`).
-  4. `traceability` · PRD → ADR/PLAN → TASK → implementation (`entities` page).
-  5. One `nodes`/`edges` or `sequence` page per behaviour the spec describes.
+### Operation page content
 
-Page shapes are the same as JS docs: `entities`, `nodes` + `edges` (+ optional `groups`, `direction`), or a ZenUML `sequence` string.
+- **Exactly one `OP-` per page**: the page's own OP. Neighbouring OPs never appear on it; the order lives in the
+  page numbering and the `before` chain (shown on the By kind › OP page).
+- **Entities** (explicit list): context (the TASKs `done by` it, the CODs `deployed by` it or `provides` its CMDs),
+  the OP, its CMDs, its VERIFs, and the QUERYs those VERIFs run or the OP `uses`.
+- **Layout** (saved `positions`, no `direction`):
 
-## 6. Skeleton
+| Row | y | Content |
+|-----|---|---------|
+| Context | -160 | TASKs, CODs, the OP (last) |
+| Commands | 40 | The CMDs in execution order, left to right (x = i * 280) |
+| Verifications | 260 | The VERIFs, left to right |
+| Queries | 390 and below | Each VERIF's QUERYs stacked under it (a shared QUERY under the first VERIF); QUERYs no VERIF runs in an extra column at the right |
+
+- Re-layout a page after adding or removing nodes, and drop saved positions of nodes no longer on it.
+
+## 6. Pages
+
+- `spec` · Home · `"entities": "*"`, columns per kind: TASK · COD · OP · ACC · VERIF · QUERY · CMD
+  (x = 1080, 1440, 1800, 2160, 2520, 2880, 3240; implementation ids to the left).
+- `By kind` section: one page per kind with a glob (`"TASK-*"`, `"COD-*"`, `"OP-*"`, `"VERIF-*"`, `"QUERY-*"`,
+  `"CMD-*"`, `"ACC-*"`). New nodes land on glob pages by themselves.
+- `Operations` section: §5.
+- A page's `"entities"` may be a glob string (`"*"`, `"TASK-*"`, `"COD-*, OP-*"`) or an explicit list. The UI appends
+  new nodes only to explicit lists.
+
+## 7. Deploy log and Hugo pages
+
+- Incidents and deploy sessions go in `<folder>/../ops/<env>-deploy-log/YYYYmmdd-<ticket>-<slug>.md`: summary, components,
+  UTC timeline, causes (root cause, amplifier, design gap; `❓` for hypotheses), target design, recovery commands,
+  follow-ups with their diagram ids.
+- The ticket page keeps its dated checks; when the diagram contradicts it, fix the ticket or mark the line outdated.
+
+## 8. Skeleton
 
 ```json
 {
-  "id": "nats-secure",
-  "title": "NATS Secure",
-  "subtitle": "C-14622 · knowledge/prds/... · 2026-11-05",
+  "id": "nats-secure-sdd",
+  "title": "NATS Secure (operations)",
   "entities": {
-    "PRD-EncryptedBroker": { "text": "Every NATS connection is TLS-encrypted.", "why": "ISO 27001 audit flags plaintext internal traffic." },
-    "ADR-CertManagerCerts": { "text": "cert-manager issues the NATS certificates.", "why": "Already installed on the new clusters; manual certs expire silently." },
-    "PLAN-Rollout": { "text": "Staging first, then production per namespace.", "why": "A broken TLS handshake stops every consumer." },
-    "TASK-C14624": { "status": "review", "text": "Certificate reload sidecar." },
-    "BFUN-NatsConnect": "rtapi NATS client connection."
+    "COD-nats-secure.sh": { "status": "local", "text": "src/scripts/nats-secure.sh <env> <step>." },
+    "OP-CreateNatsSecrets": { "status": [{ "env": "staging", "state": "done" }, { "env": "prod", "state": "pending" }], "text": "Create the NATS passwords and the CA container." },
+    "OP-SetupNats": { "status": [{ "env": "staging", "state": "pending" }, { "env": "prod", "state": "pending" }], "text": "Install or upgrade the secured broker chart." },
+    "CMD-NatsSecureSecrets": { "status": [{ "env": "staging", "state": "done" }], "text": "Create the secrets.", "cmd": "src/scripts/nats-secure.sh <env> secrets" },
+    "VERIF-NatsSecretsExist": { "status": [{ "env": "staging", "state": "done" }, { "env": "prod", "state": "pending" }], "text": "Both passwords and the CA exist with a version." },
+    "QUERY-NatsSecretsList": { "text": "NATS secrets in Secret Manager.", "query": "gcloud secrets list --project consentio-prod --filter=\"name~nats\"" }
   },
   "relations": [
-    ["PRD-EncryptedBroker", "ADR-CertManagerCerts", "decided by"],
-    ["PRD-EncryptedBroker", "PLAN-Rollout", "planned by"],
-    ["PLAN-Rollout", "TASK-C14624", "step"],
-    ["TASK-C14624", "BFUN-NatsConnect", "changes"]
+    ["OP-CreateNatsSecrets", "OP-SetupNats", "before"],
+    ["OP-CreateNatsSecrets", "CMD-NatsSecureSecrets", "runs"],
+    ["COD-nats-secure.sh", "CMD-NatsSecureSecrets", "provides"],
+    ["OP-CreateNatsSecrets", "VERIF-NatsSecretsExist", "verified by"],
+    ["VERIF-NatsSecretsExist", "QUERY-NatsSecretsList", "runs"]
   ],
   "pages": [
-    { "id": "overview", "section": "Home", "title": "Everything", "entities": "*" },
-    { "id": "plan", "section": "1 · Spec", "title": "Plan and tasks", "entities": ["PLAN-Rollout", "TASK-C14624"] }
+    { "id": "spec", "section": "Home", "title": "Everything", "entities": "*" },
+    { "id": "operations", "section": "By kind", "title": "OP · operations", "entities": "OP-*",
+      "positions": { "OP-CreateNatsSecrets": { "x": 0, "y": 0 }, "OP-SetupNats": { "x": 280, "y": 0 } } },
+    { "id": "op-create-nats-secrets", "section": "Operations", "title": "1- CreateNATSSecrets", "edgeType": "smoothstep",
+      "entities": ["COD-nats-secure.sh", "OP-CreateNatsSecrets", "CMD-NatsSecureSecrets", "VERIF-NatsSecretsExist", "QUERY-NatsSecretsList"],
+      "positions": {
+        "COD-nats-secure.sh": { "x": 0, "y": -160 }, "OP-CreateNatsSecrets": { "x": 280, "y": -160 },
+        "CMD-NatsSecureSecrets": { "x": 0, "y": 40 },
+        "VERIF-NatsSecretsExist": { "x": 0, "y": 260 },
+        "QUERY-NatsSecretsList": { "x": 0, "y": 390 } } },
+    { "id": "op-setup-nats", "section": "Operations", "title": "2- SetupNats", "entities": ["OP-SetupNats"] }
   ]
 }
 ```
 
-## 7. Check
+## 9. Check
 
-- The JSON parses: `node -e "JSON.parse(require('fs').readFileSync('<path>/_sdd.json','utf8'))"`.
-- `cd dev-deck && npx vite build` passes.
-- Open `/diagrams/#/<doc-id>`. Each kind has its own colour (PRD gold, ADR brown, PLAN steel blue, TASK olive, COD sky blue, OP violet, ACC teal), and the side panel shows **Why:**.
-- Every `reactflow` route in the folder's Hugo pages points to an existing doc/page.
+- The JSON parses, and `orchestrator` is unchanged.
+- No id, `text`, `cmd`, `query`, page title or `subtitle` names an env (`grep -n -w -E 'dev|staging|sandbox|prod'`,
+  ignoring `"env":` keys, branches and cluster/project names).
+- No relation and no page `entities` entry points to a missing id; no text names a removed or renamed id
+  (grep the folder's Markdown pages too).
+- Every node on an Operations page has a saved position; no position is left for a node not on the page.
+- Every Operations page lists exactly one `OP-` id.
+- The Operations titles run `1- … N-` without gaps, in the same order as the By kind › OP line and the OP `before` chain.
+- The app builds (`npx vite build` from the dev-deck app folder) and `/diagrams/#/<doc-id>` shows each kind in its colour
+  (TASK olive, COD sky blue, OP violet, ACC teal, VERIF amber, QUERY slate, CMD dark red).
