@@ -1,5 +1,5 @@
-// Localhost bridge: the chat panel (src/agent-chat.js) POSTs here, this runs `claude -p` in this
-// repo (AGENTS.md applies) and streams its stream-json events back as SSE. Started by `npm run dev`.
+// Localhost bridge: the WIP board and SDD orchestrator chats POST here, this runs `claude -p` in the agent
+// root (AGENTS.md applies) and streams its stream-json events back as SSE. Started by `npm run dev`.
 // Every agent edit livereloads the page, so a run outlives its HTTP request: events are buffered per
 // run and GET /stream?run=<id>&from=<n> replays them to the reloaded page.
 import { createServer } from 'node:http';
@@ -35,15 +35,17 @@ const CYCLE_ISSUES = `query {
 }`;
 const json = (res, data) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
 
-// Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json and
+// Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json, docs/**/_ops.json and
 // docs/<reign>/<folder>/<folder>.json only.
 const DOCS = resolve(import.meta.dirname, 'docs');
+// _sdd.json: spec diagrams (.agents/sdd-convert-skill.md); _ops.json: operations decks (.agents/operations-deck-skill.md).
+const DIAGRAM = /^_(sdd|ops)\.json$/;
 const sddPath = (file) => {
   const abs = typeof file === 'string' && resolve(import.meta.dirname, file);
   if (!abs || !abs.startsWith(DOCS + sep)) return null;
   const parts = abs.slice(DOCS.length + 1).split(sep);
   const named = parts.length === 3 && parts[2] === `${parts[1]}.json`;
-  return parts.at(-1) === '_sdd.json' || named ? abs : null;
+  return DIAGRAM.test(parts.at(-1)) || named ? abs : null;
 };
 const isSdd = (d) => d && typeof d === 'object' && !Array.isArray(d) && typeof (d.entities ?? {}) === 'object'
   && Array.isArray(d.relations ?? []) && Array.isArray(d.pages ?? []);
@@ -75,17 +77,21 @@ function readBody(req, done) {
 const runs = new Map();
 
 // Runs `claude <args>` in cwd as run <id>, buffering its stream-json events for /stream.
-function start(id, args, cwd) {
-  const run = { events: [], done: false, listeners: new Set() };
+// meta { label, href, prompt }: what GET /runs shows in the corner status (src/agent-status.js).
+function start(id, args, cwd, meta) {
+  const run = { ...meta, started: Date.now(), last: '', events: [], done: false, listeners: new Set() };
   runs.set(id, run);
   const emit = (ev) => {
     run.events.push(ev);
+    if (ev.text) run.last = ev.text;
+    if (ev.tool) run.last = `${ev.tool} ${ev.target}`;
     for (const res of run.listeners) res.write(`data: ${JSON.stringify(ev)}\n\n`);
   };
   const finish = (error) => {
     if (run.done) return;
     emit({ done: true, error });
     run.done = true;
+    run.error = error;
     for (const res of run.listeners) res.end();
     setTimeout(() => runs.delete(id), KEEP_MS);
   };
@@ -134,6 +140,13 @@ createServer((req, res) => {
   if (req.method === 'OPTIONS') return res.writeHead(204).end();
   const url = new URL(req.url, 'http://bridge');
 
+  // Every run still buffered (running, or finished less than KEEP_MS ago), newest first.
+  if (req.method === 'GET' && url.pathname === '/runs') {
+    return json(res, [...runs].reverse().map(([id, r]) => ({
+      id, label: r.label, href: r.href, prompt: r.prompt, started: r.started, done: r.done, error: r.error, last: r.last,
+    })));
+  }
+
   if (req.method === 'GET' && url.pathname === '/stream') {
     const run = runs.get(url.searchParams.get('run'));
     if (!run) return res.writeHead(404).end();
@@ -178,7 +191,7 @@ createServer((req, res) => {
   // A _sdd.json diagram: read on load and focus, written on every edit (src/SddEdit.js).
   if (url.pathname === '/sdd') {
     const file = sddPath(url.searchParams.get('file'));
-    if (!file) return res.writeHead(400).end('file must be docs/**/_sdd.json or docs/<reign>/<folder>/<folder>.json');
+    if (!file) return res.writeHead(400).end('file must be docs/**/_sdd.json, docs/**/_ops.json or docs/<reign>/<folder>/<folder>.json');
     if (req.method === 'GET') {
       return readSdd(file)
         .then((d) => json(res, d))
@@ -221,14 +234,14 @@ createServer((req, res) => {
           const intro = [
             `[Orchestrator of the dev-deck spec diagram "${d.title ?? b.file}".`,
             `Its data: ${file}. The spec documents it was converted from are the Markdown files in the same folder.`,
-            `Follow ${resolve(import.meta.dirname, 'sdd-convert-skill.md')} (load the unified-docs skill first).`,
-            'Edit that _sdd.json in place: keep "orchestrator" as is, and give every new node a position in its kind column.',
+            `Follow ${resolve(import.meta.dirname, '.agents', file.endsWith('_ops.json') ? 'operations-deck-skill.md' : 'sdd-convert-skill.md')} (load the unified-docs skill first).`,
+            'Edit that file in place: keep "orchestrator" as is, and give every new node a position in its kind column.',
             `The user watches it live at /diagrams/#/${d.id ?? ''}.]`,
           ].join(' ');
           args = ['-p', `${intro}\n\n${b.message}`, '--session-id', created, '--name', `SDD ${d.title ?? b.file}`];
         }
         if (relative(AGENT_ROOT, import.meta.dirname).startsWith('..')) args.push('--add-dir', import.meta.dirname);
-        const emit = start(b.run, args, AGENT_ROOT);
+        const emit = start(b.run, args, AGENT_ROOT, { label: `SDD ${d.title ?? b.file}`, href: `/diagrams/#/${d.id ?? ''}`, prompt: b.message });
         if (created) emit({ session: created });
         res.writeHead(202).end();
       } catch (err) {
@@ -291,7 +304,7 @@ createServer((req, res) => {
         }
         // dev-deck outside AGENT_ROOT: the agent still needs to reach the note page.
         if (relative(AGENT_ROOT, import.meta.dirname).startsWith('..')) args.push('--add-dir', import.meta.dirname);
-        const emit = start(b.run, args, AGENT_ROOT);
+        const emit = start(b.run, args, AGENT_ROOT, { label: ctx.note.title, href: '/_wip/board/', prompt: b.message });
         if (b.newSession) emit({ session: b.newSession });
         res.writeHead(202).end();
       } catch (err) {
@@ -300,14 +313,5 @@ createServer((req, res) => {
     });
   }
 
-  // Page chat panel (src/agent-chat.js): runs in dev-deck.
-  if (req.method !== 'POST' || url.pathname !== '/chat') return res.writeHead(404).end();
-  readBody(req, (msg) => {
-    if (typeof msg?.message !== 'string' || !msg.message.trim() || !/^[\w-]+$/.test(msg.run ?? '') || runs.has(msg.run)) {
-      return res.writeHead(400).end();
-    }
-    const prompt = `[User is viewing ${msg.page}${msg.file ? `; source file: ${msg.file}` : ''}]\n\n${msg.message}`;
-    start(msg.run, ['-p', prompt, ...(/^[\w-]+$/.test(msg.sid ?? '') ? ['--resume', msg.sid] : [])], import.meta.dirname);
-    res.writeHead(202).end();
-  });
+  res.writeHead(404).end();
 }).listen(PORT, '0.0.0.0', () => console.log(`agent bridge on http://0.0.0.0:${PORT}`));

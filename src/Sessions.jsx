@@ -1,7 +1,7 @@
 // Claude sessions of a WIP note, in NoteAside. Sessions run in AGENT_ROOT through agent-bridge.mjs and are listed
 // in the note page's claude_sessions front matter, so `cd AGENT_ROOT && claude --resume <id>` picks them up.
 // Recording a session or an agent edit livereloads the page: the open chat lives in sessionStorage and its run
-// is followed again from the last event seen (as src/agent-chat.js does).
+// is followed again from the last event seen.
 import { useEffect, useRef, useState } from 'react';
 import { marked } from 'marked';
 
