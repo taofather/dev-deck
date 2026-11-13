@@ -331,3 +331,9 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .panel pre.query { white-space: pre-wrap; word-break: break-all; font-size: 11px; padding: 6px 8px; border-radius: 4px; background: rgba(127, 127, 127, 0.12); }
 /* CMD nodes change an environment: a red edge marks the block. */
 .panel pre.query.cmd { border-left: 3px solid #9f1239; }
+
+/* WIP board areas (Area in Board.jsx): a titled zone behind its notes, dragged by its title, resized from its corner. */
+.reactflow-app .area { width: 100%; height: 100%; border: 2px dashed var(--color-neutral-200); border-radius: 10px; background: rgb(0 0 0 / .025); }
+.reactflow-app .area-title { padding: 4px 10px; font-weight: 700; font-size: 13px; color: var(--color-neutral-500); cursor: grab; }
+.reactflow-app .area-resize { background: none; border: 0; color: var(--color-neutral-500); font-size: 12px; line-height: 1; transform: translate(-100%, -100%); cursor: nwse-resize; }
+html.dark .reactflow-app .area { border-color: var(--color-neutral-700); background: rgb(255 255 255 / .03); }

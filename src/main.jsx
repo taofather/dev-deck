@@ -427,9 +427,13 @@ function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }
       <MiniMap pannable zoomable nodeColor={(n) => DIMENSIONS[n.data.dim]?.color ?? 'transparent'} />
       {edit && (
         <FlowPanel position="top-left">
-          {page.entities && Object.keys(NEW_KINDS).map((k) => (
-            <button key={k} className="focus-toggle" style={{ borderColor: colorOf(`${prefixOf(k)}-x`) }} onClick={() => addAtCenter(k)}>+ {k}</button>
-          ))}
+          {page.entities && (
+            <select className="focus-toggle add-kind" value="" title="Add an entity at the centre of the view"
+              onChange={(e) => e.target.value && addAtCenter(e.target.value)}>
+              <option value="">+ Add…</option>
+              {Object.keys(NEW_KINDS).map((k) => <option key={k} value={k} style={{ color: colorOf(`${prefixOf(k)}-x`) }}>{k}</option>)}
+            </select>
+          )}
           <span className="board-hint">
             {linkFrom ? 'Click a node to link it · Esc to cancel' : 'Drag nodes to place them · → on a node to link it'}
           </span>

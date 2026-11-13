@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sessions } from './Sessions.jsx';
 import { loadSdd, ops, saveSdd } from './SddEdit.js';
-import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, useReactFlow, useConnection, useUpdateNodeInternals } from '@xyflow/react';
+import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, NodeResizeControl, useReactFlow, useConnection, useUpdateNodeInternals } from '@xyflow/react';
 
 const BRIDGE = 'http://127.0.0.1:5182/wip';
 // Relation label of a parent arrow (a note added with + under another); any other relation is a link.
@@ -187,7 +187,39 @@ function Note({ id, data }) {
     </div>
   );
 }
-const nodeTypes = { note: Note };
+// Areas: page.areas { id: { title, x, y, width, height } } (not page.groups: diagram pages lay those out, main.jsx), drawn behind the notes as React Flow parent nodes.
+// Membership is geometric: a note whose top-left corner lies inside an area is its child (parentId) and moves with
+// it, so dropping a note in or out of an area is only a move. board.json keeps every note's absolute position.
+// ponytail: no nesting, first area wins on overlap; areas are created in board.json until the trial earns a toolbar.
+const pageIn = (raw, pageId) => raw.pages?.find((p) => p.id === pageId) ?? {};
+const inside = (a, p) => p.x >= a.x && p.x < a.x + a.width && p.y >= a.y && p.y < a.y + a.height;
+const areaAt = (areas, p) => (p ? Object.keys(areas).find((id) => inside(areas[id], p)) : undefined);
+const setArea = (raw, pageId, id, patch) => {
+  const next = structuredClone(raw);
+  const page = pageIn(next, pageId);
+  page.areas = { ...page.areas, [id]: { ...page.areas[id], ...patch } };
+  return next;
+};
+// An area moved to pos takes its member notes along (same delta).
+const moveArea = (raw, pageId, id, pos) => {
+  const { areas, positions = {} } = pageIn(raw, pageId);
+  const a = areas[id];
+  const dx = Math.round(pos.x) - a.x;
+  const dy = Math.round(pos.y) - a.y;
+  const members = Object.entries(positions).filter(([nid, p]) => areaAt(areas, p) === id);
+  return ops.move(setArea(raw, pageId, id, { x: a.x + dx, y: a.y + dy }), pageId, members.map(([nid, p]) => ({ id: nid, x: p.x + dx, y: p.y + dy })));
+};
+
+function Area({ data }) {
+  return (
+    <div className="area">
+      <div className="area-title">{data.title}</div>
+      <NodeResizeControl position="bottom-right" minWidth={NOTE_W + 40} minHeight={120} className="area-resize"
+        onResizeEnd={(_, p) => data.onResized(p)}>◢</NodeResizeControl>
+    </div>
+  );
+}
+const nodeTypes = { note: Note, area: Area };
 
 // The selected note lives in the route (#/doc/page/<note id>) like any entity, so App passes it in and
 // renders NoteAside for it; onNotes hands App the notes that aside reads.
@@ -229,6 +261,9 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
     };
   }, [menu]);
   const { getNode, setCenter, getZoom } = useReactFlow();
+  // The note being dragged keeps the area it started in until the drop: React Flow reports its position relative
+  // to that parent, and reparenting mid-drag would make it jump. { id, area }.
+  const [held, setHeld] = useState(null);
 
   // Reloaded on focus too: board.json or a note page may have changed in another tab, an editor or by an agent.
   const loadPages = () => fetch(`${BRIDGE}/pages`)
@@ -326,10 +361,30 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
   const rel = menu && relation(menu);
 
   if (!notes) return <div className="board-msg">{error ?? 'Loading…'}</div>;
-  const nodes = notes.map((n) => ({
+  const areas = pageIn(raw, pageId).areas ?? {};
+  const parentOf = (r, id) => (held?.id === id ? held.area : areaAt(pageIn(r, pageId).areas ?? {}, pageIn(r, pageId).positions?.[id]));
+  // React Flow gives a child's position relative to its area; board.json stores it absolute.
+  const absolute = (r, id, pos) => {
+    const a = pageIn(r, pageId).areas?.[parentOf(r, id)];
+    return a ? { id, x: pos.x + a.x, y: pos.y + a.y } : { id, ...pos };
+  };
+  // Parents first: React Flow needs an area before its children.
+  const nodes = [...Object.entries(areas).map(([id, a]) => ({
+    id,
+    type: 'area',
+    position: { x: a.x, y: a.y },
+    width: a.width,
+    height: a.height,
+    dragHandle: '.area-title',
+    selectable: false,
+    data: { title: a.title, onResized: (p) => commit(setArea(raw, pageId, id, { width: Math.round(p.width), height: Math.round(p.height) })) },
+  })), ...notes.map((n) => {
+    const parent = areas[parentOf(raw, n.id)] && parentOf(raw, n.id);
+    return {
     id: n.id,
     type: 'note',
-    position: { x: n.x, y: n.y },
+    position: parent ? { x: n.x - areas[parent].x, y: n.y - areas[parent].y } : { x: n.x, y: n.y },
+    ...(parent && { parentId: parent }),
     dragHandle: '.note-title',
     style: { width: NOTE_W },
     ...(sizes[n.id] && { measured: sizes[n.id] }),
@@ -340,7 +395,8 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
       onStartLink: () => setLinkFrom(linkFrom === n.id ? null : n.id),
       linkSource: linkFrom === n.id, linkTarget: !!linkFrom && linkFrom !== n.id,
     },
-  }));
+  };
+  })];
   const lit = (a, b) => selected && (a === selected || b === selected);
   const ids = new Set(notes.map((n) => n.id));
   const edges = [
@@ -364,15 +420,24 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
-      onNodeDragStop={(_, node) => commit(ops.move(raw, pageId, [{ id: node.id, ...node.position }]))}
+      onNodeDragStart={(_, node) => !areas[node.id] && setHeld({ id: node.id, area: node.parentId })}
+      onNodeDragStop={(_, node) => {
+        commit(areas[node.id] ? moveArea(raw, pageId, node.id, node.position) : ops.move(raw, pageId, [absolute(raw, node.id, node.position)]));
+        setHeld(null);
+      }}
       onNodesChange={(changes) => {
         const measured = changes.filter((c) => c.type === 'dimensions' && c.dimensions);
         if (measured.length) setSizes((m) => Object.assign({ ...m }, ...measured.map((c) => ({ [c.id]: c.dimensions }))));
+        // An area being resized (bottom-right handle): on screen only; onResizeEnd saves.
+        const resized = measured.filter((c) => c.setAttributes && areas[c.id]);
+        if (resized.length) setRaw((r) => resized.reduce((acc, c) => setArea(acc, pageId, c.id, c.dimensions), r));
         // While dragging: moved on screen only; the drop saves.
-        const moves = changes.filter((c) => c.type === 'position' && c.position).map((c) => ({ id: c.id, ...c.position }));
-        if (moves.length) setRaw((r) => ops.move(r, pageId, moves));
+        const moves = changes.filter((c) => c.type === 'position' && c.position);
+        if (moves.length) setRaw((r) => moves.reduce((acc, c) => (areas[c.id] ? moveArea(acc, pageId, c.id, c.position)
+          : ops.move(acc, pageId, [absolute(acc, c.id, c.position)])), r));
       }}
       onNodeClick={(_, n) => {
+        if (areas[n.id]) return;
         if (!linkFrom) return onSelect(n.id);
         link({ source: linkFrom, target: n.id });
         setLinkFrom(null);
