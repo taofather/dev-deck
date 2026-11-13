@@ -15,13 +15,13 @@ const sdds = Object.fromEntries(Object.entries(
 
 // raw: the file content, kept as is for saving. The doc is derived from it: JSON has no Object.keys, so a page's
 // `"entities"` may be a glob string over this file's entity ids: "*" (every entity), "TASK-*", or "COD-*, OP-*".
-// No pages means one overview page.
+// `"include"` / `"exclude"`: ids a glob page adds or leaves out (from the panel's "Show on page" and "this page only"). No pages means one overview page.
 const glob = (pattern) => new RegExp(`^(${pattern.split(',').map((g) => g.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')).join('|')})$`);
 export const sddDoc = (file, raw) => {
   const dirs = file.split('/').slice(1, -1).map((d, i) => (i === 0 ? d.replace(/^_/, '').toLowerCase() : d));
   const entities = raw.entities ?? {};
   const pages = (raw.pages ?? [{ id: 'overview', section: 'Home', title: 'Everything', entities: '*' }])
-    .map((p) => (typeof p.entities === 'string' ? { ...p, entities: Object.keys(entities).filter((k) => glob(p.entities).test(k)) } : p));
+    .map((p) => (typeof p.entities === 'string' ? { ...p, entities: Object.keys(entities).filter((k) => (glob(p.entities).test(k) || p.include?.includes(k)) && !p.exclude?.includes(k)) } : p));
   return {
     id: raw.id ?? dirs.slice(1).join('-').toLowerCase(),
     title: raw.title ?? dirs.at(-1),

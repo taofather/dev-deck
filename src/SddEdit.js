@@ -43,6 +43,7 @@ const mapIds = (raw, fn) => {
   raw.relations = (raw.relations ?? []).map(([a, b, ...rest]) => [fn(a), fn(b), ...rest]).filter(([a, b]) => a && b);
   for (const p of raw.pages ?? []) {
     if (Array.isArray(p.entities)) p.entities = p.entities.map(fn).filter(Boolean);
+    for (const k of ['include', 'exclude']) if (p[k]) p[k] = p[k].map(fn).filter(Boolean);
     if (p.positions) p.positions = Object.fromEntries(Object.entries(p.positions).map(([k, v]) => [fn(k), v]).filter(([k]) => k));
     if (p.sides) {
       p.sides = Object.fromEntries(Object.entries(p.sides).map(([k, v]) => [k.split('~').map(fn), v])
@@ -127,6 +128,31 @@ export const ops = {
     const next = clone(raw);
     if (next.entities) delete next.entities[id];
     mapIds(next, (x) => (x === id ? null : x));
+    return next;
+  },
+  // Off one page only, the declaration and relations stay: out of a listed page, or into a glob page's `exclude`.
+  hide: (raw, pageId, id) => {
+    const next = clone(raw);
+    const page = pageOf(next, pageId);
+    if (Array.isArray(page.entities)) page.entities = page.entities.filter((x) => x !== id);
+    else {
+      page.exclude = [...new Set([...(page.exclude ?? []), id])];
+      page.include = page.include?.filter((x) => x !== id);
+    }
+    if (page.positions) delete page.positions[id];
+    if (page.sides) page.sides = Object.fromEntries(Object.entries(page.sides).filter(([k]) => !k.split('~').includes(id)));
+    return next;
+  },
+  // Onto another page at pos: a listed page gets the id; a glob page drops it from `exclude`, or adds it to `include` when its glob misses it.
+  show: (raw, pageId, id, matches, pos) => {
+    const next = clone(raw);
+    const page = pageOf(next, pageId);
+    if (Array.isArray(page.entities)) page.entities = [...new Set([...page.entities, id])];
+    else {
+      page.exclude = page.exclude?.filter((x) => x !== id);
+      if (!matches) page.include = [...new Set([...(page.include ?? []), id])];
+    }
+    if (pos) page.positions = { ...page.positions, [id]: { x: Math.round(pos.x), y: Math.round(pos.y) } };
     return next;
   },
   link: (raw, rel) => {

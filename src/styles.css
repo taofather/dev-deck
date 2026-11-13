@@ -303,6 +303,11 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .modal-depth .focus-toggle.on { background: var(--color-dark-green-50); border-color: var(--color-dark-green-600); color: var(--color-dark-green-700); }
 .reactflow-app .modal-canvas { flex: 1; min-height: 0; }
 .reactflow-app .modal-empty { padding: 24px; }
+.reactflow-app .modal.delete-modal { width: min(92vw, 520px); height: auto; }
+.reactflow-app .delete-modal .modal-head .focus-toggle { margin-left: auto; }
+.reactflow-app .delete-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; }
+.reactflow-app .delete-choices .focus-toggle { float: none; display: flex; flex-direction: column; gap: 6px; padding: 12px; text-align: left; white-space: normal; height: auto; }
+.reactflow-app .delete-choices span { font-size: 12px; font-weight: normal; color: var(--color-neutral-500); }
 .reactflow-app .panel .flow-buttons { display: flex; gap: 6px; margin: 0 0 10px; }
 .reactflow-app .panel .flow-buttons .focus-toggle { float: none; }
 
@@ -337,3 +342,6 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .area-title { padding: 4px 10px; font-weight: 700; font-size: 13px; color: var(--color-neutral-500); cursor: grab; }
 .reactflow-app .area-resize { background: none; border: 0; color: var(--color-neutral-500); font-size: 12px; line-height: 1; transform: translate(-100%, -100%); cursor: nwse-resize; }
 html.dark .reactflow-app .area { border-color: var(--color-neutral-700); background: rgb(255 255 255 / .03); }
+.reactflow-app .pages-of { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.reactflow-app .pages-of a { cursor: pointer; }
+.reactflow-app .pages-of select { float: none; margin-left: auto; }

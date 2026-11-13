@@ -6,7 +6,7 @@ import '@xyflow/react/dist/style.css';
 import '../assets/custom/custom.css';
 import './styles.css';
 
-import { docs, replaceSdd } from './content/index.js';
+import { docs, replaceSdd, sddDoc } from './content/index.js';
 import { ENVS, ID, NEW_KINDS, OP_STATES, SIDES, isUml, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf } from './SddEdit.js';
 
 const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
@@ -552,7 +552,7 @@ function EntityEditor({ id, edit }) {
             {[...new Set([...ENVS, env].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         )}
-        <button className="focus-toggle danger" onClick={() => confirm(`Remove ${id} and its relations from this diagram?`) && edit.remove(id)}>🗑 Delete</button>
+        <DeleteButton id={id} edit={edit}>🗑 Delete</DeleteButton>
         {problem && <span className="board-error">{problem}</span>}
       </div>
     </section>
@@ -680,6 +680,63 @@ const DEPTHS = [[1, '1'], [2, '2'], [3, '3']];
 
 // A temporary, read-only canvas over the diagram: the node with what comes before and after it, `depth` levels each way.
 // Clicking a node closes it and selects that node on the main diagram (App); Esc, ✕ or the backdrop just close it.
+// Delete asks where: off this page only (declaration and relations kept), or out of the whole json file.
+function DeleteButton({ id, edit, children }) {
+  const [open, setOpen] = useState(false);
+  const declared = edit.raw.entities?.[id] !== undefined;
+  useEffect(() => {
+    if (!open) return undefined;
+    const esc = (e) => e.key === 'Escape' && setOpen(false);
+    addEventListener('keydown', esc);
+    return () => removeEventListener('keydown', esc);
+  }, [open]);
+  return (
+    <>
+      <button className="focus-toggle danger" onClick={() => setOpen(true)}>{children}</button>
+      {open && (
+        <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
+          <div className="modal delete-modal" role="dialog" aria-label={`Delete ${id}`}>
+            <div className="modal-head">
+              <strong>Delete <span style={{ color: colorOf(id) }}>{id}</span></strong>
+              <button className="focus-toggle" title="Close (Esc)" onClick={() => setOpen(false)}>✕</button>
+            </div>
+            <div className="delete-choices">
+              <button className="focus-toggle" onClick={() => { setOpen(false); edit.hide(id); }}>
+                <strong>This page only</strong>
+                <span>Off “{edit.pageTitle}”. It stays in the file, its relations and the other pages.</span>
+              </button>
+              <button className="focus-toggle danger" onClick={() => { setOpen(false); edit.remove(id); }}>
+                <strong>Whole json file</strong>
+                <span>{declared ? 'Its declaration, relations, page lists and positions.' : 'Its relations, page lists and positions in this file (declared elsewhere, kept there).'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// The entity pages of this file it is on (links) and a selector to show it on another one.
+function PagesOf({ doc, page, id, edit }) {
+  const pages = doc.pages.filter((p) => p.entities && !p.board);
+  const on = pages.filter((p) => p.entities.includes(id));
+  const off = pages.filter((p) => !p.entities.includes(id));
+  return (
+    <p className="pages-of muted">
+      On {on.map((p, i) => (
+        <span key={p.id}>{i ? ' · ' : ''}{p.id === page.id ? <strong>{p.title}</strong> : <a onClick={() => go(doc.id, p.id, id)}>{p.title}</a>}</span>
+      ))}
+      {off.length > 0 && (
+        <select className="focus-toggle" value="" onChange={(e) => e.target.value && edit.show(e.target.value, id)}>
+          <option value="">↪ Show on page…</option>
+          {off.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+        </select>
+      )}
+    </p>
+  );
+}
+
 function FlowModal({ doc, id, hidden, onPick, onClose }) {
   const [depth, setDepth] = useState(1);
   const up = flowOf(id, depth, 'up');
@@ -744,11 +801,12 @@ function Panel({ doc, page, entity, edit, menu, onFlow }) {
           <button className="focus-toggle" title="This node with what leads to it and what it leads to" onClick={() => onFlow(entity)}>⇄ Flow</button>
         </div>
       )}
+      {edit && <PagesOf doc={doc} page={page} id={entity} edit={edit} />}
       {editable && <EntityEditor key={entity} id={entity} edit={edit} />}
       {edit && !editable && (
         <p className="muted">
           Declared in another diagram, edit it there.{' '}
-          <button className="focus-toggle danger" onClick={() => edit.remove(entity)}>Remove from this diagram</button>
+          <DeleteButton id={entity} edit={edit}>Remove from this diagram</DeleteButton>
         </p>
       )}
       {described.length === 0 && !editable && <p>⚠ Not documented yet.</p>}
@@ -947,6 +1005,14 @@ function App() {
     },
     save: (id, to, value) => commit(ops.rename(ops.describe(doc.raw, id, value), id, to), () => to !== id && go(doc.id, page.id, to)),
     remove: (id) => commit(ops.remove(doc.raw, id), () => go(doc.id, page.id)),
+    hide: (id) => commit(ops.hide(doc.raw, page.id, id), () => go(doc.id, page.id)),
+    pageTitle: page.title,
+    // Onto another page of this file; the glob test says whether the page's pattern already covers it.
+    show: (pageId, id) => {
+      const p = doc.raw.pages?.find((x) => x.id === pageId);
+      const matches = typeof p?.entities === 'string' && sddDoc(doc.file, { ...doc.raw, pages: [{ ...p, exclude: [], include: [] }] }).pages[0].entities.includes(id);
+      commit(ops.show(doc.raw, pageId, id, matches));
+    },
     field: (id, key, value) => commit(ops.field(doc.raw, id, key, value)),
     link: (rel) => commit(ops.link(doc.raw, rel)),
     unlink: (rel) => commit(ops.unlink(doc.raw, rel)),
