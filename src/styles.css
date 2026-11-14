@@ -345,3 +345,14 @@ html.dark .reactflow-app .area { border-color: var(--color-neutral-700); backgro
 .reactflow-app .pages-of { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .reactflow-app .pages-of a { cursor: pointer; }
 .reactflow-app .pages-of select { float: none; margin-left: auto; }
+
+/* Resume modal (ResumeModal in main.jsx): node picker, then every picked node's docs. */
+.reactflow-app .resume-button { margin-right: 8px; }
+.reactflow-app .resume-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 24px; font-size: 14px; }
+.reactflow-app .resume-body article { max-width: 900px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--color-neutral-200); }
+.reactflow-app .resume-body h2 { margin: 0 0 8px; font-size: 18px; }
+.reactflow-app .resume-body table { border-collapse: collapse; font-size: 13px; }
+.reactflow-app .resume-body td { padding: 2px 8px; border-bottom: 1px solid var(--color-neutral-100); vertical-align: top; }
+.reactflow-app .resume-picker { list-style: none; margin: 0; padding: 0; columns: 3 260px; }
+.reactflow-app .resume-picker label { display: flex; align-items: center; gap: 6px; padding: 3px 0; cursor: pointer; font-weight: 600; }
+.reactflow-app .modal-depth .focus-toggle:disabled { opacity: .5; cursor: default; }

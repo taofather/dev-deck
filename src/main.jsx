@@ -13,6 +13,7 @@ const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Positi
 import { Board, Labels, NoteAside, Stickies } from './Board.jsx';
 import { CycleIssues } from './Linear.jsx';
 import { Orchestrator } from './Orchestrator.jsx';
+import { EntityDocs, ResumeModal } from './Resume.jsx';
 
 // Colors follow AGENTS.md: blue frontend, red backend, purple database.
 const DIMENSIONS = {
@@ -816,24 +817,7 @@ function Panel({ doc, page, entity, edit, menu, onFlow }) {
             onBlur={(e) => edit.field(entity, COMMAND_FIELDS[dimOf(entity)].field, e.target.value.trim())} />
         </label>
       )}
-      {described.filter((e) => !(editable && e.doc.file === edit.file)).map(({ doc: d, text, why, query, cmd, columns }) => (
-        <section key={d.id}>
-          {described.length > 1 && <h3>From {d.title}</h3>}
-          <p>{text}</p>
-          {why && <p><strong>Why:</strong> {why}</p>}
-          {query && <pre className="query">{query}</pre>}
-          {cmd && <pre className="query cmd">{cmd}</pre>}
-          {columns && (
-            <table>
-              <tbody>
-                {columns.map(([name, type, desc]) => (
-                  <tr key={name}><td>{name}</td><td className="muted">{type}</td><td>{desc}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-      ))}
+      <EntityDocs described={described} skip={editable ? edit.file : undefined} />
       <h3>Appears in</h3>
       <ul>
         {appearances(entity).map(({ doc: d, page: p }) => (
@@ -975,6 +959,7 @@ function App() {
   const { doc, page, entity } = route;
   // The node whose flow modal is open (FlowModal), or null.
   const [flow, setFlow] = useState(null);
+  const [resume, setResume] = useState(false);
   // A zoom asked from outside the canvas (a pick in the flow modal), consumed by Diagram.
   const [zoomTo, setZoomTo] = useState(null);
   // Diagram search (header input); cleared when the page changes.
@@ -1097,6 +1082,7 @@ function App() {
             <input type="search" className="diagram-search" placeholder="🔍 Search nodes…" value={query}
               onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQuery('')} />
           )}
+          {doc.file && !page.board && <button className="focus-toggle resume-button" onClick={() => setResume(true)}>📝 Make Resume</button>}
           <div className="eyebrow">{doc.title} › {page.section}</div>
           <h2>{page.title}</h2>
         </header>
@@ -1136,6 +1122,10 @@ function App() {
       ) : (
         <Panel doc={doc} page={page} entity={entity} edit={edit} onFlow={setFlow}
           menu={doc.file && <SideMenu side={side} onSide={setSide} />} />
+      )}
+      {resume && (
+        <ResumeModal key={`${doc.id}/${page.id}`} title={page.title} ids={[...new Set(pageGraph(page).nodes.map((n) => n.ref ?? n.id))]}
+          docsOf={entityDocs} relations={relations} colorOf={colorOf} onClose={() => setResume(false)} />
       )}
       {flow && (
         <FlowModal doc={doc} id={flow} hidden={hidden} onClose={() => setFlow(null)}
