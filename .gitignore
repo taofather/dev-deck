@@ -2,8 +2,8 @@
 /node_modules
 /dist
 
-# WIP folder is a temporary area, rendered but pending to organize.
-/docs/_WIP
+# Hugo docs live in another repo, symlinked
+/docs
 
 # Local settings (personal overrides)
 settings.local.json
