@@ -4,6 +4,8 @@
 
 # Hugo docs live in another repo, symlinked
 /docs
+# Hugo config lives in parent repo, symlinked
+hugo.yaml
 
 # Local settings (personal overrides)
 settings.local.json
