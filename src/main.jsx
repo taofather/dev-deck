@@ -957,6 +957,10 @@ function App() {
   }, []);
 
   const { doc, page, entity } = route;
+  // Landing on a diagram page shows the canvas: the panel opens only for a node named in the URL, or on a click.
+  useEffect(() => {
+    setPanelFolded(!entity);
+  }, [doc.id, page.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // The node whose flow modal is open (FlowModal), or null.
   const [flow, setFlow] = useState(null);
   const [resume, setResume] = useState(false);
