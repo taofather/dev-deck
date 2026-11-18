@@ -275,29 +275,26 @@ const parseHash = () => {
 const SITE_TITLE = document.title.split(' – ').at(-1);
 const go = (docId, pageId, entity) => (location.hash = `/${docId}/${pageId}${entity ? `/${entity}` : ''}`);
 
-// Folder > doc > section > page, from the src/content folder layout. The branch holding the current page is open.
+// Folder > section > page, from the physical folder layout (src/content, docs/**). No doc level: the folder names it.
+// Only a folder holding several docs prefixes each section with its doc title. The branch holding the current page is open.
 // Called with no label for the root; each folder calls it again one level deeper.
 function DiagramTree({ label, docs: inside = docs, level = 0, route }) {
   const deeper = inside.filter((d) => d.dirs.length > level);
+  const here = inside.filter((d) => d.dirs.length === level);
   const children = (
     <>
       {[...new Set(deeper.map((d) => d.dirs[level]))].map((f) => (
         <DiagramTree key={f} label={f} docs={deeper.filter((d) => d.dirs[level] === f)} level={level + 1} route={route} />
       ))}
-      {inside.filter((d) => d.dirs.length === level).map((d) => (
-        <details key={d.id} className="tree" open={d === route.doc}>
-          <summary>{d.title}</summary>
-          {[...new Set(d.pages.map((p) => p.section))].map((s) => (
-            <details key={s} className="tree" open={d === route.doc && route.page.section === s}>
-              <summary className="section">{s}</summary>
-              {d.pages.filter((p) => p.section === s).map((p) => (
-                <a key={p.id} className={p === route.page ? 'current' : ''}
-                  onClick={() => go(d.id, p.id, d === route.doc ? route.entity : null)}>{p.title}</a>
-              ))}
-            </details>
+      {here.flatMap((d) => [...new Set(d.pages.map((p) => p.section))].map((s) => (
+        <details key={`${d.id}/${s}`} className="tree" open={d === route.doc && route.page.section === s}>
+          <summary className="section">{here.length > 1 ? `${d.title} › ${s}` : s}</summary>
+          {d.pages.filter((p) => p.section === s).map((p) => (
+            <a key={p.id} className={p === route.page ? 'current' : ''}
+              onClick={() => go(d.id, p.id, d === route.doc ? route.entity : null)}>{p.title}</a>
           ))}
         </details>
-      ))}
+      )))}
     </>
   );
   if (!label) return children;
