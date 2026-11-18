@@ -5,8 +5,11 @@
 // - docs/_WIP/board/*.md: the note body as a Hugo page, found by its `board: <note id>` front matter. Files can only
 //   be written from Node, so this module owns them. Hugo renders them under /_wip/board/<file>/; editing one in an
 //   editor or Obsidian shows on the board.
+// More boards live in subfolders: docs/_WIP/board/<name>/<name>.json, their note pages in that folder. A note moves
+// between boards with its page (moveNote); a page is found by its `board:` id wherever it sits.
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { basename } from 'node:path';
 
 const ROOT = import.meta.dirname;
 const DIR = `${ROOT}/docs/_WIP/board`;
@@ -16,12 +19,25 @@ const FM = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 // Write then rename: a crash mid-write never leaves a truncated file.
 const writeAtomic = (file, text) => writeFile(`${file}.tmp`, text).then(() => rename(`${file}.tmp`, file));
 
-// The note as board.json declares it: { id, title, linear }, or null when there is no such note.
+// Every WIP board: board.json, then one per subfolder holding <name>/<name>.json. dir: its folder below DIR ('' for the root).
+export async function boards() {
+  const subs = (await readdir(DIR, { withFileTypes: true }).catch(() => []))
+    .filter((d) => d.isDirectory() && existsSync(`${DIR}/${d.name}/${d.name}.json`)).map((d) => d.name).sort();
+  return [{ dir: '', file: BOARD_FILE }, ...subs.map((s) => ({ dir: s, file: `docs/_WIP/board/${s}/${s}.json` }))];
+}
+export const readBoard = (file) => readFile(`${ROOT}/${file}`, 'utf8').then((t) => (t.trim() ? JSON.parse(t) : {}));
+
+// The note as its board declares it: { id, title, linear, where }, or null when no board has it.
+// where: { dir, file, id, pageId }, the board holding it (pageId: its `board: true` page).
 async function noteOf(id) {
-  const doc = await readFile(`${ROOT}/${BOARD_FILE}`, 'utf8').then(JSON.parse).catch(() => ({}));
-  const e = doc.entities?.[id];
-  if (e === undefined) return null;
-  return { id, ...(typeof e === 'string' ? { title: e } : e) };
+  for (const b of await boards()) {
+    const doc = await readBoard(b.file).catch(() => ({}));
+    const e = doc.entities?.[id];
+    if (e === undefined) continue;
+    const where = { ...b, id: doc.id, pageId: doc.pages?.find((p) => p.board)?.id ?? 'board' };
+    return { id, ...(typeof e === 'string' ? { title: e } : e), where };
+  }
+  return null;
 }
 
 const fmValue = (fm, key) => {
@@ -34,11 +50,15 @@ const fmValue = (fm, key) => {
   return v;
 };
 
-// note id → { file, fm, title, body } for every board page in docs/_WIP/board.
+// note id → { file, fm, title, body } for every note page in the board folders; file is relative to DIR (review/x.md).
 async function scan() {
   const pages = new Map();
-  const files = await readdir(DIR).catch((err) => (err.code === 'ENOENT' ? [] : Promise.reject(err)));
-  for (const file of files.filter((f) => f.endsWith('.md') && f !== '_index.md')) {
+  const files = [];
+  for (const { dir } of await boards()) {
+    const names = await readdir(`${DIR}/${dir}`).catch((err) => (err.code === 'ENOENT' ? [] : Promise.reject(err)));
+    files.push(...names.filter((f) => f.endsWith('.md') && f !== '_index.md').map((f) => (dir ? `${dir}/${f}` : f)));
+  }
+  for (const file of files) {
     const m = (await readFile(`${DIR}/${file}`, 'utf8')).match(FM);
     const id = m && fmValue(m[1], 'board');
     if (id) pages.set(id, { file, fm: m[1], title: fmValue(m[1], 'title'), body: m[2].replace(/^\n/, '').replace(/\n$/, '') });
@@ -48,14 +68,15 @@ async function scan() {
 
 export const pageUrl = (file) => `/_wip/board/${file.replace(/\.md$/, '').toLowerCase()}/`;
 
-// AGENTS.md file naming: YYYYMMDD, the ticket code when there is one, then a slug of the title.
+// AGENTS.md file naming: YYYYMMDD, the ticket code when there is one, then a slug of the title. In the note's board folder.
 function newFileName(note) {
+  const dir = note.where?.dir ? `${note.where.dir}/` : '';
   const day = new Date().toISOString().slice(0, 10).replaceAll('-', '');
   const slug = (note.title ?? '').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
   const base = [day, note.linear?.id, slug || note.id.slice(0, 8)].filter(Boolean).join('-');
   // Two notes with the same title on the same day must not share a page.
   for (let i = 1; ; i++) {
-    const file = `${base}${i > 1 ? `-${i}` : ''}.md`;
+    const file = `${dir}${base}${i > 1 ? `-${i}` : ''}.md`;
     if (!existsSync(`${DIR}/${file}`)) return file;
   }
 }
@@ -89,7 +110,7 @@ const withSessions = (fm, sessions) => [
 // Writes the note's page: keeps any extra front matter of an existing page, refreshes its title.
 // edit: optional front matter transform (tags, claude_sessions).
 async function writePage(note, body, page, edit = (fm) => fm) {
-  await mkdir(DIR, { recursive: true });
+  await mkdir(`${DIR}/${note.where?.dir ?? ''}`, { recursive: true });
   const title = `title: ${JSON.stringify(note.title ?? 'Untitled')}`;
   const fm = edit(page
     ? (/^title:.*$/m.test(page.fm) ? page.fm.replace(/^title:.*$/m, title) : `${title}\n${page.fm}`)
@@ -142,4 +163,21 @@ export async function noteContext(id) {
   const note = await noteOf(id);
   const page = note && (await scan()).get(id);
   return note && { note, file: page && `${DIR}/${page.file}`, body: page?.body ?? '' };
+}
+
+export { noteOf };
+
+// A note moved to another board: its page goes to that board's folder (no page, nothing to move). A name already
+// taken there gets a -2, -3… suffix. Returns the page url, or null when the note has no page.
+export async function movePage(id, dir) {
+  const page = (await scan()).get(id);
+  if (!page) return null;
+  const name = basename(page.file, '.md');
+  let file;
+  for (let i = 1; ; i++) {
+    file = `${dir ? `${dir}/` : ''}${name}${i > 1 ? `-${i}` : ''}.md`;
+    if (file === page.file || !existsSync(`${DIR}/${file}`)) break;
+  }
+  if (file !== page.file) await rename(`${DIR}/${page.file}`, `${DIR}/${file}`);
+  return pageUrl(file);
 }

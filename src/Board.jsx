@@ -501,7 +501,15 @@ export function Labels({ labels, onSave }) {
 }
 
 // Right-hand aside for the selected note: its full body plus the notes it is related to.
-export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload, onRotate }) {
+// A note onto another WIP board (docs/_WIP/board/<name>/<name>.json), with its page; the bridge rewrites both boards.
+// Resolves to { board, pageId, page }: where the note is now.
+export const moveNote = (id, to) => fetch(`${BRIDGE}/move`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, to }),
+}).then((r) => (r.ok ? r.json() : r.text().then((t) => Promise.reject(new Error(t || (r.status === 404
+  ? 'The bridge predates board moves: restart npm run dev.' : `move failed: ${r.status}`))))));
+
+// boards: the other WIP boards ({ file, title }); onMove(file) moves the note there.
+export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload, onRotate, boards = [], onMove }) {
   const [draft, setDraft] = useState(null);
   // Title: click to rename; Enter or blur saves, Esc cancels. Saved like a rename on the node (board.json + page).
   const [title, setTitle] = useState(null);
@@ -548,6 +556,19 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
         <h2 className="note-aside-title" title="Click to rename" onClick={() => setTitle(note.title)}>{note.title}</h2>
       )}
       {note.linear && <Status linear={note.linear} state={stateOf(note, issues)} link />}
+      {onMove && boards.length > 0 && (
+        <p className="pages-of muted">
+          <select className="focus-toggle" value="" onChange={(e) => {
+            const to = boards.find((b) => b.file === e.target.value);
+            const linked = rels.length ? `\nIts ${rels.length} arrow(s) to notes on this board are removed.` : '';
+            if (to && confirm(`Move "${note.title}" to ${to.title}?${linked}`)) onMove(to.file).catch((err) => setSaving(err.message));
+          }}>
+            <option value="">↪ Move to board…</option>
+            {boards.map((b) => <option key={b.file} value={b.file}>{b.title}</option>)}
+          </select>
+          {saving && draft === null && <span className="board-error"> {saving}</span>}
+        </p>
+      )}
       <Labels key={note.id} labels={labelsOf(note)} onSave={(next) => onSaveTags(note.id, ['wip', ...next])} />
       {draft !== null ? (
         <div className="note-editor">

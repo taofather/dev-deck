@@ -9,7 +9,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { LinearClient } from '@linear/sdk';
 import { randomUUID } from 'node:crypto';
 import { relative, resolve, sep } from 'node:path';
-import { addSession, loadPages, noteContext, saveBody, saveTags, saveTitle } from './note-pages.mjs';
+import { addSession, boards, loadPages, movePage, noteContext, noteOf, readBoard, saveBody, saveTags, saveTitle } from './note-pages.mjs';
+import { ops } from './src/SddEdit.js';
 import { AGENT_ROOT, isSessionId, listSessions, transcript } from './claude-sessions.mjs';
 
 const PORT = 5182;
@@ -35,8 +36,8 @@ const CYCLE_ISSUES = `query {
 }`;
 const json = (res, data) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
 
-// Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json, docs/**/_ops.json and
-// docs/<reign>/<folder>/<folder>.json only.
+// Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json, docs/**/_ops.json,
+// docs/<reign>/<folder>/<folder>.json and the WIP sub-boards docs/_WIP/board/<name>/<name>.json only.
 const DOCS = resolve(import.meta.dirname, 'docs');
 // _sdd.json: spec diagrams (.agents/sdd-convert-skill.md); _ops.json: operations decks (.agents/operations-deck-skill.md).
 const DIAGRAM = /^_(sdd|ops)\.json$/;
@@ -44,7 +45,8 @@ const sddPath = (file) => {
   const abs = typeof file === 'string' && resolve(import.meta.dirname, file);
   if (!abs || !abs.startsWith(DOCS + sep)) return null;
   const parts = abs.slice(DOCS.length + 1).split(sep);
-  const named = parts.length === 3 && parts[2] === `${parts[1]}.json`;
+  const board = parts.length === 4 && parts[0] === '_WIP' && parts[1] === 'board';
+  const named = (parts.length === 3 || board) && parts.at(-1) === `${parts.at(-2)}.json`;
   return DIAGRAM.test(parts.at(-1)) || named ? abs : null;
 };
 const isSdd = (d) => d && typeof d === 'object' && !Array.isArray(d) && typeof (d.entities ?? {}) === 'object'
@@ -189,6 +191,33 @@ createServer((req, res) => {
     });
   }
 
+  // A note onto another WIP board (NoteAside "Move to board"): out of its board file with its relations (links
+  // cannot cross files), into the target's board page right of its notes, and its page into the target's folder.
+  if (url.pathname === '/wip/move' && req.method === 'POST') {
+    return readBody(req, async (b) => {
+      if (typeof b?.id !== 'string' || typeof b.to !== 'string') return res.writeHead(400).end();
+      try {
+        const note = await noteOf(b.id);
+        const to = (await boards()).find((x) => x.file === b.to);
+        if (!note || !to) return res.writeHead(404).end(note ? 'no such board' : 'no such note');
+        const dst = await readBoard(to.file);
+        const pageId = dst.pages?.find((p) => p.board)?.id;
+        if (!pageId) return res.writeHead(409).end(`${to.file} has no board page`);
+        if (to.file !== note.where.file) {
+          const src = await readBoard(note.where.file);
+          const xs = Object.values(dst.pages.find((p) => p.id === pageId).positions ?? {}).map((q) => q.x);
+          const pos = { x: xs.length ? Math.max(...xs) + 360 : 0, y: 0 };
+          // Target first: a failure in between leaves the note on both boards, never on none.
+          await writeFile(resolve(import.meta.dirname, to.file), sddJson(ops.put(dst, pageId, b.id, src.entities[b.id], pos)));
+          await writeFile(resolve(import.meta.dirname, note.where.file), sddJson(ops.remove(src, b.id)));
+        }
+        json(res, { board: dst.id, pageId, page: await movePage(b.id, to.dir) });
+      } catch (err) {
+        res.writeHead(500).end(err.message);
+      }
+    });
+  }
+
   // A _sdd.json diagram: read on load and focus, written on every edit (src/SddEdit.js).
   if (url.pathname === '/sdd') {
     const file = sddPath(url.searchParams.get('file'));
@@ -305,7 +334,7 @@ createServer((req, res) => {
         }
         // dev-deck outside AGENT_ROOT: the agent still needs to reach the note page.
         if (relative(AGENT_ROOT, import.meta.dirname).startsWith('..')) args.push('--add-dir', import.meta.dirname);
-        const emit = start(b.run, args, AGENT_ROOT, { label: ctx.note.title, href: `/diagrams/#/wip-board/board/${b.note}`, prompt: b.message });
+        const emit = start(b.run, args, AGENT_ROOT, { label: ctx.note.title, href: `/diagrams/#/${ctx.note.where.id}/${ctx.note.where.pageId}/${b.note}`, prompt: b.message });
         if (b.newSession) emit({ session: b.newSession });
         res.writeHead(202).end();
       } catch (err) {
