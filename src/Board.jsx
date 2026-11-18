@@ -380,8 +380,7 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
     .then(({ page }) => setPages((p) => ({ ...p, [id]: { ...p[id], body, page } })));
   useEffect(() => {
     if (apiRef) apiRef.current = notes ? { addIssue, saveBody, saveTags, rename, reload: load,
-      saveProps: (id, props) => commit(ops.field(raw, id, 'props', props)),
-      rotate: (r, end) => relation(r)?.rotate(end) } : null;
+      saveProps: (id, props) => commit(ops.field(raw, id, 'props', props)) } : null;
   });
   // Out of the diagram: its entity, relations, position and sides (ops.remove). Its page stays.
   const remove = (id) => commit(ops.remove(raw, id));
@@ -557,7 +556,7 @@ export const moveNote = (id, to) => fetch(`${BRIDGE}/move`, {
   ? 'The bridge predates board moves: restart npm run dev.' : `move failed: ${r.status}`))))));
 
 // boards: the other WIP boards ({ file, title }); onMove(file) moves the note there.
-export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload, onRotate, onSaveProps, boards = [], onMove }) {
+export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload, onSaveProps, boards = [], onMove }) {
   const [draft, setDraft] = useState(null);
   // Title: click to rename; Enter or blur saves, Esc cancels. Saved like a rename on the node (board.json + page).
   const [title, setTitle] = useState(null);
@@ -586,7 +585,7 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
       })
       .catch((e) => setSaving(e.message));
   };
-  // Every arrow touching this note: parent and children (from), links out and in. Each end rotates like the edge menu.
+  // Every arrow touching this note: parent and children (from), links out and in. Rotating is on the arrow's own menu.
   const byId = (id) => notes.find((n) => n.id === id);
   const rels = [
     note.from && byId(note.from) && { kind: 'from', source: note.from, target: note.id, other: byId(note.from), label: 'Related to ↑' },
@@ -651,18 +650,11 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
         <>
           <h3>Relations</h3>
           <ul className="note-rels">
-            {rels.map((r) => {
-              const sides = sidesOf(r.kind, byId(r.source), byId(r.target));
-              return (
-                <li key={`${r.kind}:${r.source}>${r.target}`}>
-                  <span className="muted">{r.label}</span> <a onClick={() => onSelect(r.other.id)}>{r.other.title}</a>
-                  <span className="note-rel-rotate">
-                    <button className="focus-toggle" title={`Origin side: ${sides.origin} → ${nextSide(sides.origin)}`} onClick={() => onRotate(r, 'origin')}>↻ origin · {sides.origin}</button>
-                    <button className="focus-toggle" title={`Destination side: ${sides.dest} → ${nextSide(sides.dest)}`} onClick={() => onRotate(r, 'dest')}>↻ destination · {sides.dest}</button>
-                  </span>
-                </li>
-              );
-            })}
+            {rels.map((r) => (
+              <li key={`${r.kind}:${r.source}>${r.target}`}>
+                <span className="muted">{r.label}</span> <a onClick={() => onSelect(r.other.id)}>{r.other.title}</a>
+              </li>
+            ))}
           </ul>
         </>
       )}
