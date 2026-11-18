@@ -326,6 +326,10 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .layout.panel-max > .panel { border-left: 0; padding-inline: max(16px, calc((100% - 960px) / 2)); }
 .reactflow-app .layout.panel-max .session-log { max-height: max(300px, calc(100vh - 380px)); }
 .reactflow-app .layout.panel-max .session-chat textarea { min-height: 8.5em; }
+.reactflow-app .fold-toggle:is(.panel-prev, .panel-next) { position: absolute; top: 8px; z-index: 5; float: none; }
+.reactflow-app .fold-toggle.panel-prev { right: 67px; }
+.reactflow-app .fold-toggle.panel-next { right: 36px; }
+.reactflow-app .fold-toggle:is(.panel-prev, .panel-next):disabled { opacity: .35; cursor: default; }
 /* UML entity (_sdd.json type "uml"): a class box, name compartment over the properties. */
 .reactflow-app .card.uml { border-width: 5px 1px 1px; border-radius: 2px; }
 .reactflow-app .card.uml .card-label { text-align: center; padding-bottom: 4px; }

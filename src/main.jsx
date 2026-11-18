@@ -10,7 +10,7 @@ import { docs, replaceSdd, sddDoc } from './content/index.js';
 import { ENVS, ID, NEW_KINDS, OP_STATES, SIDES, isUml, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf } from './SddEdit.js';
 
 const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
-import { Board, Labels, NoteAside, Stickies } from './Board.jsx';
+import { Board, Labels, NoteAside, Stickies, moveNote } from './Board.jsx';
 import { CycleIssues } from './Linear.jsx';
 import { Orchestrator } from './Orchestrator.jsx';
 import { EntityDocs, ResumeModal } from './Resume.jsx';
@@ -957,6 +957,34 @@ function App() {
   }, []);
 
   const { doc, page, entity } = route;
+  // RecentVisitedNodes: hash routes of the nodes shown in full screen, browser-history style (a new visit drops the
+  // forward branch). Kept in sessionStorage: survives reloads, one stack per tab. Prev/Next move the cursor `at`.
+  const [visits, setVisits] = useState(() => {
+    try {
+      const v = JSON.parse(sessionStorage.getItem('recent-visited-nodes'));
+      if (Array.isArray(v?.stack) && Number.isInteger(v.at)) return v;
+    } catch {}
+    return { stack: [], at: -1 };
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('recent-visited-nodes', JSON.stringify(visits));
+    } catch {}
+  }, [visits]);
+  useEffect(() => {
+    if (!panelMax || !entity) return;
+    setVisits(({ stack, at }) => {
+      if (stack[at] === location.hash) return { stack, at };
+      const next = [...stack.slice(0, at + 1), location.hash].slice(-50); // ponytail: capped at 50, raise if needed
+      return { stack: next, at: next.length - 1 };
+    });
+  }, [panelMax, doc.id, page.id, entity]);
+  // The cursor moves first: the hashchange comes later and finds stack[at] already equal to the hash, so no push.
+  const step = (d) => {
+    const at = visits.at + d;
+    setVisits({ ...visits, at });
+    location.hash = visits.stack[at];
+  };
   // Landing on a diagram page shows the canvas: the panel opens only for a node named in the URL, or on a click.
   useEffect(() => {
     setPanelFolded(!entity);
@@ -1032,6 +1060,12 @@ function App() {
           setPanelMax(true);
           setPanelFolded(false);
         }}>⛶</button>
+      {panelMax && (
+        <>
+          <button className="fold-toggle panel-prev" title="Prev item" disabled={visits.at <= 0} onClick={() => step(-1)}>‹</button>
+          <button className="fold-toggle panel-next" title="Next item" disabled={visits.at >= visits.stack.length - 1} onClick={() => step(1)}>›</button>
+        </>
+      )}
       {/* In full screen, » leaves it (back to the side panel) instead of folding the only thing on screen. */}
       <button className="fold-toggle panel-fold" title={panelMax ? 'Exit full screen (Esc)' : panelFolded ? 'Unfold panel' : 'Fold panel'}
         onClick={panelMax ? () => setPanelMax(false) : foldPanel}>
@@ -1117,7 +1151,9 @@ function App() {
           onRotate={(rel, end) => apiRef.current?.rotate(rel, end)}
           onSaveTags={(id, tags) => apiRef.current?.saveTags(id, tags) ?? Promise.reject(new Error('Board not loaded'))}
           onSaveBody={(id, body) => apiRef.current?.saveBody(id, body) ?? Promise.reject(new Error('Board not loaded'))} isRef={isRef} colorOf={colorOf}
-          onRef={(id) => go(doc.id, page.id, id)} onSelect={(id) => go(doc.id, page.id, id)} />
+          onRef={(id) => go(doc.id, page.id, id)} onSelect={(id) => go(doc.id, page.id, id)}
+          boards={docs.filter((d) => d !== doc && d.pages.some((p) => p.board))}
+          onMove={(to) => moveNote(note.id, to).then((m) => go(m.board, m.pageId, note.id))} />
       ) : doc.file && side === 'agent' ? (
         <aside className="panel">
           <SideMenu side={side} onSide={setSide} />
