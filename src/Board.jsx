@@ -88,6 +88,44 @@ export const Stickies = ({ labels }) => labels.length > 0 && (
   </div>
 );
 
+// A node's or note's `props`: one key / value row each, shown inside its card. A row saves when it loses focus (or on Enter),
+// ✕ removes it at once; rows without a key are dropped on save.
+// addSignal: when given, the "+ Property" button lives outside (the note aside's label row); each increment adds a row.
+export function KeyValues({ pairs, onChange, addSignal }) {
+  const [rows, setRows] = useState(() => pairs.map(([k, v]) => [String(k), String(v ?? '')]));
+  // Only clicks after mount add a row: a remount (another note selected) may see the previous note's count once.
+  const seen = useRef(addSignal);
+  useEffect(() => {
+    if (addSignal === seen.current) return;
+    seen.current = addSignal;
+    if (addSignal) setRows((r) => [...r, ['', '']]);
+  }, [addSignal]);
+  if (addSignal !== undefined && !rows.length) return null;
+  const save = (next) => {
+    const clean = next.map(([k, v]) => [k.trim(), v.trim()]).filter(([k]) => k);
+    if (JSON.stringify(clean) !== JSON.stringify(pairs)) onChange(clean.length ? clean : undefined);
+  };
+  const set = (i, j) => (e) => setRows(rows.map((r, n) => (n === i ? Object.assign([...r], { [j]: e.target.value }) : r)));
+  return (
+    <fieldset className="op-targets kv-editor">
+      <legend>Properties</legend>
+      {rows.map(([k, v], i) => (
+        <div key={i} className="kv-row" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && save(rows)}
+          onKeyDown={(e) => e.key === 'Enter' && e.target.tagName === 'INPUT' && save(rows)}>
+          <input aria-label="Key" placeholder="key" value={k} onChange={set(i, 0)} />
+          <input aria-label="Value" placeholder="value" value={v} onChange={set(i, 1)} />
+          <button className="focus-toggle" title="Remove" onClick={() => {
+            const next = rows.filter((_, n) => n !== i);
+            setRows(next);
+            save(next);
+          }}>✕</button>
+        </div>
+      ))}
+      {addSignal === undefined && <button className="focus-toggle" onClick={() => setRows([...rows, ['', '']])}>+ Property</button>}
+    </fieldset>
+  );
+}
+
 // Linear status line of a note created from a cycle issue: live state when the sidebar has it, else the saved one.
 // A link to the issue in the aside only: in the node a click selects the note (and opens the aside).
 function Status({ linear, state, link = false }) {
@@ -177,6 +215,13 @@ function Note({ id, data }) {
         <button className="nodrag" title="Delete note" onClick={() => confirm(`Delete "${data.title}"?`) && data.onDelete()}>✕</button>
       </div>
       {data.linear && <Status linear={data.linear} state={data.state} />}
+      {data.props?.length > 0 && (
+        <table className="card-cols card-props">
+          <tbody>
+            {data.props.map(([k, v], i) => <tr key={i} title={`${k}: ${v}`}><td>{k}</td><td>{v}</td></tr>)}
+          </tbody>
+        </table>
+      )}
       <button className="note-add nodrag" title="Add related note" onClick={data.onAddRelated}>+</button>
       <Handle id="link" type="source" position={Position.Right} className="note-link" isConnectableEnd={false}
         title="Click, then click another note to link them (or drag onto it)"
@@ -335,6 +380,7 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
     .then(({ page }) => setPages((p) => ({ ...p, [id]: { ...p[id], body, page } })));
   useEffect(() => {
     if (apiRef) apiRef.current = notes ? { addIssue, saveBody, saveTags, rename, reload: load,
+      saveProps: (id, props) => commit(ops.field(raw, id, 'props', props)),
       rotate: (r, end) => relation(r)?.rotate(end) } : null;
   });
   // Out of the diagram: its entity, relations, position and sides (ops.remove). Its page stays.
@@ -478,7 +524,8 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
 
 // Aside label editor: post-its with ×, and an input that adds one on Enter (comma-separated adds several).
 // onSave(next labels) returns a promise; its error shows next to the input. Shared with the diagram node editor.
-export function Labels({ labels, onSave }) {
+// children: more add controls in the same row (the note aside's "+ property").
+export function Labels({ labels, onSave, children }) {
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
   const save = (next) => Promise.resolve(onSave(next)).then(() => setError(null)).catch((e) => setError(e.message));
@@ -495,6 +542,7 @@ export function Labels({ labels, onSave }) {
           if (e.key === 'Enter') add();
           if (e.key === 'Escape') setInput('');
         }} />
+      {children}
       {error && <span className="board-error">{error}</span>}
     </div>
   );
@@ -509,7 +557,7 @@ export const moveNote = (id, to) => fetch(`${BRIDGE}/move`, {
   ? 'The bridge predates board moves: restart npm run dev.' : `move failed: ${r.status}`))))));
 
 // boards: the other WIP boards ({ file, title }); onMove(file) moves the note there.
-export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload, onRotate, boards = [], onMove }) {
+export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload, onRotate, onSaveProps, boards = [], onMove }) {
   const [draft, setDraft] = useState(null);
   // Title: click to rename; Enter or blur saves, Esc cancels. Saved like a rename on the node (board.json + page).
   const [title, setTitle] = useState(null);
@@ -520,11 +568,14 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
     setTitle(null);
   };
   const [saving, setSaving] = useState(null);
+  // "+ property" in the label row: each click adds an empty property row (KeyValues addSignal).
+  const [addProp, setAddProp] = useState(0);
   // Another note selected: drop the unsaved draft of the previous one.
   useEffect(() => {
     setDraft(null);
     setSaving(null);
     setTitle(null);
+    setAddProp(0);
   }, [note.id]);
   const save = () => {
     setSaving('Saving…');
@@ -556,6 +607,10 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
         <h2 className="note-aside-title" title="Click to rename" onClick={() => setTitle(note.title)}>{note.title}</h2>
       )}
       {note.linear && <Status linear={note.linear} state={stateOf(note, issues)} link />}
+      <Labels key={note.id} labels={labelsOf(note)} onSave={(next) => onSaveTags(note.id, ['wip', ...next])}>
+        {onSaveProps && <button className="label-add" onClick={() => setAddProp((n) => n + 1)}>+ property</button>}
+      </Labels>
+      {onSaveProps && <div className="sdd-editor"><KeyValues key={note.id} pairs={note.props ?? []} addSignal={addProp} onChange={(next) => onSaveProps(note.id, next)} /></div>}
       {onMove && boards.length > 0 && (
         <p className="pages-of muted">
           <select className="focus-toggle" value="" onChange={(e) => {
@@ -569,7 +624,6 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
           {saving && draft === null && <span className="board-error"> {saving}</span>}
         </p>
       )}
-      <Labels key={note.id} labels={labelsOf(note)} onSave={(next) => onSaveTags(note.id, ['wip', ...next])} />
       {draft !== null ? (
         <div className="note-editor">
           <textarea autoFocus rows={Math.max(10, draft.split('\n').length + 2)} value={draft} onChange={(e) => setDraft(e.target.value)}

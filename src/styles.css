@@ -202,6 +202,10 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .sdd-editor .op-targets label { display: flex; align-items: center; gap: 6px; margin: 3px 0; color: var(--color-neutral-700); }
 .reactflow-app .sdd-editor .op-targets label > span { width: 60px; }
 .reactflow-app .sdd-editor .op-targets input { display: inline-block; width: auto; margin: 0; }
+.reactflow-app .sdd-editor .kv-row { display: flex; gap: 4px; margin: 3px 0; }
+.reactflow-app .sdd-editor .kv-row input { flex: 1; min-width: 0; width: auto; margin: 0; }
+.reactflow-app .card-props td:first-child { color: var(--color-neutral-500); }
+.reactflow-app .card-props td:last-child { color: var(--color-neutral-800, #222); }
 /* Node editor of an editable _sdd.json diagram (EntityEditor in main.jsx). */
 .reactflow-app .sdd-editor label { display: block; margin: 8px 0; font-size: 12px; font-weight: 600; color: var(--color-neutral-500); }
 .reactflow-app .sdd-editor input, .reactflow-app .sdd-editor textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 3px; padding: 6px 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: 13px/1.45 ui-monospace, monospace; resize: vertical; }
@@ -285,6 +289,8 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .labels .sticky button { border: 0; background: none; padding: 0 2px; font-size: 14px; line-height: 1; color: rgb(0 0 0 / .45); cursor: pointer; }
 .reactflow-app .labels .sticky button:hover { color: rgb(0 0 0 / .85); }
 .reactflow-app .labels input { width: 110px; padding: 4px 8px; border: 1px dashed var(--color-neutral-300); border-radius: 4px; font: 12px var(--font-sans); background: transparent; }
+.reactflow-app .labels .label-add { padding: 4px 8px; border: 1px dashed var(--color-neutral-300); border-radius: 4px; font: 12px var(--font-sans); background: transparent; color: var(--color-neutral-500); cursor: pointer; }
+.reactflow-app .labels .label-add:hover { border-style: solid; border-color: var(--color-dark-green-600); color: var(--color-neutral-700); }
 .reactflow-app .labels input:focus { outline: none; border-style: solid; border-color: var(--color-dark-green-600); }
 /* Linking on editable _sdd.json diagrams, as WIP board notes link (Card in main.jsx): a → handle shown on hover,
    and the whole card as a drop zone while a link is dragged or click-to-link is on. */
@@ -360,3 +366,6 @@ html.dark .reactflow-app .area { border-color: var(--color-neutral-700); backgro
 .reactflow-app .resume-picker { list-style: none; margin: 0; padding: 0; columns: 3 260px; }
 .reactflow-app .resume-picker label { display: flex; align-items: center; gap: 6px; padding: 3px 0; cursor: pointer; font-weight: 600; }
 .reactflow-app .modal-depth .focus-toggle:disabled { opacity: .5; cursor: default; }
+.reactflow-app .note .card-props { width: calc(100% - 20px); margin: 2px 10px 6px; font-size: 11px; }
+.reactflow-app .note .card-props td { max-width: 180px; }
+.reactflow-app .note .card-props tr:first-child td { border-top: 0; }

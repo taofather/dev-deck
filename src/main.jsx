@@ -10,7 +10,7 @@ import { docs, replaceSdd, sddDoc } from './content/index.js';
 import { ENVS, ID, NEW_KINDS, OP_STATES, SIDES, isUml, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf } from './SddEdit.js';
 
 const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
-import { Board, Labels, NoteAside, Stickies, moveNote } from './Board.jsx';
+import { Board, KeyValues, Labels, NoteAside, Stickies, moveNote } from './Board.jsx';
 import { CycleIssues } from './Linear.jsx';
 import { Orchestrator } from './Orchestrator.jsx';
 import { EntityDocs, ResumeModal } from './Resume.jsx';
@@ -64,6 +64,8 @@ const colsOf = (id) => entityDocs(id).map((e) => e.columns ?? e.properties).find
 const umlOf = (id) => entityDocs(id).some((e) => e.type === 'uml');
 const methodsOf = (id) => entityDocs(id).map((e) => e.methods).find(Boolean);
 const iconOf = (id) => entityDocs(id).find((e) => e.icon)?.icon;
+// Key-value properties of any node: an entity's `props`, [[key, value], …], drawn as rows inside its card.
+const propsOf = (id) => entityDocs(id).map((e) => e.props).find((p) => p?.length);
 // Labels (post-its, like WIP board notes): an entity's `tags` in any doc, merged.
 const tagsOf = (id) => [...new Set(entityDocs(id).flatMap((e) => e.tags ?? []))];
 // Status LED from an entity's `status` property (TASK, ACC…; sdd-convert-skill.md), like `tags`. First match wins:
@@ -88,8 +90,9 @@ const statusOf = (id) => {
 const envOf = (id) => entityDocs(id).map((e) => e.env).find(Boolean);
 // An icon is an emoji or a path/URL to an image (e.g. '/icons/gcp/cloud-sql.svg' under static/).
 const Icon = ({ icon }) => (!icon ? null : /[./]/.test(icon) ? <img className="icon" src={icon} alt="" /> : <span className="icon">{icon}</span>);
-// A UML box's methods are a second compartment of rows, under the properties.
-const heightOf = (n) => (n.columns || n.methods ? 42 + ((n.columns?.length ?? 0) + (n.methods?.length ?? 0)) * ROW_H : NODE_H);
+// A UML box's methods are a second compartment of rows, under the properties; `props` rows go under the label.
+const heightOf = (n) => (n.columns || n.methods ? 42 + ((n.columns?.length ?? 0) + (n.methods?.length ?? 0)) * ROW_H : NODE_H)
+  + (n.props ? 6 + n.props.length * ROW_H : 0);
 
 // Normalize all page styles to the same node/edge shape.
 function pageGraph(page) {
@@ -110,7 +113,7 @@ function pageGraph(page) {
 
 function layout(page) {
   const { edges } = pageGraph(page);
-  const nodes = pageGraph(page).nodes.map((n) => ({ ...n, columns: colsOf(n.ref), uml: umlOf(n.ref), methods: methodsOf(n.ref), icon: n.icon ?? iconOf(n.ref), tags: tagsOf(n.ref), status: statusOf(n.ref), env: envOf(n.ref) }));
+  const nodes = pageGraph(page).nodes.map((n) => ({ ...n, columns: colsOf(n.ref), uml: umlOf(n.ref), methods: methodsOf(n.ref), icon: n.icon ?? iconOf(n.ref), tags: tagsOf(n.ref), props: propsOf(n.ref), status: statusOf(n.ref), env: envOf(n.ref) }));
   // Optional page.groups: [{ id, label, color, icon, ref?, members: [nodeId | groupId] }], drawn as containers.
   // A group with a ref opens that entity's panel when its label is clicked.
   // A group listed in another group's members nests inside it. Groups without any page node are dropped.
@@ -225,6 +228,15 @@ function Card({ id, data, selected }) {
       )}
       {data.ref && data.ref !== data.label && <div className="card-ref" style={{ color }}>{data.ref}</div>}
       {data.sub && <div className="card-sub">{data.sub}</div>}
+      {data.props && (
+        <table className="card-cols card-props">
+          <tbody>
+            {data.props.map(([k, v], i) => (
+              <tr key={i} title={`${k}: ${v}`}><td>{k}</td><td>{v}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       {data.columns && (
         <table className="card-cols">
           <tbody>
@@ -533,6 +545,7 @@ function EntityEditor({ id, edit }) {
       {uml && <label>Properties <span className="muted">one per line, name: type</span><textarea rows={Math.max(4, properties.length + 1)} value={props} onChange={(e) => setProps(e.target.value)} /></label>}
       {uml && <label>Methods <span className="muted">one per line, signature: note</span><textarea rows={Math.max(3, methods.length + 1)} value={meths} onChange={(e) => setMeths(e.target.value)} /></label>}
       {isOp && <OpTargets targets={targets} onChange={(next) => edit.field(id, 'status', next)} />}
+      {!uml && <KeyValues key={id} pairs={typeof entry === 'object' ? entry?.props ?? [] : []} onChange={(next) => edit.field(id, 'props', next)} />}
       <div className="note-editor-bar">
         <button className="focus-toggle" onClick={save} disabled={!!problem}>Save ⌘↵</button>
         {/* Saved on change. A custom value from the file ("done ⚠") stays in the list so it is not lost. */}
@@ -1149,6 +1162,7 @@ function App() {
           onSaveTags={(id, tags) => apiRef.current?.saveTags(id, tags) ?? Promise.reject(new Error('Board not loaded'))}
           onSaveBody={(id, body) => apiRef.current?.saveBody(id, body) ?? Promise.reject(new Error('Board not loaded'))} isRef={isRef} colorOf={colorOf}
           onRef={(id) => go(doc.id, page.id, id)} onSelect={(id) => go(doc.id, page.id, id)}
+          onSaveProps={(id, props) => apiRef.current?.saveProps(id, props)}
           boards={docs.filter((d) => d !== doc && d.pages.some((p) => p.board))}
           onMove={(to) => moveNote(note.id, to).then((m) => go(m.board, m.pageId, note.id))} />
       ) : doc.file && side === 'agent' ? (
