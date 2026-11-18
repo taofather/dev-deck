@@ -1,7 +1,7 @@
 /* Layout only; colors and fonts come from docs/assets/custom.css (shared with Hugo).
    Scoped to .reactflow-app (#root): the page also holds the Hugo navbar. */
 .reactflow-app * { box-sizing: border-box; }
-.reactflow-app { margin: 0; font-family: var(--font-sans); color: var(--color-neutral-700); background: var(--color-neutral-50); }
+.reactflow-app { --rf-surface: #fff; margin: 0; font-family: var(--font-sans); color: var(--color-neutral-700); background: var(--color-neutral-50); }
 .reactflow-app a { cursor: pointer; color: var(--color-dark-green-600); text-decoration: none; }
 .reactflow-app a:hover { color: var(--color-electric-green-900); text-decoration: underline; }
 .reactflow-app strong { color: var(--color-dark-green-600); }
@@ -15,17 +15,17 @@
 .reactflow-app .layout.folded > .sidebar > :not(.menu) { display: none; }
 .reactflow-app .sidebar .menu, .reactflow-app .panel-menu { display: flex; gap: 4px; margin-bottom: 12px; }
 /* Right panel Node / Agent toggle on _sdd.json diagrams: same buttons as the sidebar menu. */
-.reactflow-app .panel-menu button { height: 26px; padding: 0 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: #fff; font-size: 13px; font-weight: 600; color: var(--color-neutral-700); cursor: pointer; }
+.reactflow-app .panel-menu button { height: 26px; padding: 0 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: var(--rf-surface); font-size: 13px; font-weight: 600; color: var(--color-neutral-700); cursor: pointer; }
 .reactflow-app .panel-menu button.on { background: var(--color-dark-green-50); border-color: var(--color-dark-green-600); color: var(--color-dark-green-700); }
 .reactflow-app .layout.folded .sidebar .menu { flex-direction: column; }
-.reactflow-app .sidebar .menu button { height: 26px; padding: 0 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: #fff; font-size: 13px; font-weight: 600; color: var(--color-neutral-700); cursor: pointer; }
+.reactflow-app .sidebar .menu button { height: 26px; padding: 0 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: var(--rf-surface); font-size: 13px; font-weight: 600; color: var(--color-neutral-700); cursor: pointer; }
 .reactflow-app .layout.folded .sidebar .menu button { padding: 0; }
 .reactflow-app .sidebar .menu button.on { background: var(--color-dark-green-50); border-color: var(--color-dark-green-600); color: var(--color-dark-green-700); }
 .reactflow-app .sidebar .menu .fold { margin-left: auto; }
-.reactflow-app .fold-toggle { float: right; width: 26px; height: 26px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: #fff; font-size: 14px; line-height: 1; color: var(--color-neutral-700); cursor: pointer; }
+.reactflow-app .fold-toggle { float: right; width: 26px; height: 26px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: var(--rf-surface); font-size: 14px; line-height: 1; color: var(--color-neutral-700); cursor: pointer; }
 .reactflow-app .layout.folded .fold-toggle { float: none; }
 .reactflow-app .layout.focus > .sidebar, .reactflow-app .layout.focus > .panel { display: none; }
-.reactflow-app .focus-toggle { float: right; padding: 4px 10px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: #fff; font-size: 12px; font-weight: 600; color: var(--color-neutral-700); cursor: pointer; }
+.reactflow-app .focus-toggle { float: right; padding: 4px 10px; border: 1px solid var(--color-neutral-200); border-radius: 4px; background: var(--rf-surface); font-size: 12px; font-weight: 600; color: var(--color-neutral-700); cursor: pointer; }
 
 
 .reactflow-app main footer { display: flex; justify-content: space-between; padding: 0 20px 14px; font-size: 14px; font-weight: 600; }
@@ -35,7 +35,7 @@
 .reactflow-app .panel td:first-child { font-family: var(--font-mono); }
 .reactflow-app .panel section + section { margin-top: 10px; }
 
-.reactflow-app .sidebar { background: #fff; border-right: 1px solid var(--color-neutral-200); padding: 16px; overflow-y: auto; }
+.reactflow-app .sidebar { background: var(--rf-surface); border-right: 1px solid var(--color-neutral-200); padding: 16px; overflow-y: auto; }
 .reactflow-app .sidebar h1 { font-size: 22px; font-weight: 800; color: var(--color-dark-green-600); border-bottom: 3px solid var(--color-dark-green-600); padding-bottom: 6px; margin: 4px 0 16px; }
 .reactflow-app .sidebar .section { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--color-neutral-500); margin: 14px 0 4px; }
 .reactflow-app .sidebar a { display: block; padding: 4px 8px; border-radius: 4px; font-size: 14px; color: var(--color-neutral-700); }
@@ -54,9 +54,9 @@
 .reactflow-app main header { padding: 16px 20px 8px; }
 .reactflow-app main header h2 { margin: 2px 0 4px; font-size: 24px; font-weight: 800; color: var(--color-dark-green-600); }
 .reactflow-app main header p { margin: 0; font-size: 14px; max-width: 90ch; }
-.reactflow-app .canvas { flex: 1; min-height: 0; margin: 8px 20px 20px; border: 1px solid var(--color-neutral-200); border-radius: 6px; background: #fff; }
+.reactflow-app .canvas { flex: 1; min-height: 0; margin: 8px 20px 20px; border: 1px solid var(--color-neutral-200); border-radius: 6px; background: var(--rf-surface); }
 
-.reactflow-app .panel { background: #fff; border-left: 1px solid var(--color-neutral-200); padding: 16px; overflow-y: auto; font-size: 14px; }
+.reactflow-app .panel { background: var(--rf-surface); border-left: 1px solid var(--color-neutral-200); padding: 16px; overflow-y: auto; font-size: 14px; }
 .reactflow-app .panel h2 { font-family: var(--font-mono); font-size: 15px; color: var(--color-dark-green-700); word-break: break-all; margin: 8px 0; }
 .reactflow-app .panel h3 { font-size: 11px; text-transform: uppercase; color: var(--color-neutral-500); margin: 18px 0 4px; }
 .reactflow-app .panel ul { margin: 0; padding-left: 18px; }
@@ -66,7 +66,7 @@
 .reactflow-app .panel a.current { font-weight: 700; }
 .reactflow-app .badge { display: inline-block; color: #fff; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
 
-.reactflow-app .card { width: 230px; min-height: 66px; padding: 8px 10px; background: #fff; border: 1px solid var(--color-neutral-200); border-left: 5px solid; border-radius: 6px; font-size: 12.5px; transition: opacity .2s; }
+.reactflow-app .card { width: 230px; min-height: 66px; padding: 8px 10px; background: var(--rf-surface); border: 1px solid var(--color-neutral-200); border-left: 5px solid; border-radius: 6px; font-size: 12.5px; transition: opacity .2s; }
 .reactflow-app .card-label { font-weight: 700; color: var(--color-neutral-900); }
 .reactflow-app .card-ref { font-family: var(--font-mono); font-size: 10px; margin-top: 2px; }
 .reactflow-app .card-sub { font-family: var(--font-mono); font-size: 9.5px; color: var(--color-neutral-500); margin-top: 2px; }
@@ -106,7 +106,7 @@ html.reactflow-embed { --hextra-navbar-height: 0px; }
 html.reactflow-embed .hextra-nav-container { display: none; }
 
 /* WIP board (src/Board.jsx) */
-.reactflow-app .note { background: #fff; border: 1px solid var(--color-neutral-200); border-top: 4px solid var(--color-dark-green-600); border-radius: 6px; font-size: 13px; box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
+.reactflow-app .note { background: var(--rf-surface); border: 1px solid var(--color-neutral-200); border-top: 4px solid var(--color-dark-green-600); border-radius: 6px; font-size: 13px; box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
 .reactflow-app .note-title { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; font-weight: 700; color: var(--color-dark-green-700); cursor: grab; border-bottom: 1px solid var(--color-neutral-200); }
 .reactflow-app .note-title button { border: 0; background: none; color: var(--color-neutral-500); cursor: pointer; }
 .reactflow-app .note-body { padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--color-neutral-700); min-height: 24px; cursor: text; }
@@ -117,7 +117,7 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .board-error { margin-left: 10px; font-size: 12px; color: #9b1c1c; }
 .reactflow-app .note { position: relative; }
 .reactflow-app .note .react-flow__handle { opacity: 0; }
-.reactflow-app .note-add { position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%); width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: #fff; color: var(--color-dark-green-600); font-weight: 700; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .15s; }
+.reactflow-app .note-add { position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%); width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: var(--rf-surface); color: var(--color-dark-green-600); font-weight: 700; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .15s; }
 .reactflow-app .note:hover .note-add { opacity: 1; }
 /* Selected WIP note: pulsing electric-green glow; its arrows light up too. */
 .reactflow-app .react-flow__node.selected .note {
@@ -142,13 +142,13 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .linear-reload { border: 0; background: none; cursor: pointer; font-size: 14px; color: var(--color-neutral-500); }
 .reactflow-app .linear-dates { font-size: 12px; margin-bottom: 6px; }
 .reactflow-app .linear-state { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--color-neutral-700); margin: 10px 0 2px; }
-.reactflow-app .linear-card { position: relative; margin: 6px 0; padding: 8px 10px 8px 12px; background: #fff; border: 1px solid var(--color-neutral-200); border-left: 4px solid; border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / .06); transition: box-shadow .15s, transform .15s; }
+.reactflow-app .linear-card { position: relative; margin: 6px 0; padding: 8px 10px 8px 12px; background: var(--rf-surface); border: 1px solid var(--color-neutral-200); border-left: 4px solid; border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / .06); transition: box-shadow .15s, transform .15s; }
 .reactflow-app .linear-card:hover { box-shadow: 0 3px 10px rgb(0 0 0 / .1); transform: translateY(-1px); }
 .reactflow-app .linear-card.on-board { cursor: pointer; }
 .reactflow-app .linear-card-head { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px; padding-right: 26px; }
 .reactflow-app .sidebar a.linear-issue { padding: 0; font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--color-neutral-800, #222); padding-right: 26px; }
 .reactflow-app .sidebar a.linear-issue:hover { text-decoration: underline; }
-.reactflow-app .linear-add { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: #fff; color: var(--color-dark-green-600); font-weight: 700; line-height: 1; cursor: pointer; }
+.reactflow-app .linear-add { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: var(--rf-surface); color: var(--color-dark-green-600); font-weight: 700; line-height: 1; cursor: pointer; }
 .reactflow-app .linear-add:hover { background: var(--color-dark-green-600); color: #fff; }
 .reactflow-app .linear-add.on { border-color: var(--color-neutral-300, #ccc); color: var(--color-neutral-500); }
 /* Status line of a WIP note made from a Linear issue (src/Board.jsx). */
@@ -161,7 +161,7 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .linear .board-error { margin-left: 0; }
 
 /* Link handle: hover a note, drag its → onto another note (src/Board.jsx links). */
-.reactflow-app .note .react-flow__handle.note-link { opacity: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: #fff; color: var(--color-dark-green-600); font-size: 13px; font-weight: 700; cursor: crosshair; transition: opacity .15s; }
+.reactflow-app .note .react-flow__handle.note-link { opacity: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: var(--rf-surface); color: var(--color-dark-green-600); font-size: 13px; font-weight: 700; cursor: crosshair; transition: opacity .15s; }
 .reactflow-app .note:hover .react-flow__handle.note-link { opacity: 1; }
 .reactflow-app .note .react-flow__handle.note-link:hover { background: var(--color-dark-green-600); color: #fff; }
 .reactflow-app .note .react-flow__handle.note-drop { position: absolute; inset: 0; width: 100%; height: 100%; top: 0; left: 0; transform: none; border: 0; border-radius: 6px; background: transparent; opacity: 1; }
@@ -210,7 +210,7 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .sdd-editor label { display: block; margin: 8px 0; font-size: 12px; font-weight: 600; color: var(--color-neutral-500); }
 .reactflow-app .sdd-editor input, .reactflow-app .sdd-editor textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 3px; padding: 6px 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: 13px/1.45 ui-monospace, monospace; resize: vertical; }
 .reactflow-app .focus-toggle.danger { color: #b42318; }
-.reactflow-app .sdd-status { padding: 4px 6px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: 12px var(--font-sans); background: #fff; }
+.reactflow-app .sdd-status { padding: 4px 6px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: 12px var(--font-sans); background: var(--rf-surface); }
 .reactflow-app .react-flow__panel .focus-toggle { float: none; margin-right: 6px; border-left-width: 4px; }
 /* Claude sessions of a WIP note (src/Sessions.jsx). */
 .reactflow-app .note-sessions { font-size: 11px; font-weight: 600; color: var(--color-neutral-500); white-space: nowrap; }
@@ -258,7 +258,7 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .note .react-flow__handle.note-side { pointer-events: none; }
 .reactflow-app .react-flow__edge.rel { cursor: pointer; }
 .reactflow-app .react-flow__edge.rel:hover path.react-flow__edge-path { stroke-width: 3; }
-.reactflow-app .edge-menu { position: fixed; z-index: 50; transform: translate(8px, 8px); min-width: 240px; max-width: 340px; padding: 6px; display: flex; flex-direction: column; gap: 2px; background: #fff; border: 1px solid var(--color-neutral-200); border-radius: 8px; box-shadow: 0 6px 24px rgb(0 0 0 / .15); font-size: 13px; }
+.reactflow-app .edge-menu { position: fixed; z-index: 50; transform: translate(8px, 8px); min-width: 240px; max-width: 340px; padding: 6px; display: flex; flex-direction: column; gap: 2px; background: var(--rf-surface); border: 1px solid var(--color-neutral-200); border-radius: 8px; box-shadow: 0 6px 24px rgb(0 0 0 / .15); font-size: 13px; }
 .reactflow-app .edge-menu-head { padding: 4px 8px 6px; border-bottom: 1px solid var(--color-neutral-200); margin-bottom: 4px; line-height: 1.4; }
 .reactflow-app .edge-menu-head .muted { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
 .reactflow-app .edge-menu button { display: flex; justify-content: space-between; gap: 12px; padding: 6px 8px; border: 0; border-radius: 5px; background: none; text-align: left; cursor: pointer; font: inherit; }
@@ -294,7 +294,7 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .labels input:focus { outline: none; border-style: solid; border-color: var(--color-dark-green-600); }
 /* Linking on editable _sdd.json diagrams, as WIP board notes link (Card in main.jsx): a → handle shown on hover,
    and the whole card as a drop zone while a link is dragged or click-to-link is on. */
-.reactflow-app .card .react-flow__handle.card-link { opacity: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: #fff; color: var(--color-dark-green-600); font-size: 13px; font-weight: 700; cursor: crosshair; transition: opacity .15s; }
+.reactflow-app .card .react-flow__handle.card-link { opacity: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: var(--rf-surface); color: var(--color-dark-green-600); font-size: 13px; font-weight: 700; cursor: crosshair; transition: opacity .15s; }
 .reactflow-app .react-flow__node:hover .card .react-flow__handle.card-link { opacity: 1; }
 .reactflow-app .card .react-flow__handle.card-link:hover, .reactflow-app .card.linking .react-flow__handle.card-link { opacity: 1; background: var(--color-dark-green-600); color: #fff; }
 .reactflow-app .card .react-flow__handle.card-drop { position: absolute; inset: 0; z-index: 10; width: 100%; height: 100%; top: 0; left: 0; transform: none; border: 0; border-radius: 6px; background: transparent; opacity: 1; }
@@ -302,7 +302,7 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .card.linking { box-shadow: 0 0 0 3px var(--color-dark-green-600); }
 /* Upstream modal (UpstreamModal in main.jsx): a temporary canvas over the diagram. */
 .reactflow-app .modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: rgb(15 23 42 / .45); }
-.reactflow-app .modal { display: flex; flex-direction: column; width: min(92vw, 1500px); height: 86vh; background: #fff; border-radius: 8px; box-shadow: 0 20px 50px rgb(0 0 0 / .3); overflow: hidden; }
+.reactflow-app .modal { display: flex; flex-direction: column; width: min(92vw, 1500px); height: 86vh; background: var(--rf-surface); border-radius: 8px; box-shadow: 0 20px 50px rgb(0 0 0 / .3); overflow: hidden; }
 .reactflow-app .modal-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--color-neutral-200); font-size: 14px; }
 .reactflow-app .modal-head .focus-toggle { float: none; }
 .reactflow-app .modal-depth { margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-neutral-500); }
@@ -319,8 +319,6 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 
 /* WIP note aside: relations, each end rotatable (Board.jsx NoteAside). */
 .reactflow-app .note-rels li { margin-bottom: 6px; }
-.reactflow-app .note-rel-rotate { display: flex; gap: 6px; margin-top: 3px; }
-.reactflow-app .note-rel-rotate .focus-toggle { float: none; font-weight: 500; }
 /* _sdd.json relation panel: rotate the arrow ends; Card's hidden per-side handles they attach to. */
 .reactflow-app .rel-rotate { display: flex; gap: 6px; margin: 0 0 10px; }
 .reactflow-app .rel-rotate .focus-toggle { float: none; }
@@ -369,3 +367,20 @@ html.dark .reactflow-app .area { border-color: var(--color-neutral-700); backgro
 .reactflow-app .note .card-props { width: calc(100% - 20px); margin: 2px 10px 6px; font-size: 11px; }
 .reactflow-app .note .card-props td { max-width: 180px; }
 .reactflow-app .note .card-props tr:first-child td { border-top: 0; }
+
+/* Dark mode: Hextra's toggle puts .dark on <html>; the app swaps its surface and neutral scale (consentio.css). */
+html.dark .reactflow-app {
+  --rf-surface: #171b20;
+  --color-neutral-50: #10151a; --color-neutral-100: #1d232a; --color-neutral-200: #323d47;
+  --color-neutral-500: #9aa5b1; --color-neutral-700: #cbd2d9; --color-neutral-800: #e4e7eb; --color-neutral-900: #f6f7f9;
+  --color-dark-green-50: rgb(63 168 156 / .18); --color-dark-green-600: #3fa89c; --color-dark-green-700: #a5ccc9;
+  color-scheme: dark;
+}
+html.dark .reactflow-app .card.refused { background: rgb(240 82 82 / .12); }
+html.dark .reactflow-app .env-badge.staging, html.dark .reactflow-app .env-badge.sandbox { background: rgb(96 165 250 / .2); color: #93c5fd; }
+html.dark .reactflow-app .env-badge.prod { background: rgb(248 113 113 / .2); color: #fca5a5; }
+html.dark .reactflow-app .env-chip.done { background: rgb(74 222 128 / .2); color: #86efac; }
+html.dark .reactflow-app .edge-menu button.danger:hover { background: rgb(248 113 113 / .15); }
+html.dark .reactflow-app .labels .sticky button { color: currentColor; opacity: .6; }
+html.dark .reactflow-app .board-error, html.dark .reactflow-app .session-log .msg.error,
+html.dark .reactflow-app .focus-toggle.danger, html.dark .reactflow-app .edge-menu button.danger { color: #f87171; }

@@ -270,11 +270,25 @@ const nodeTypes = { note: Note, area: Area };
 // renders NoteAside for it; onNotes hands App the notes that aside reads.
 const stateOf = (note, issues) => note.linear && (issues?.find((i) => i.identifier === note.linear.id)?.state ?? note.linear.state);
 
+// Hextra's theme toggle puts .dark on <html>; React Flow follows it live.
+const isDark = () => document.documentElement.classList.contains('dark');
+export function useDark() {
+  const [dark, setDark] = useState(isDark);
+  useEffect(() => {
+    const o = new MutationObserver(() => setDark(isDark()));
+    o.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => o.disconnect();
+  }, []);
+  return dark;
+}
+
+
 // issues: the sidebar's Linear cycle issues. apiRef: App's handle on addIssue (sidebar +) and saveBody (aside editor).
 // file, pageId: the diagram and its board page.
 export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect, onNotes, issues, apiRef }) {
   // raw: the diagram file as saved; pages: note id → its page data (body, page, sessions, tags).
   const [raw, setRaw] = useState(null);
+  const dark = useDark();
   const [pages, setPages] = useState({});
   const notes = useMemo(() => raw && notesOf(raw, pageId, pages), [raw, pageId, pages]);
   const [error, setError] = useState(null);
@@ -461,6 +475,7 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
 
   return (
     <ReactFlow
+      colorMode={dark ? 'dark' : 'light'}
       fitView
       nodes={nodes}
       edges={edges}

@@ -10,7 +10,7 @@ import { docs, replaceSdd, sddDoc } from './content/index.js';
 import { ENVS, ID, NEW_KINDS, OP_STATES, SIDES, isUml, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf } from './SddEdit.js';
 
 const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
-import { Board, KeyValues, Labels, NoteAside, Stickies, moveNote } from './Board.jsx';
+import { Board, KeyValues, Labels, NoteAside, Stickies, moveNote, useDark } from './Board.jsx';
 import { CycleIssues } from './Linear.jsx';
 import { Orchestrator } from './Orchestrator.jsx';
 import { EntityDocs, ResumeModal } from './Resume.jsx';
@@ -333,6 +333,7 @@ const matches = (doc, n, q) => [n.data.ref, n.data.label, JSON.stringify(doc.raw
 
 function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }) {
   const base = useMemo(() => layout(page), [page]);
+  const dark = useDark();
   const { fitView, screenToFlowPosition } = useReactFlow();
   // Dragged positions live here until the page changes (the Diagram key remounts this state).
   // An edited _sdd.json page rebuilds base: take its saved positions without remounting (the viewport stays).
@@ -406,6 +407,7 @@ function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }
   return (
     <ReactFlow
       key={`${doc.id}/${page.id}`}
+      colorMode={dark ? 'dark' : 'light'}
       fitView
       nodes={nodes}
       onNodesChange={onNodesChange}
