@@ -110,9 +110,6 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .note-title { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; font-weight: 700; color: var(--color-dark-green-700); cursor: grab; border-bottom: 1px solid var(--color-neutral-200); }
 .reactflow-app .note-title button { border: 0; background: none; color: var(--color-neutral-500); cursor: pointer; }
 .reactflow-app .note-body { padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--color-neutral-700); min-height: 24px; cursor: text; }
-.reactflow-app .note.editing { display: flex; flex-direction: column; border-top-color: var(--color-electric-green-900); }
-.reactflow-app .note.editing input, .reactflow-app .note.editing textarea { border: 0; padding: 6px 10px; font: inherit; outline: none; background: transparent; resize: vertical; }
-.reactflow-app .note.editing input { font-weight: 700; border-bottom: 1px solid var(--color-neutral-200); }
 .reactflow-app .board-msg { padding: 20px; color: var(--color-neutral-500); }
 .reactflow-app .board-error { margin-left: 10px; font-size: 12px; color: #9b1c1c; }
 .reactflow-app .note { position: relative; }
@@ -172,8 +169,7 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .note.droppable { cursor: copy; }
 .reactflow-app .board-hint { margin-left: 10px; padding: 3px 8px; border-radius: 4px; background: var(--color-dark-green-50); color: var(--color-dark-green-700); font-size: 12px; font-weight: 600; }
 /* WIP note body editor in the aside; the body is a docs/_WIP/board page (wip-notes.mjs). */
-.reactflow-app .note-title-text { flex: 1; cursor: text; }
-.reactflow-app .note-title-text:hover { text-decoration: underline dotted; }
+.reactflow-app .note-title-text { flex: 1; }
 .reactflow-app .note-page { text-decoration: none; }
 .reactflow-app .note-editor textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--color-neutral-200); border-radius: 4px; font: 13px/1.45 ui-monospace, monospace; resize: vertical; }
 .reactflow-app .note-editor-bar { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
