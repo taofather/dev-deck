@@ -8,10 +8,10 @@ const modules = import.meta.glob('./*/**/*.js', { eager: true });
 // Raw import: an empty or broken file is skipped instead of breaking the app.
 const isDiagram = (path) => {
   const [dir, name] = path.split('/').slice(-2);
-  return name === '_sdd.json' || name === '_ops.json' || name === `${dir}.json`;
+  return name === '_sdd.json' || name === '_ops.json' || name === `${dir}.json` || name.endsWith('.json');
 };
 const sdds = Object.fromEntries(Object.entries(
-  import.meta.glob(['../../docs/**/_sdd.json', '../../docs/**/_ops.json', '../../docs/*/*/*.json', '../../docs/_WIP/board/*/*.json'], { eager: true, query: '?raw', import: 'default' }),
+  import.meta.glob(['../../docs/**/_sdd.json', '../../docs/**/_ops.json', '../content/**/*.json', '../../docs/*/*/*.json', '../../docs/_WIP/board/*/*.json'], { eager: true, query: '?raw', import: 'default' }),
 ).filter(([path]) => isDiagram(path)));
 
 // raw: the file content, kept as is for saving. The doc is derived from it: JSON has no Object.keys, so a page's
