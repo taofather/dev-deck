@@ -377,6 +377,15 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
     commit(ops.put(raw, pageId, id, { title: issue.title, linear }, { x, y: 0 }));
     setCenter(x + NOTE_W / 2, 100, { zoom: getZoom(), duration: 400 });
   };
+  // "+ Import": any Linear issue, by code or URL (…/issue/C-13262/…). Not in the sidebar's cycle list unless assigned to the viewer.
+  const importIssue = () => {
+    const code = prompt('Linear ticket (code or URL):')?.match(/[A-Za-z]+-\d+/)?.[0];
+    if (!code) return;
+    fetch(`http://127.0.0.1:5182/linear/issue?id=${encodeURIComponent(code.toUpperCase())}`)
+      .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(`${code}: ${await r.text()}`))))
+      .then(addIssue)
+      .catch((e) => setError(e.message));
+  };
   // The body goes to the note's docs/_WIP/board page; Hugo then rebuilds and livereloads this page.
   // Labels go to the page's tags front matter (created if needed); Hugo then rebuilds and livereloads this page.
   const saveTags = (id, tags) => fetch(`${BRIDGE}/tags`, {
@@ -514,6 +523,7 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
       <Controls />
       <Panel position="top-left">
         <button className="focus-toggle" onClick={() => add()}>+ Note</button>
+        <button className="focus-toggle" onClick={importIssue}>+ Import</button>
         {linkFrom && <span className="board-hint">Click a note to link it · Esc to cancel</span>}
         {error && <span className="board-error">{error}</span>}
       </Panel>
