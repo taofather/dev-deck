@@ -324,6 +324,11 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .layout:is(.panel-folded, .focus, .panel-max) > .panel-max-toggle { display: none; }
 .reactflow-app .layout.panel-max > .sidebar, .reactflow-app .layout.panel-max > main { display: none; }
 .reactflow-app .layout.panel-max > .panel { border-left: 0; padding-inline: max(16px, calc((100% - 960px) / 2)); }
+/* Maximized WIP note: wider, labels/properties/move/related notes in a left column. */
+.reactflow-app .layout.panel-max > .panel.note-wide { display: grid; grid-template-columns: 300px minmax(0, 1fr); column-gap: 40px; align-items: start; padding-inline: max(16px, calc((100% - 1280px) / 2)); }
+.reactflow-app .panel.note-wide .note-side { padding-top: 48px; min-width: 0; }
+.reactflow-app .panel.note-wide .note-side fieldset { min-width: 0; }
+.reactflow-app .panel.note-wide .note-main .panel-menu { margin-top: 16px; }
 .reactflow-app .layout.panel-max .session-log { max-height: max(300px, calc(100vh - 380px)); }
 .reactflow-app .layout.panel-max .session-chat textarea { min-height: 8.5em; }
 .reactflow-app .fold-toggle:is(.panel-prev, .panel-next) { position: absolute; top: 8px; z-index: 5; float: none; }

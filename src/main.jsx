@@ -1157,7 +1157,7 @@ function App() {
         </footer>
       </main>
       {note ? (
-        <NoteAside note={note} notes={boardNotes} issues={issues}
+        <NoteAside note={note} notes={boardNotes} issues={issues} wide={panelMax}
           onReload={() => apiRef.current?.reload()}
           onRename={(id, title) => apiRef.current?.rename(id, title)}
           onSaveTags={(id, tags) => apiRef.current?.saveTags(id, tags) ?? Promise.reject(new Error('Board not loaded'))}

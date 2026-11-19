@@ -540,7 +540,7 @@ export const moveNote = (id, to) => fetch(`${BRIDGE}/move`, {
   ? 'The bridge predates board moves: restart npm run dev.' : `move failed: ${r.status}`))))));
 
 // boards: the other WIP boards ({ file, title }); onMove(file) moves the note there.
-export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload, onSaveProps, boards = [], onMove }) {
+export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload, onSaveProps, boards = [], onMove, wide }) {
   const [draft, setDraft] = useState(null);
   // Title: click to rename; Enter or blur saves, Esc cancels. Saved like a rename on the node (board.json + page).
   const [title, setTitle] = useState(null);
@@ -553,6 +553,7 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
   const [saving, setSaving] = useState(null);
   // "+ property" in the label row: each click adds an empty property row (KeyValues addSignal).
   const [addProp, setAddProp] = useState(0);
+  const [tab, setTab] = useState('note');
   // Another note selected: drop the unsaved draft of the previous one.
   useEffect(() => {
     setDraft(null);
@@ -577,8 +578,9 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
     ...(note.links ?? []).filter(byId).map((t) => ({ kind: 'link', source: note.id, target: t, other: byId(t), label: 'Links to →' })),
     ...notes.filter((n) => n.links?.includes(note.id)).map((n) => ({ kind: 'link', source: n.id, target: note.id, other: n, label: 'Linked from ←' })),
   ].filter(Boolean);
-  return (
-    <aside className="panel">
+  // Pieces of the aside. Maximized (wide): labels, properties, move and related notes go to a left column; body and sessions are tabs.
+  const head = (
+    <>
       <div className="badge" style={{ background: 'var(--color-dark-green-600)' }}>WIP note</div>
       {title !== null ? (
         <input className="note-aside-title-input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} onBlur={onFocusLeft(rename)}
@@ -590,6 +592,10 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
         <h2 className="note-aside-title" title="Click to rename" onClick={() => setTitle(note.title)}>{note.title}</h2>
       )}
       {note.linear && <Status linear={note.linear} state={stateOf(note, issues)} link />}
+    </>
+  );
+  const tags = (
+    <>
       <Labels key={note.id} labels={labelsOf(note)} onSave={(next) => onSaveTags(note.id, ['wip', ...next])}>
         {onSaveProps && <button className="label-add" onClick={() => setAddProp((n) => n + 1)}>+ property</button>}
       </Labels>
@@ -607,6 +613,10 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
           {saving && draft === null && <span className="board-error"> {saving}</span>}
         </p>
       )}
+    </>
+  );
+  const main = (
+    <>
       {draft !== null ? (
         <div className="note-editor">
           <textarea autoFocus rows={Math.max(10, draft.split('\n').length + 2)} value={draft} onChange={(e) => setDraft(e.target.value)}
@@ -629,20 +639,37 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
           </div>
         </>
       )}
-      <Sessions note={note} onChanged={onReload} />
-      {rels.length > 0 && (
-        <>
-          <h3>Relations</h3>
-          <ul className="note-rels">
-            {rels.map((r) => (
-              <li key={`${r.kind}:${r.source}>${r.target}`}>
-                <span className="muted">{r.label}</span> <a onClick={() => onSelect(r.other.id)}>{r.other.title}</a>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      <p className="muted">Click the title above to rename the note. The body is saved as Markdown in docs/_WIP/board.</p>
+    </>
+  );
+  const sessions = <Sessions note={note} onChanged={onReload} />;
+  const related = rels.length > 0 && (
+    <>
+      <h3>Relations</h3>
+      <ul className="note-rels">
+        {rels.map((r) => (
+          <li key={`${r.kind}:${r.source}>${r.target}`}>
+            <span className="muted">{r.label}</span> <a onClick={() => onSelect(r.other.id)}>{r.other.title}</a>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+  const hint = <p className="muted">Click the title above to rename the note. The body is saved as Markdown in docs/_WIP/board.</p>;
+  return wide ? (
+    <aside className="panel note-wide">
+      <div className="note-side">{tags}{related}</div>
+      <div className="note-main">
+        {head}
+        <div className="menu panel-menu">
+          {[['note', '📝 Note'], ['sessions', '🤖 Claude sessions']].map(([t, label]) => (
+            <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{label}</button>
+          ))}
+        </div>
+        {tab === 'note' ? main : sessions}
+        {hint}
+      </div>
     </aside>
+  ) : (
+    <aside className="panel">{head}{tags}{main}{sessions}{related}{hint}</aside>
   );
 }
