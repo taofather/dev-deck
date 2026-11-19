@@ -152,64 +152,25 @@ function Note({ id, data }) {
   const dragging = useConnection((c) => c.inProgress && c.fromNode.id !== id);
   // Click-to-link (data.linkTarget) gets the same outline as a dragged link.
   const droppable = dragging || data.linkTarget;
-  // Handles come and go (none while editing the title, the drop zone while a link is dragged): React Flow must
-  // re-read them on each toggle, or arrows lose their ends.
+  // Handles come and go (the drop zone while a link is dragged): React Flow must re-read them on each toggle,
+  // or arrows lose their ends. The title is edited in NoteAside only; a click here just selects the note.
   const updateNodeInternals = useUpdateNodeInternals();
-  // The node edits its title only; the body lives in a docs/_WIP/board page, edited from NoteAside.
-  // A click on the title text (or a double click anywhere) edits it; a note just created by a + button opens editing.
-  const [draft, setDraft] = useState(data.fresh ? data.title : null);
-  // React Flow keeps a new node hidden until it is measured, so autoFocus misses it: retry for a few frames.
-  const input = useRef(null);
-  const editing = draft !== null;
   // Toggles only: on mount React Flow measures the node itself, and an early call would make the initial fitView
   // frame unmeasured nodes (zoomed in on nothing).
-  const toggles = useRef(`${editing}${dragging}`);
+  const toggles = useRef(dragging);
   useEffect(() => {
-    if (toggles.current === `${editing}${dragging}`) return;
-    toggles.current = `${editing}${dragging}`;
+    if (toggles.current === dragging) return;
+    toggles.current = dragging;
     updateNodeInternals(id);
-  }, [editing, dragging, id, updateNodeInternals]);
-
-  useEffect(() => {
-    if (!editing) return;
-    let tries = 10;
-    let frame;
-    const focus = () => {
-      input.current?.focus();
-      if (document.activeElement !== input.current && tries-- > 0) frame = requestAnimationFrame(focus);
-      else input.current?.select();
-    };
-    focus();
-    return () => cancelAnimationFrame(frame);
-  }, [editing]);
-  const commit = () => {
-    data.onChange({ title: draft.trim() || 'Untitled' });
-    setDraft(null);
-  };
-  const keys = (e) => {
-    if (e.key === 'Escape') setDraft(null);
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) commit();
-  };
-  if (draft !== null) {
-    return (
-      <div className="note editing" onBlur={onFocusLeft(commit)} onKeyDown={keys}>
-        <input ref={input} className="nodrag" value={draft} onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && commit()} />
-      </div>
-    );
-  }
+  }, [dragging, id, updateNodeInternals]);
   return (
-    <div className={['note', droppable && 'droppable', data.linkSource && 'linking'].filter(Boolean).join(' ')} style={data.state && { borderTopColor: data.state.color }}
-      onDoubleClick={() => setDraft(data.title)}>
+    <div className={['note', droppable && 'droppable', data.linkSource && 'linking'].filter(Boolean).join(' ')} style={data.state && { borderTopColor: data.state.color }}>
       <Stickies labels={labelsOf(data)} />
       {SIDES.map((side) => <Handle key={`t-${side}`} id={`t-${side}`} type="target" position={POSITION[side]} className="note-side" isConnectable={false} />)}
       {SIDES.map((side) => <Handle key={side} id={`s-${side}`} type="source" position={POSITION[side]} className="note-side" isConnectable={false} />)}
       {dragging && <Handle id="drop" type="target" position={Position.Left} className="note-drop" isConnectableStart={false} />}
       <div className="note-title">
-        {/* React Flow swallows the click that ends a drag, so dragging by the title still moves the note.
-            In click-to-link mode the click links instead. */}
-        <span className="note-title-text" title="Click to rename"
-          onClick={() => !data.linkSource && !data.linkTarget && setDraft(data.title)}>{data.title}</span>
+        <span className="note-title-text">{data.title}</span>
         {data.sessions?.length > 0 && <span className="note-sessions" title="Claude sessions">🤖 {data.sessions.length}</span>}
         {data.page && <span className="note-page" title="Has a WIP page (link in the aside)">📄</span>}
         <button className="nodrag" title="Delete note" onClick={() => confirm(`Delete "${data.title}"?`) && data.onDelete()}>✕</button>
@@ -292,7 +253,6 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
   const [pages, setPages] = useState({});
   const notes = useMemo(() => raw && notesOf(raw, pageId, pages), [raw, pageId, pages]);
   const [error, setError] = useState(null);
-  const [fresh, setFresh] = useState(null);
   // Node sizes React Flow measured (id → { width, height }), handed back as node.measured. Without them every
   // rebuilt node (e.g. after the focus reload) is hidden until re-measured, and a background Firefox tab misses
   // that re-measure: all notes stayed invisible. Kept apart from notes, so board.json never stores them.
@@ -357,7 +317,6 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
     const pos = parent
       ? { x: parent.x + notes.filter((n) => n.from === from).length * (NOTE_W + 40), y: parent.y + (getNode(from)?.measured?.height ?? 120) + 60 }
       : { x: notes.length ? Math.max(...notes.map((n) => n.x)) + NOTE_W + 40 : 0, y: 0 };
-    setFresh(id);
     onSelect(id);
     const next = ops.put(raw, pageId, id, { title: 'New note' }, pos);
     commit(parent ? ops.link(next, [from, id, FROM]) : next);
@@ -376,6 +335,15 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
     onSelect(id);
     commit(ops.put(raw, pageId, id, { title: issue.title, linear }, { x, y: 0 }));
     setCenter(x + NOTE_W / 2, 100, { zoom: getZoom(), duration: 400 });
+  };
+  // "+ Import": any Linear issue, by code or URL (…/issue/C-13262/…). Not in the sidebar's cycle list unless assigned to the viewer.
+  const importIssue = () => {
+    const code = prompt('Linear ticket (code or URL):')?.match(/[A-Za-z]+-\d+/)?.[0];
+    if (!code) return;
+    fetch(`http://127.0.0.1:5182/linear/issue?id=${encodeURIComponent(code.toUpperCase())}`)
+      .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(`${code}: ${await r.text()}`))))
+      .then(addIssue)
+      .catch((e) => setError(e.message));
   };
   // The body goes to the note's docs/_WIP/board page; Hugo then rebuilds and livereloads this page.
   // Labels go to the page's tags front matter (created if needed); Hugo then rebuilds and livereloads this page.
@@ -449,8 +417,8 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
     ...(sizes[n.id] && { measured: sizes[n.id] }),
     selected: n.id === selected,
     data: {
-      ...n, isRef, colorOf, onRef, fresh: n.id === fresh, state: stateOf(n, issues),
-      onChange: (p) => p.title !== n.title && rename(n.id, p.title), onDelete: () => remove(n.id), onAddRelated: () => add(n.id),
+      ...n, isRef, colorOf, onRef, state: stateOf(n, issues),
+      onDelete: () => remove(n.id), onAddRelated: () => add(n.id),
       onStartLink: () => setLinkFrom(linkFrom === n.id ? null : n.id),
       linkSource: linkFrom === n.id, linkTarget: !!linkFrom && linkFrom !== n.id,
     },
@@ -514,6 +482,7 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
       <Controls />
       <Panel position="top-left">
         <button className="focus-toggle" onClick={() => add()}>+ Note</button>
+        <button className="focus-toggle" onClick={importIssue}>+ Import</button>
         {linkFrom && <span className="board-hint">Click a note to link it · Esc to cancel</span>}
         {error && <span className="board-error">{error}</span>}
       </Panel>
@@ -571,7 +540,7 @@ export const moveNote = (id, to) => fetch(`${BRIDGE}/move`, {
   ? 'The bridge predates board moves: restart npm run dev.' : `move failed: ${r.status}`))))));
 
 // boards: the other WIP boards ({ file, title }); onMove(file) moves the note there.
-export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload, onSaveProps, boards = [], onMove }) {
+export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect, onSaveBody, onSaveTags, onRename, onReload, onSaveProps, boards = [], onMove, wide }) {
   const [draft, setDraft] = useState(null);
   // Title: click to rename; Enter or blur saves, Esc cancels. Saved like a rename on the node (board.json + page).
   const [title, setTitle] = useState(null);
@@ -584,6 +553,7 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
   const [saving, setSaving] = useState(null);
   // "+ property" in the label row: each click adds an empty property row (KeyValues addSignal).
   const [addProp, setAddProp] = useState(0);
+  const [tab, setTab] = useState('note');
   // Another note selected: drop the unsaved draft of the previous one.
   useEffect(() => {
     setDraft(null);
@@ -608,8 +578,9 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
     ...(note.links ?? []).filter(byId).map((t) => ({ kind: 'link', source: note.id, target: t, other: byId(t), label: 'Links to →' })),
     ...notes.filter((n) => n.links?.includes(note.id)).map((n) => ({ kind: 'link', source: n.id, target: note.id, other: n, label: 'Linked from ←' })),
   ].filter(Boolean);
-  return (
-    <aside className="panel">
+  // Pieces of the aside. Maximized (wide): labels, properties, move and related notes go to a left column; body and sessions are tabs.
+  const head = (
+    <>
       <div className="badge" style={{ background: 'var(--color-dark-green-600)' }}>WIP note</div>
       {title !== null ? (
         <input className="note-aside-title-input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} onBlur={onFocusLeft(rename)}
@@ -621,6 +592,10 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
         <h2 className="note-aside-title" title="Click to rename" onClick={() => setTitle(note.title)}>{note.title}</h2>
       )}
       {note.linear && <Status linear={note.linear} state={stateOf(note, issues)} link />}
+    </>
+  );
+  const tags = (
+    <>
       <Labels key={note.id} labels={labelsOf(note)} onSave={(next) => onSaveTags(note.id, ['wip', ...next])}>
         {onSaveProps && <button className="label-add" onClick={() => setAddProp((n) => n + 1)}>+ property</button>}
       </Labels>
@@ -638,6 +613,10 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
           {saving && draft === null && <span className="board-error"> {saving}</span>}
         </p>
       )}
+    </>
+  );
+  const main = (
+    <>
       {draft !== null ? (
         <div className="note-editor">
           <textarea autoFocus rows={Math.max(10, draft.split('\n').length + 2)} value={draft} onChange={(e) => setDraft(e.target.value)}
@@ -660,20 +639,37 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
           </div>
         </>
       )}
-      <Sessions note={note} onChanged={onReload} />
-      {rels.length > 0 && (
-        <>
-          <h3>Relations</h3>
-          <ul className="note-rels">
-            {rels.map((r) => (
-              <li key={`${r.kind}:${r.source}>${r.target}`}>
-                <span className="muted">{r.label}</span> <a onClick={() => onSelect(r.other.id)}>{r.other.title}</a>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      <p className="muted">Double-click the note on the board to rename it. The body is saved as Markdown in docs/_WIP/board.</p>
+    </>
+  );
+  const sessions = <Sessions note={note} onChanged={onReload} />;
+  const related = rels.length > 0 && (
+    <>
+      <h3>Relations</h3>
+      <ul className="note-rels">
+        {rels.map((r) => (
+          <li key={`${r.kind}:${r.source}>${r.target}`}>
+            <span className="muted">{r.label}</span> <a onClick={() => onSelect(r.other.id)}>{r.other.title}</a>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+  const hint = <p className="muted">Click the title above to rename the note. The body is saved as Markdown in docs/_WIP/board.</p>;
+  return wide ? (
+    <aside className="panel note-wide">
+      <div className="note-side">{tags}{related}</div>
+      <div className="note-main">
+        {head}
+        <div className="menu panel-menu">
+          {[['note', '📝 Note'], ['sessions', '🤖 Claude sessions']].map(([t, label]) => (
+            <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{label}</button>
+          ))}
+        </div>
+        {tab === 'note' ? main : sessions}
+        {hint}
+      </div>
     </aside>
+  ) : (
+    <aside className="panel">{head}{tags}{main}{sessions}{related}{hint}</aside>
   );
 }

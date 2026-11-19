@@ -868,7 +868,7 @@ function useFold(key) {
 // The right panel is wide on purpose: note editor and Claude chat, entity docs with column tables.
 const FOLDED_W = '36px';
 // Sidebar menu options: [key, icon, label]. Linear lists the current cycle and lives on the WIP board.
-const MENUS = [['browse', '🗂', 'Browse'], ['linear', '◷', 'Linear']];
+const MENUS = [['browse', '☰', 'Browse'], ['linear', '◷', 'Linear']];
 
 const columnsOf = ({ focus, folded, panelFolded, panelMax, board }) => (focus || panelMax ? '1fr' : [
   folded ? FOLDED_W : board ? '380px' : '240px',
@@ -1157,7 +1157,7 @@ function App() {
         </footer>
       </main>
       {note ? (
-        <NoteAside note={note} notes={boardNotes} issues={issues}
+        <NoteAside note={note} notes={boardNotes} issues={issues} wide={panelMax}
           onReload={() => apiRef.current?.reload()}
           onRename={(id, title) => apiRef.current?.rename(id, title)}
           onSaveTags={(id, tags) => apiRef.current?.saveTags(id, tags) ?? Promise.reject(new Error('Board not loaded'))}

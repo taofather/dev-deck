@@ -34,6 +34,7 @@ const CYCLE_ISSUES = `query {
     }
   }
 }`;
+const ISSUE = `query($id: String!) { issue(id: $id) { identifier title url state { name color } } }`;
 const json = (res, data) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
 
 // Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json, docs/**/_ops.json,
@@ -287,6 +288,14 @@ createServer((req, res) => {
       .then(({ data }) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
         issues: data.viewer.assignedIssues.nodes.map(({ labels, ...i }) => ({ ...i, labels: labels.nodes })),
       })))
+      .catch((err) => res.writeHead(502).end(err.message));
+  }
+
+  // One issue by identifier (C-13262), assigned to anyone: the WIP board's "+ Import".
+  if (url.pathname === '/linear/issue' && req.method === 'GET') {
+    if (!linear) return res.writeHead(503).end('LINEAR_API_KEY is not set (env or .env)');
+    return linear.client.rawRequest(ISSUE, { id: url.searchParams.get('id') ?? '' })
+      .then(({ data }) => (data.issue ? json(res, data.issue) : res.writeHead(404).end('Issue not found')))
       .catch((err) => res.writeHead(502).end(err.message));
   }
 
