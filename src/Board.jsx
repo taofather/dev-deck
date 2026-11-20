@@ -7,7 +7,7 @@ import { Sessions } from './Sessions.jsx';
 import { loadSdd, ops, saveSdd } from './DiagramEditor.js';
 import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, NodeResizeControl, useReactFlow, useConnection, useUpdateNodeInternals } from '@xyflow/react';
 
-const BRIDGE = 'http://127.0.0.1:5182/wip';
+const BRIDGE = 'http://127.0.0.1:5662/wip';
 // Relation label of a parent arrow (a note added with + under another); any other relation is a link.
 const FROM = 'from';
 const NOTE_W = 320;
@@ -126,20 +126,6 @@ export function KeyValues({ pairs, onChange, addSignal }) {
   );
 }
 
-// Linear status line of a note created from a cycle issue: live state when the sidebar has it, else the saved one.
-// A link to the issue in the aside only: in the node a click selects the note (and opens the aside).
-function Status({ linear, state, link = false }) {
-  const content = (
-    <>
-      <span className="swatch" style={{ background: state.color }} /> {state.name}
-      <span className="linear-id">{linear.id}</span>
-    </>
-  );
-  return link
-    ? <a className="note-linear" href={linear.url} target="_blank" rel="noreferrer">{content}</a>
-    : <div className="note-linear">{content}</div>;
-}
-
 // Blur handler that commits only when focus moved elsewhere in the page. When the window itself loses focus
 // (macOS emoji palette ⌃⌘Space, ⌘Tab) the field stays document.activeElement, so editing goes on.
 const onFocusLeft = (commit) => (e) => {
@@ -164,7 +150,7 @@ function Note({ id, data }) {
     updateNodeInternals(id);
   }, [dragging, id, updateNodeInternals]);
   return (
-    <div className={['note', droppable && 'droppable', data.linkSource && 'linking'].filter(Boolean).join(' ')} style={data.state && { borderTopColor: data.state.color }}>
+    <div className={['note', droppable && 'droppable', data.linkSource && 'linking'].filter(Boolean).join(' ')}>
       <Stickies labels={labelsOf(data)} />
       {SIDES.map((side) => <Handle key={`t-${side}`} id={`t-${side}`} type="target" position={POSITION[side]} className="note-side" isConnectable={false} />)}
       {SIDES.map((side) => <Handle key={side} id={`s-${side}`} type="source" position={POSITION[side]} className="note-side" isConnectable={false} />)}
@@ -175,7 +161,6 @@ function Note({ id, data }) {
         {data.page && <span className="note-page" title="Has a WIP page (link in the aside)">📄</span>}
         <button className="nodrag" title="Delete note" onClick={() => confirm(`Delete "${data.title}"?`) && data.onDelete()}>✕</button>
       </div>
-      {data.linear && <Status linear={data.linear} state={data.state} />}
       {data.props?.length > 0 && (
         <table className="card-cols card-props">
           <tbody>
@@ -227,10 +212,6 @@ function Area({ data }) {
 }
 const nodeTypes = { note: Note, area: Area };
 
-// The selected note lives in the route (#/doc/page/<note id>) like any entity, so App passes it in and
-// renders NoteAside for it; onNotes hands App the notes that aside reads.
-const stateOf = (note, issues) => note.linear && (issues?.find((i) => i.identifier === note.linear.id)?.state ?? note.linear.state);
-
 // Hextra's theme toggle puts .dark on <html>; React Flow follows it live.
 const isDark = () => document.documentElement.classList.contains('dark');
 export function useDark() {
@@ -243,10 +224,8 @@ export function useDark() {
   return dark;
 }
 
-
-// issues: the sidebar's Linear cycle issues. apiRef: App's handle on addIssue (sidebar +) and saveBody (aside editor).
 // file, pageId: the diagram and its board page.
-export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect, onNotes, issues, apiRef }) {
+export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect, onNotes, apiRef }) {
   // raw: the diagram file as saved; pages: note id → its page data (body, page, sessions, tags).
   const [raw, setRaw] = useState(null);
   const dark = useDark();
@@ -321,30 +300,6 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
     const next = ops.put(raw, pageId, id, { title: 'New note' }, pos);
     commit(parent ? ops.link(next, [from, id, FROM]) : next);
   };
-  // A Linear issue gets one note: adding it again selects the existing one and centers the board on it.
-  const addIssue = (issue) => {
-    const existing = notes.find((n) => n.linear?.id === issue.identifier);
-    if (existing) {
-      const h = getNode(existing.id)?.measured?.height ?? 120;
-      setCenter(existing.x + NOTE_W / 2, existing.y + h / 2, { zoom: getZoom(), duration: 400 });
-      return onSelect(existing.id);
-    }
-    const id = crypto.randomUUID();
-    const x = notes.length ? Math.max(...notes.map((n) => n.x)) + NOTE_W + 40 : 0;
-    const linear = { id: issue.identifier, url: issue.url, state: { name: issue.state.name, color: issue.state.color } };
-    onSelect(id);
-    commit(ops.put(raw, pageId, id, { title: issue.title, linear }, { x, y: 0 }));
-    setCenter(x + NOTE_W / 2, 100, { zoom: getZoom(), duration: 400 });
-  };
-  // "+ Import": any Linear issue, by code or URL (…/issue/C-13262/…). Not in the sidebar's cycle list unless assigned to the viewer.
-  const importIssue = () => {
-    const code = prompt('Linear ticket (code or URL):')?.match(/[A-Za-z]+-\d+/)?.[0];
-    if (!code) return;
-    fetch(`http://127.0.0.1:5182/linear/issue?id=${encodeURIComponent(code.toUpperCase())}`)
-      .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(`${code}: ${await r.text()}`))))
-      .then(addIssue)
-      .catch((e) => setError(e.message));
-  };
   // The body goes to the note's docs/_WIP/board page; Hugo then rebuilds and livereloads this page.
   // Labels go to the page's tags front matter (created if needed); Hugo then rebuilds and livereloads this page.
   const saveTags = (id, tags) => fetch(`${BRIDGE}/tags`, {
@@ -361,7 +316,7 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
       ? 'The bridge predates note pages: restart npm run dev.' : `save failed: ${r.status}`))))))
     .then(({ page }) => setPages((p) => ({ ...p, [id]: { ...p[id], body, page } })));
   useEffect(() => {
-    if (apiRef) apiRef.current = notes ? { addIssue, saveBody, saveTags, rename, reload: load,
+    if (apiRef) apiRef.current = notes ? { saveBody, saveTags, rename, reload: load,
       saveProps: (id, props) => commit(ops.field(raw, id, 'props', props)) } : null;
   });
   // Out of the diagram: its entity, relations, position and sides (ops.remove). Its page stays.
@@ -482,7 +437,6 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
       <Controls />
       <Panel position="top-left">
         <button className="focus-toggle" onClick={() => add()}>+ Note</button>
-        <button className="focus-toggle" onClick={importIssue}>+ Import</button>
         {linkFrom && <span className="board-hint">Click a note to link it · Esc to cancel</span>}
         {error && <span className="board-error">{error}</span>}
       </Panel>
@@ -591,7 +545,6 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
       ) : (
         <h2 className="note-aside-title" title="Click to rename" onClick={() => setTitle(note.title)}>{note.title}</h2>
       )}
-      {note.linear && <Status linear={note.linear} state={stateOf(note, issues)} link />}
     </>
   );
   const tags = (

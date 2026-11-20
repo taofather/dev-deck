@@ -3,13 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "trap 'kill 0' INT TERM EXIT; vite build --watch --mode development & node --env-file-if-exists=.env --watch-path=agent-bridge.mjs --watch-path=note-pages.mjs --watch-path=claude-sessions.mjs agent-bridge.mjs & hugo server --bind 0.0.0.0 --port 5180 --noHTTPCache --renderToMemory",
+    "dev": "trap 'kill 0' INT TERM EXIT; vite build --watch --mode development & node --env-file-if-exists=.env --watch-path=agent-bridge.mjs --watch-path=note-pages.mjs --watch-path=claude-sessions.mjs agent-bridge.mjs & hugo server --bind 0.0.0.0 --port 5660 --noHTTPCache --renderToMemory",
     "dev:diagrams": "vite --port 5179",
     "build": "vite build && hugo --gc --minify"
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.4",
-    "@linear/sdk": "^101.0.0",
     "@xyflow/react": "^12.3.6",
     "@zenuml/core": "^4.11.0",
     "marked": "^4.3.0",

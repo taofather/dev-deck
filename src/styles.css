@@ -134,29 +134,6 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .panel .note-aside-title-input { width: 100%; box-sizing: border-box; margin: 8px 0; padding: 4px 6px; font: 700 18px var(--font-sans); border: 1px solid var(--color-neutral-300); border-radius: 4px; }
 .reactflow-app .panel .note-body { padding: 0; font-size: 14px; cursor: auto; }
 
-/* WIP board sidebar: Linear issues of the active cycle (src/Linear.jsx). */
-.reactflow-app .linear .section { display: flex; align-items: center; justify-content: space-between; }
-.reactflow-app .linear-reload { border: 0; background: none; cursor: pointer; font-size: 14px; color: var(--color-neutral-500); }
-.reactflow-app .linear-dates { font-size: 12px; margin-bottom: 6px; }
-.reactflow-app .linear-state { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--color-neutral-700); margin: 10px 0 2px; }
-.reactflow-app .linear-card { position: relative; margin: 6px 0; padding: 8px 10px 8px 12px; background: var(--rf-surface); border: 1px solid var(--color-neutral-200); border-left: 4px solid; border-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / .06); transition: box-shadow .15s, transform .15s; }
-.reactflow-app .linear-card:hover { box-shadow: 0 3px 10px rgb(0 0 0 / .1); transform: translateY(-1px); }
-.reactflow-app .linear-card.on-board { cursor: pointer; }
-.reactflow-app .linear-card-head { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px; padding-right: 26px; }
-.reactflow-app .sidebar a.linear-issue { padding: 0; font-size: 13px; font-weight: 600; line-height: 1.35; color: var(--color-neutral-800, #222); padding-right: 26px; }
-.reactflow-app .sidebar a.linear-issue:hover { text-decoration: underline; }
-.reactflow-app .linear-add { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: var(--rf-surface); color: var(--color-dark-green-600); font-weight: 700; line-height: 1; cursor: pointer; }
-.reactflow-app .linear-add:hover { background: var(--color-dark-green-600); color: #fff; }
-.reactflow-app .linear-add.on { border-color: var(--color-neutral-300, #ccc); color: var(--color-neutral-500); }
-/* Status line of a WIP note made from a Linear issue (src/Board.jsx). */
-.reactflow-app .note-linear { display: flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--color-neutral-700); border-bottom: 1px solid var(--color-neutral-200); }
-.reactflow-app .note-linear .linear-id { margin-left: auto; }
-.reactflow-app .panel .note-linear { padding: 4px 0; margin-bottom: 8px; }
-.reactflow-app .linear-id { font-family: ui-monospace, monospace; font-size: 11px; color: var(--color-neutral-500); }
-.reactflow-app .linear-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
-.reactflow-app .linear-labels span { border: 1px solid; border-radius: 8px; padding: 0 6px; font-size: 11px; }
-.reactflow-app .linear .board-error { margin-left: 0; }
-
 /* Link handle: hover a note, drag its → onto another note (src/Board.jsx links). */
 .reactflow-app .note .react-flow__handle.note-link { opacity: 0; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--color-dark-green-600); background: var(--rf-surface); color: var(--color-dark-green-600); font-size: 13px; font-weight: 700; cursor: crosshair; transition: opacity .15s; }
 .reactflow-app .note:hover .react-flow__handle.note-link { opacity: 1; }

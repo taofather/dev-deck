@@ -1,7 +1,7 @@
 // WIP note pages, used by agent-bridge.mjs. A note lives in two places:
 // - docs/_WIP/board/board.json: a JSON diagram like any other (src/content/index.js), loaded and saved by the
-//   browser through /sdd (src/DiagramEditor.js): one entity per note (title, linear, …), relations, positions and sides.
-//   Read here only, for the title and Linear ticket a page needs.
+//   browser through /sdd (src/DiagramEditor.js): one entity per note (title, …), relations, positions and sides.
+//   Read here only, for the title a page needs.
 // - docs/_WIP/board/*.md: the note body as a Hugo page, found by its `board: <note id>` front matter. Files can only
 //   be written from Node, so this module owns them. Hugo renders them under /_wip/board/<file>/; editing one in an
 //   editor or Obsidian shows on the board.
@@ -27,7 +27,7 @@ export async function boards() {
 }
 export const readBoard = (file) => readFile(`${ROOT}/${file}`, 'utf8').then((t) => (t.trim() ? JSON.parse(t) : {}));
 
-// The note as its board declares it: { id, title, linear, where }, or null when no board has it.
+// The note as its board declares it: { id, title, where }, or null when no board has it.
 // where: { dir, file, id, pageId }, the board holding it (pageId: its `board: true` page).
 async function noteOf(id) {
   for (const b of await boards()) {
@@ -68,12 +68,12 @@ async function scan() {
 
 export const pageUrl = (file) => `/_wip/board/${file.replace(/\.md$/, '').toLowerCase()}/`;
 
-// AGENTS.md file naming: YYYYMMDD, the ticket code when there is one, then a slug of the title. In the note's board folder.
+// File naming: YYYYMMDD, then a slug of the title. In the note's board folder.
 function newFileName(note) {
   const dir = note.where?.dir ? `${note.where.dir}/` : '';
   const day = new Date().toISOString().slice(0, 10).replaceAll('-', '');
   const slug = (note.title ?? '').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
-  const base = [day, note.linear?.id, slug || note.id.slice(0, 8)].filter(Boolean).join('-');
+  const base = [day, slug || note.id.slice(0, 8)].filter(Boolean).join('-');
   // Two notes with the same title on the same day must not share a page.
   for (let i = 1; ; i++) {
     const file = `${dir}${base}${i > 1 ? `-${i}` : ''}.md`;
@@ -114,7 +114,7 @@ async function writePage(note, body, page, edit = (fm) => fm) {
   const title = `title: ${JSON.stringify(note.title ?? 'Untitled')}`;
   const fm = edit(page
     ? (/^title:.*$/m.test(page.fm) ? page.fm.replace(/^title:.*$/m, title) : `${title}\n${page.fm}`)
-    : [title, `board: ${note.id}`, note.linear && `linear: ${note.linear.url}`, 'tags: [wip]'].filter(Boolean).join('\n'));
+    : [title, `board: ${note.id}`, 'tags: [wip]'].filter(Boolean).join('\n'));
   const file = page?.file ?? newFileName(note);
   await writeAtomic(`${DIR}/${file}`, `---\n${fm}\n---\n\n${(body ?? page?.body ?? '').trimEnd()}\n`);
   return file;
@@ -158,7 +158,7 @@ export async function addSession(id, session) {
   return pageUrl(await writePage(note, undefined, page, (fm) => withSessions(fm, [...sessions, session])));
 }
 
-// What a new session is told about its note: title, page file, Linear ticket and body.
+// What a new session is told about its note: title, page file and body.
 export async function noteContext(id) {
   const note = await noteOf(id);
   const page = note && (await scan()).get(id);

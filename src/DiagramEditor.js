@@ -2,7 +2,7 @@
 // every change rewrites the file through agent-bridge.mjs, so it only saves under `npm run dev`.
 // Each operation takes the raw file content and returns a new one; positions live on the page that shows them.
 
-export const SDD_BRIDGE = 'http://127.0.0.1:5182/sdd';
+export const SDD_BRIDGE = 'http://127.0.0.1:5662/sdd';
 // Node kinds created from the diagram toolbar, and their empty value.
 export const NEW_KINDS = {
   controlPoint: { text: '', why: '' },
@@ -69,7 +69,7 @@ export const ops = {
     page.positions = { ...page.positions, [id]: { x: Math.round(pos.x), y: Math.round(pos.y) } };
     return { raw: next, id };
   },
-  // A node with a given id and value at pos, on this page (WIP board notes: a UUID and { title, linear }).
+  // A node with a given id and value at pos, on this page.
   put: (raw, pageId, id, value, pos) => {
     const next = clone(raw);
     next.entities = { ...next.entities, [id]: value };

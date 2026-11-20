@@ -539,7 +539,7 @@ function EntityEditor({ id, edit }) {
   );
 }
 
-// Right panel options on a _sdd.json diagram: [key, icon, label], like the sidebar's Browse / Linear.
+// Right panel options on a diagram: [key, icon, label].
 const SIDE_MENUS = [['node', '🔎', 'Node'], ['agent', '🤖', 'Agent']];
 const SideMenu = ({ side, onSide }) => (
   <div className="menu panel-menu">

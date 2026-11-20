@@ -20,7 +20,7 @@ marked.use({
 });
 export const markdown = (text) => ({ __html: marked.parse(text) });
 
-export const BRIDGE = 'http://127.0.0.1:5182';
+export const BRIDGE = 'http://127.0.0.1:5662';
 
 const loadChat = (key) => {
   try {

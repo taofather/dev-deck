@@ -6,35 +6,18 @@ import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { LinearClient } from '@linear/sdk';
 import { randomUUID } from 'node:crypto';
 import { relative, resolve, sep } from 'node:path';
 import { addSession, boards, loadPages, movePage, noteContext, noteOf, readBoard, saveBody, saveTags, saveTitle } from './note-pages.mjs';
 import { ops } from './src/DiagramEditor.js';
 import { AGENT_ROOT, isSessionId, listSessions, transcript } from './claude-sessions.mjs';
 
-const PORT = 5182;
+const PORT = 5662;
 // Any site open in the browser can reach 127.0.0.1; only the dev site may drive an agent that writes files.
-const ORIGINS = ['http://localhost:5180', 'http://127.0.0.1:5180'];
+const ORIGINS = ['http://localhost:5660', 'http://127.0.0.1:5660', 'http://localhost:5180', 'http://127.0.0.1:5180'];
 const TOOLS = 'Read,Edit,Write,Glob,Grep';
 const KEEP_MS = 10 * 60 * 1000;
-// Linear personal API key (linear.app/mycompany/settings/account/security), from the env or the gitignored .env.
 if (existsSync(`${import.meta.dirname}/.env`)) process.loadEnvFile(`${import.meta.dirname}/.env`);
-const linear = process.env.LINEAR_API_KEY && new LinearClient({ apiKey: process.env.LINEAR_API_KEY });
-// One raw query instead of the SDK's lazy models: those fetch state, cycle and labels one request per issue.
-const CYCLE_ISSUES = `query {
-  viewer {
-    assignedIssues(first: 100, filter: { cycle: { isActive: { eq: true } } }) {
-      nodes {
-        identifier title url priority priorityLabel
-        state { name type color position }
-        cycle { number name startsAt endsAt }
-        labels { nodes { name color } }
-      }
-    }
-  }
-}`;
-const ISSUE = `query($id: String!) { issue(id: $id) { identifier title url state { name color } } }`;
 const json = (res, data) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
 
 // Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json,
@@ -283,24 +266,6 @@ createServer((req, res) => {
     });
   }
 
-  // The viewer's issues in the active cycle, for the WIP board sidebar (src/Linear.jsx).
-  if (url.pathname === '/linear/cycle' && req.method === 'GET') {
-    if (!linear) return res.writeHead(503).end('LINEAR_API_KEY is not set (env or .env)');
-    return linear.client.rawRequest(CYCLE_ISSUES)
-      .then(({ data }) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
-        issues: data.viewer.assignedIssues.nodes.map(({ labels, ...i }) => ({ ...i, labels: labels.nodes })),
-      })))
-      .catch((err) => res.writeHead(502).end(err.message));
-  }
-
-  // One issue by identifier (C-13262), assigned to anyone: the WIP board's "+ Import".
-  if (url.pathname === '/linear/issue' && req.method === 'GET') {
-    if (!linear) return res.writeHead(503).end('LINEAR_API_KEY is not set (env or .env)');
-    return linear.client.rawRequest(ISSUE, { id: url.searchParams.get('id') ?? '' })
-      .then(({ data }) => (data.issue ? json(res, data.issue) : res.writeHead(404).end('Issue not found')))
-      .catch((err) => res.writeHead(502).end(err.message));
-  }
-
   // Claude sessions of WIP notes (src/Sessions.jsx): they run in AGENT_ROOT, so `claude --resume <id>` works from there.
   if (url.pathname === '/wip/sessions' && req.method === 'GET') {
     return listSessions().then((sessions) => json(res, { root: AGENT_ROOT, sessions })).catch((err) => res.writeHead(500).end(err.message));
@@ -337,7 +302,6 @@ createServer((req, res) => {
           const intro = [
             `[WIP note "${ctx.note.title}" from the dev-deck board.`,
             ctx.file ? `Its page, where its notes live: ${ctx.file}.` : 'It has no page yet.',
-            ctx.note.linear ? `Linear ticket: ${ctx.note.linear.url}.` : '',
             ']', ctx.body ? `\nNote body:\n${ctx.body}\n` : '',
           ].filter(Boolean).join(' ');
           args = ['-p', `${intro}\n\n${b.message}`, '--session-id', session, '--name', ctx.note.title];
