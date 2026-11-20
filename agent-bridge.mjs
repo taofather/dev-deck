@@ -10,7 +10,7 @@ import { LinearClient } from '@linear/sdk';
 import { randomUUID } from 'node:crypto';
 import { relative, resolve, sep } from 'node:path';
 import { addSession, boards, loadPages, movePage, noteContext, noteOf, readBoard, saveBody, saveTags, saveTitle } from './note-pages.mjs';
-import { ops } from './src/SddEdit.js';
+import { ops } from './src/DiagramEditor.js';
 import { AGENT_ROOT, isSessionId, listSessions, transcript } from './claude-sessions.mjs';
 
 const PORT = 5182;
@@ -37,18 +37,20 @@ const CYCLE_ISSUES = `query {
 const ISSUE = `query($id: String!) { issue(id: $id) { identifier title url state { name color } } }`;
 const json = (res, data) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
 
-// Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json, docs/**/_ops.json,
-// docs/<reign>/<folder>/<folder>.json and the WIP sub-boards docs/_WIP/board/<name>/<name>.json only.
+// Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json,
+// docs/<folder>/<folder>.json, content/**/*.json, src/content/**/*.json.
 const DOCS = resolve(import.meta.dirname, 'docs');
-// _sdd.json: spec diagrams (.agents/sdd-convert-skill.md); _ops.json: operations decks (.agents/operations-deck-skill.md).
+const CONTENT = resolve(import.meta.dirname, 'content');
+const SRC_CONTENT = resolve(import.meta.dirname, 'src', 'content');
 const DIAGRAM = /^_(sdd|ops)\.json$/;
 const sddPath = (file) => {
   const abs = typeof file === 'string' && resolve(import.meta.dirname, file);
-  if (!abs || !abs.startsWith(DOCS + sep)) return null;
-  const parts = abs.slice(DOCS.length + 1).split(sep);
-  const board = parts.length === 4 && parts[0] === '_WIP' && parts[1] === 'board';
-  const named = (parts.length === 3 || board) && parts.at(-1) === `${parts.at(-2)}.json`;
-  return DIAGRAM.test(parts.at(-1)) || named ? abs : null;
+  if (!abs) return null;
+  const inDocs = abs.startsWith(DOCS + sep);
+  const inContent = abs.startsWith(CONTENT + sep);
+  const inSrcContent = abs.startsWith(SRC_CONTENT + sep);
+  if (!inDocs && !inContent && !inSrcContent) return null;
+  return abs.endsWith('.json') ? abs : null;
 };
 const isSdd = (d) => d && typeof d === 'object' && !Array.isArray(d) && typeof (d.entities ?? {}) === 'object'
   && Array.isArray(d.relations ?? []) && Array.isArray(d.pages ?? []);
@@ -219,7 +221,7 @@ createServer((req, res) => {
     });
   }
 
-  // A _sdd.json diagram: read on load and focus, written on every edit (src/SddEdit.js).
+  // A diagram: read on load and focus, written on every edit (src/DiagramEditor.js).
   if (url.pathname === '/sdd') {
     const file = sddPath(url.searchParams.get('file'));
     if (!file) return res.writeHead(400).end('file must be docs/**/_sdd.json, docs/**/_ops.json or docs/<reign>/<folder>/<folder>.json');
@@ -263,13 +265,13 @@ createServer((req, res) => {
           d.orchestrator = { id: created, started: new Date().toISOString() };
           await writeFile(file, sddJson(d));
           const intro = [
-            `[Orchestrator of the dev-deck spec diagram "${d.title ?? b.file}".`,
-            `Its data: ${file}. The spec documents it was converted from are the Markdown files in the same folder.`,
-            `Follow ${resolve(import.meta.dirname, '.agents', file.endsWith('_ops.json') ? 'operations-deck-skill.md' : 'sdd-convert-skill.md')} (load the unified-docs skill first).`,
-            'Edit that file in place: keep "orchestrator" as is, and give every new node a position in its kind column.',
+            `[Orchestrator of the Liber Daemonicus diagram "${d.title ?? b.file}".`,
+            `Its data: ${file}. Follow Liber Daemonicus graph and structured rules for LLM agents.`,
+            'Node ID prefixes follow Java-like package nomenclature: controlPoint, narrativeBlock, playerAction, actionSelection, turn, custom, intention, event, demiurge, cosmicStatistic, character, location, item.',
+            'Edit that file in place: keep "orchestrator" as is, and give every new node a position.',
             `The user watches it live at /diagrams/#/${d.id ?? ''}.]`,
           ].join(' ');
-          args = ['-p', `${intro}\n\n${b.message}`, '--session-id', created, '--name', `SDD ${d.title ?? b.file}`];
+          args = ['-p', `${intro}\n\n${b.message}`, '--session-id', created, '--name', `Orchestrator ${d.title ?? b.file}`];
         }
         if (relative(AGENT_ROOT, import.meta.dirname).startsWith('..')) args.push('--add-dir', import.meta.dirname);
         const emit = start(b.run, args, AGENT_ROOT, { label: `SDD ${d.title ?? b.file}`, href: `/diagrams/#/${d.id ?? ''}`, prompt: b.message });

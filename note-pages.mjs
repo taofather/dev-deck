@@ -1,6 +1,6 @@
 // WIP note pages, used by agent-bridge.mjs. A note lives in two places:
 // - docs/_WIP/board/board.json: a JSON diagram like any other (src/content/index.js), loaded and saved by the
-//   browser through /sdd (src/SddEdit.js): one entity per note (title, linear, …), relations, positions and sides.
+//   browser through /sdd (src/DiagramEditor.js): one entity per note (title, linear, …), relations, positions and sides.
 //   Read here only, for the title and Linear ticket a page needs.
 // - docs/_WIP/board/*.md: the note body as a Hugo page, found by its `board: <note id>` front matter. Files can only
 //   be written from Node, so this module owns them. Hugo renders them under /_wip/board/<file>/; editing one in an

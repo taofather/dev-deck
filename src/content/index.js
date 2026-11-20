@@ -4,7 +4,7 @@ const modules = import.meta.glob('./*/**/*.js', { eager: true });
 // Every docs/**/_sdd.json and docs/**/_ops.json is a doc too, filed under its docs path (docs/_WIP/x/design → wip/x/design), and so is
 // the diagram of a root domain folder: docs/<reign>/<folder>/<folder>.json (docs/domains/tender/tender.json), and so
 // is a WIP sub-board: docs/_WIP/board/<name>/<name>.json.
-// Bundled as the starting point; under `npm run dev` the app reads and saves it live through agent-bridge.mjs (src/SddEdit.js).
+// Bundled as the starting point; under `npm run dev` the app reads and saves it live through agent-bridge.mjs (src/DiagramEditor.js).
 // Raw import: an empty or broken file is skipped instead of breaking the app.
 const isDiagram = (path) => {
   const [dir, name] = path.split('/').slice(-2);

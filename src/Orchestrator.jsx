@@ -40,7 +40,7 @@ export function Orchestrator({ doc, onReload }) {
     <section className="sessions">
       <h2>Orchestrator</h2>
       <p className="muted">
-        One conversation for <strong>{doc.title}</strong>. It reads the spec folder and edits <code>{doc.file}</code>; the diagram reloads when a run ends.
+        One conversation for <strong>{doc.title}</strong>. It interacts with the diagram and edits <code>{doc.file}</code>; the diagram reloads when a run ends.
       </p>
       {record ? (
         <div className="note-editor-bar">
@@ -50,7 +50,7 @@ export function Orchestrator({ doc, onReload }) {
       ) : <p className="muted">No conversation yet: the first message starts it and records its id in the file.</p>}
       {error && <p className="board-error">{error}</p>}
       {chat && <ChatLog chat={chat} input={input} setInput={setInput} onSend={send}
-        emptyHint={`Runs in ${root ?? 'AGENT_ROOT'} with the sdd-convert skill.`} />}
+        emptyHint={`Runs in ${root ?? 'AGENT_ROOT'} with the liber-daemonicus skill.`} />}
     </section>
   );
 }

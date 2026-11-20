@@ -1,10 +1,10 @@
 // WIP board page: the `board: true` page of a JSON diagram (docs/_WIP/board/board.json), free-positioned notes edited
-// in place. The diagram loads and saves through /sdd with the SddEdit.js ops, like any other; note bodies, labels and
+// in place. The diagram loads and saves through /sdd with the DiagramEditor.js ops, like any other; note bodies, labels and
 // Claude sessions live in docs/_WIP/board pages, written by the bridge (note-pages.mjs, /wip/*). Only works under
 // `npm run dev`, the bridge is local.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sessions } from './Sessions.jsx';
-import { loadSdd, ops, saveSdd } from './SddEdit.js';
+import { loadSdd, ops, saveSdd } from './DiagramEditor.js';
 import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, NodeResizeControl, useReactFlow, useConnection, useUpdateNodeInternals } from '@xyflow/react';
 
 const BRIDGE = 'http://127.0.0.1:5182/wip';

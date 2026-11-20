@@ -3,47 +3,41 @@ import { createRoot } from 'react-dom/client';
 import { ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, Handle, Position, MarkerType, useReactFlow, useNodesState, useConnection, useUpdateNodeInternals, Panel as FlowPanel } from '@xyflow/react';
 import dagre from '@dagrejs/dagre';
 import '@xyflow/react/dist/style.css';
-import '../assets/custom/custom.css';
+import '../docs/assets/custom.css';
 import './styles.css';
 
 import { docs, replaceSdd, sddDoc } from './content/index.js';
-import { ENVS, ID, NEW_KINDS, OP_STATES, SIDES, isUml, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf } from './SddEdit.js';
+import { ID, NEW_KINDS, SIDES, isUml, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf } from './DiagramEditor.js';
 
 const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
-import { Board, KeyValues, Labels, NoteAside, Stickies, moveNote, useDark } from './Board.jsx';
-import { CycleIssues } from './Linear.jsx';
+import { KeyValues, Labels, Stickies, useDark } from './Board.jsx';
 import { Orchestrator } from './Orchestrator.jsx';
 import { EntityDocs, ResumeModal } from './Resume.jsx';
 
-// Colors follow AGENTS.md: blue frontend, red backend, purple database.
+// Liber Daemonicus graph dimensions and prefixes
 const DIMENSIONS = {
-  frontend: { label: 'Frontend', color: '#2e5aa8', prefixes: ['FCOM', 'FDTO'] },
-  backend: { label: 'Backend', color: '#c0392b', prefixes: ['BFUN', 'BENT', 'BPRO', 'BDTO', 'BAGG'] },
-  database: { label: 'Database', color: '#7b3fa0', prefixes: ['DBT', 'DBP', 'DBQ', 'DBI', 'ELI'] },
-  event: { label: 'Event', color: '#d4801c', prefixes: ['EVT'] },
-  timeline: { label: 'Timeline', color: '#2f8f5b', prefixes: ['TL'] },
-  infra: { label: 'Infrastructure', color: '#1f7f8c', prefixes: ['K8S', 'NATS', 'GCP'] },
-  action: { label: 'Action point', color: '#b5179e', prefixes: ['AP'] },
-  ops: { label: 'Script step', color: '#184c47', prefixes: ['OPS'] },
-  prd: { label: 'Product requirement', color: '#a07800', prefixes: ['PRD'] },
-  adr: { label: 'Architecture decision', color: '#6b4f3a', prefixes: ['ADR'] },
-  plan: { label: 'Plan', color: '#3d6b8c', prefixes: ['PLAN'] },
-  task: { label: 'Task', color: '#6d7a1f', prefixes: ['TASK'] },
-  acc: { label: 'Acceptance criterion', color: '#0f7b6c', prefixes: ['ACC'] },
-  cod: { label: 'Code change', color: '#0284c7', prefixes: ['COD'] },
-  op: { label: 'Operation', color: '#7c3aed', prefixes: ['OP'] },
-  verif: { label: 'Verification', color: '#b45309', prefixes: ['VERIF'] },
-  query: { label: 'Query', color: '#475569', prefixes: ['QUERY'] },
-  cmd: { label: 'Command', color: '#9f1239', prefixes: ['CMD'] },
-  step: { label: 'Decision step', color: '#56616e', prefixes: [] },
+  controlPoint: { label: 'Control Point', color: '#e63946', prefixes: ['controlPoint'] },
+  narrativeBlock: { label: 'Narrative Block', color: '#3a86ff', prefixes: ['narrativeBlock'] },
+  playerAction: { label: 'Player Action', color: '#06d6a0', prefixes: ['playerAction'] },
+  actionSelection: { label: 'Action Selection', color: '#f77f00', prefixes: ['actionSelection'] },
+  turn: { label: 'Turn', color: '#8338ec', prefixes: ['turn'] },
+  custom: { label: 'Custom', color: '#457b9d', prefixes: ['custom'] },
+  intention: { label: 'Intention', color: '#fb8500', prefixes: ['intention'] },
+  event: { label: 'Event', color: '#e76f51', prefixes: ['event'] },
+  demiurge: { label: 'Demiurge', color: '#6a0dad', prefixes: ['demiurge'] },
+  cosmicStatistic: { label: 'Cosmic Statistic', color: '#7209b7', prefixes: ['cosmicStatistic'] },
+  character: { label: 'Character', color: '#1d3557', prefixes: ['character'] },
+  location: { label: 'Location', color: '#2a9d8f', prefixes: ['location'] },
+  item: { label: 'Item', color: '#d4a373', prefixes: ['item'] },
+  step: { label: 'Entity', color: '#56616e', prefixes: [] },
 };
 
-const dimOf = (id) =>
-  Object.keys(DIMENSIONS).find((d) => DIMENSIONS[d].prefixes.includes(id?.split('-')[0])) ?? 'step';
+const dimOf = (id) => {
+  const prefix = id?.split(/[.-]/)[0];
+  return Object.keys(DIMENSIONS).find((d) => DIMENSIONS[d].prefixes.includes(prefix)) ?? 'step';
+};
 const isRef = (id) => dimOf(id) !== 'step';
-const colorOf = (id) => DIMENSIONS[dimOf(id)].color;
-// Kinds whose value carries a command, shown as a code block and edited in the panel: QUERY reads, CMD changes.
-const COMMAND_FIELDS = { query: { field: 'query', label: 'Query' }, cmd: { field: 'cmd', label: 'Command' } };
+const colorOf = (id) => DIMENSIONS[dimOf(id)]?.color ?? '#56616e';
 
 // Entities and relations are shared by all docs: the same id in two docs is the same thing.
 const entityDocs = (entity) =>
@@ -73,18 +67,10 @@ const tagsOf = (id) => [...new Set(entityDocs(id).flatMap((e) => e.tags ?? []))]
 // COD's "dev" (merged, not released) is yellow; "released" is green.
 const LEDS = [['red', /blocked|regressed|fail|❌/], ['yellow', /partial|review|progress|wip|doing|⚠|🟡|^dev$/],
   ['green', /done|met|ok|released|✅/], ['grey', /./]];
-// An OP's status is a list of targets, [{ env, state }]: green when every target is done, yellow when some are,
-// grey when none is. No target, no LED.
 const statusOf = (id) => {
-  const s = entityDocs(id).map((e) => e.status).find((x) => (Array.isArray(x) ? x.length : x));
-  if (!s) return null;
-  if (Array.isArray(s)) {
-    const done = s.filter((t) => t.state === 'done').length;
-    // A failed target (VERIF) wins: red.
-    const led = s.some((t) => t.state === 'fail') ? 'red' : done === s.length ? 'green' : done ? 'yellow' : 'grey';
-    return { text: s.map((t) => `${t.env} ${t.state}`).join(' · '), led, targets: s };
-  }
-  return { text: s, led: LEDS.find(([, re]) => re.test(s.toLowerCase()))[0] };
+  const s = entityDocs(id).map((e) => e.status).find(Boolean);
+  if (!s || typeof s !== 'string') return null;
+  return { text: s, led: LEDS.find(([, re]) => re.test(s.toLowerCase()))?.[0] ?? 'grey' };
 };
 // Environment badge (eph, dev, staging, sandbox, prod) from an entity's `env` property.
 const envOf = (id) => entityDocs(id).map((e) => e.env).find(Boolean);
@@ -96,7 +82,6 @@ const heightOf = (n) => (n.columns || n.methods ? 42 + ((n.columns?.length ?? 0)
 
 // Normalize all page styles to the same node/edge shape.
 function pageGraph(page) {
-  if (page.board) return { nodes: [], edges: [] };
   if (page.sequence) {
     const refs = new Set([...page.sequence.matchAll(/"([^"]+)"/g)].map((m) => m[1]).filter(isRef));
     return { nodes: [...refs].map((id) => ({ id, label: id, ref: id })), edges: [] };
@@ -108,7 +93,7 @@ function pageGraph(page) {
       edges: relations.filter(([a, b]) => set.has(a) && set.has(b)),
     };
   }
-  return { nodes: page.nodes, edges: page.edges };
+  return { nodes: page.nodes ?? [], edges: page.edges ?? [] };
 }
 
 function layout(page) {
@@ -218,14 +203,7 @@ function Card({ id, data, selected }) {
         {data.status && <span className={`led ${data.status.led}`} title={data.status.text} aria-label={`Status: ${data.status.text}`} />}
         <Icon icon={data.icon} />{data.label}
         {data.env && <span className={`env-badge ${data.env}`} title={`Environment: ${data.env}`}>{data.env}</span>}
-        {/* A code change lives in a repo, not an environment: its badge is where it got (wip, review, dev, released). */}
-        {data.ref?.startsWith('COD-') && data.status && <span className="env-badge" title="Code change status">{data.status.text}</span>}
       </div>
-      {data.status?.targets && (
-        <div className="card-envs">
-          {data.status.targets.map((t) => <span key={t.env} className={`env-chip ${t.state}`} title={`${t.env}: ${t.state}`}>{t.env}</span>)}
-        </div>
-      )}
       {data.ref && data.ref !== data.label && <div className="card-ref" style={{ color }}>{data.ref}</div>}
       {data.sub && <div className="card-sub">{data.sub}</div>}
       {data.props && (
@@ -319,11 +297,19 @@ function DiagramTree({ label, docs: inside = docs, level = 0, route }) {
 }
 
 // Suggested label for a new relation, from the skill's spec conventions (sdd-convert-skill.md).
-const LINK_LABELS = [[/^PRD$/, /^ADR$/, 'decided by'], [/^PRD$/, /^PLAN$/, 'planned by'], [/^PRD$/, /^ACC$/, 'accepted when'],
-  [/^PLAN$/, /^(TASK|COD|OP)$/, 'step'], [/^PLAN$/, /^ACC$/, 'done when'], [/^(TASK|COD|OP)$/, /^ACC$/, 'satisfies'],
-  [/^TASK$/, /^(COD|OP)$/, 'done by'], [/^COD$/, /^OP$/, 'deployed by'], [/^(TASK|COD|OP)$/, /^(TASK|COD|OP)$/, 'before'],
-  [/^ADR$/, /./, 'shapes'], [/^(TASK|COD|OP)$/, /./, 'changes'], [/^ACC$/, /./, 'checks'], [/^PRD$/, /./, 'implemented by']];
-const linkLabel = (a, b) => LINK_LABELS.find(([x, y]) => x.test(a.split('-')[0]) && y.test(b.split('-')[0]))?.[2] ?? '';
+const LINK_LABELS = [
+  [/^controlPoint$/, /^actionSelection$/, 'offers'],
+  [/^actionSelection$/, /^playerAction$/, 'option'],
+  [/^playerAction$/, /^controlPoint$/, 'resolves to'],
+  [/^playerAction$/, /^narrativeBlock$/, 'triggers'],
+  [/^narrativeBlock$/, /^controlPoint$/, 'advances to'],
+  [/^controlPoint$/, /^narrativeBlock$/, 'develops into'],
+  [/^character$/, /^controlPoint$/, 'participates in'],
+  [/^character$/, /^playerAction$/, 'acts'],
+  [/^demiurge$/, /^controlPoint$/, 'influences'],
+  [/^cosmicStatistic$/, /^controlPoint$/, 'modulates'],
+];
+const linkLabel = (a, b) => LINK_LABELS.find(([x, y]) => x.test(a.split(/[.-]/)[0]) && y.test(b.split(/[.-]/)[0]))?.[2] ?? '';
 
 // onPick: a click on a node calls it instead of navigating (the flow modal); the view then fits all, no zoom.
 // zoomTo: { id } asks for one zoom onto that entity once the route shows it, even where clicks never zoom (editable).
@@ -443,7 +429,7 @@ function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }
             <select className="focus-toggle add-kind" value="" title="Add an entity at the centre of the view"
               onChange={(e) => e.target.value && addAtCenter(e.target.value)}>
               <option value="">+ Add…</option>
-              {Object.keys(NEW_KINDS).map((k) => <option key={k} value={k} style={{ color: colorOf(`${prefixOf(k)}-x`) }}>{k}</option>)}
+              {Object.keys(NEW_KINDS).map((k) => <option key={k} value={k} style={{ color: colorOf(`${prefixOf(k)}.x`) }}>{k}</option>)}
             </select>
           )}
           <span className="board-hint">
@@ -506,14 +492,14 @@ const openEntity = (doc, page, id) => {
   here ? go(here.doc.id, here.page.id, id) : go(doc.id, page.id, id);
 };
 
-// Panel editor of a node declared in the open _sdd.json: id, text, why. Remounted per entity (key).
+// Panel editor of a node declared in the open diagram: id, text, why. Remounted per entity (key).
 function EntityEditor({ id, edit }) {
   const entry = edit.raw.entities?.[id];
   const [draft, setDraft] = useState(() => ({
     id, text: typeof entry === 'string' ? entry : entry?.text ?? '', why: typeof entry === 'object' ? entry?.why ?? '' : '',
   }));
-  const kind = id.split('-')[0];
-  // UML: a class box, no status or env; properties edited as `name: type` lines.
+  const kind = id.split(/[.-]/)[0];
+  // UML: a class box; properties edited as `name: type` lines.
   const uml = isUml(entry);
   const lines = (list) => (list ?? []).map(([n, t]) => (t ? `${n}: ${t}` : n)).join('\n');
   const pairs = (text) => text.split('\n').map((l) => l.split(':').map((x) => x.trim())).filter(([n]) => n)
@@ -523,15 +509,8 @@ function EntityEditor({ id, edit }) {
   const [meths, setMeths] = useState(() => lines(entry?.methods));
   const raw = typeof entry === 'object' ? entry?.status : undefined;
   const status = typeof raw === 'string' ? raw : '';
-  const env = typeof entry === 'object' ? entry?.env ?? '' : '';
-  // OP: status is its target environments, [{ env, state }]; COD lives in a repo, so it has no env.
-  // VERIF and CMD: per-environment targets too, like an OP (a CMD's target is done once it ran there).
-  const isOp = ['OP', 'VERIF', 'CMD'].includes(kind);
-  const targets = Array.isArray(raw) ? raw : [];
-  const needsWhy = ['PRD', 'ADR', 'PLAN'].includes(kind) || draft.why;
   const nextId = draft.id.trim();
-  const problem = !ID.test(nextId) ? 'Id: PREFIX-Name' : nextId !== id && edit.raw.entities?.[nextId] !== undefined ? `${nextId} already exists`
-    : (kind === 'PRD' && !draft.why.trim()) ? 'A PRD states its why' : null;
+  const problem = !ID.test(nextId) ? 'Id: prefix.Name (e.g. controlPoint.Action)' : nextId !== id && edit.raw.entities?.[nextId] !== undefined ? `${nextId} already exists` : null;
   const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value });
   const properties = pairs(props);
   const methods = pairs(meths);
@@ -543,57 +522,20 @@ function EntityEditor({ id, edit }) {
       <Labels labels={typeof entry === 'object' ? entry?.tags ?? [] : []} onSave={(tags) => edit.field(id, 'tags', tags)} />
       <label>Id <input value={draft.id} onChange={set('id')} /></label>
       <label>Text <textarea rows={4} value={draft.text} onChange={set('text')} /></label>
-      {needsWhy && <label>Why <textarea rows={3} value={draft.why} onChange={set('why')} /></label>}
+      <label>Why <textarea rows={3} value={draft.why} onChange={set('why')} /></label>
       {uml && <label>Properties <span className="muted">one per line, name: type</span><textarea rows={Math.max(4, properties.length + 1)} value={props} onChange={(e) => setProps(e.target.value)} /></label>}
       {uml && <label>Methods <span className="muted">one per line, signature: note</span><textarea rows={Math.max(3, methods.length + 1)} value={meths} onChange={(e) => setMeths(e.target.value)} /></label>}
-      {isOp && <OpTargets targets={targets} onChange={(next) => edit.field(id, 'status', next)} />}
       {!uml && <KeyValues key={id} pairs={typeof entry === 'object' ? entry?.props ?? [] : []} onChange={(next) => edit.field(id, 'props', next)} />}
       <div className="note-editor-bar">
         <button className="focus-toggle" onClick={save} disabled={!!problem}>Save ⌘↵</button>
-        {/* Saved on change. A custom value from the file ("done ⚠") stays in the list so it is not lost. */}
-        {/* A plain UML box has no status; one on a status kind (a COD's script) keeps its selector. */}
-        {/* A QUERY is a read-only command: no status, no env (its <env> placeholder serves every env). */}
-        {!isOp && kind !== 'QUERY' && (!uml || raw !== undefined) && (
-          <select className="sdd-status" aria-label="Status" value={status} onChange={(e) => edit.field(id, 'status', e.target.value)}>
-            <option value="">— no status</option>
-            {[...new Set([...statusesOf(kind), status].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        )}
-        {!isOp && !uml && kind !== 'COD' && kind !== 'QUERY' && (
-          <select className="sdd-status" aria-label="Environment" value={env} onChange={(e) => edit.field(id, 'env', e.target.value)}>
-            <option value="">— no env</option>
-            {[...new Set([...ENVS, env].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        )}
+        <select className="sdd-status" aria-label="Status" value={status} onChange={(e) => edit.field(id, 'status', e.target.value)}>
+          <option value="">— no status</option>
+          {[...new Set([...statusesOf(kind), status].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
         <DeleteButton id={id} edit={edit}>🗑 Delete</DeleteButton>
         {problem && <span className="board-error">{problem}</span>}
       </div>
     </section>
-  );
-}
-
-// An OP's targets: one checkbox per environment, a pending/done state for each ticked one. Saved on change,
-// in ENVS order; an env unknown to ENVS (from the file) keeps its row.
-function OpTargets({ targets, onChange }) {
-  const byEnv = Object.fromEntries(targets.map((t) => [t.env, t]));
-  const envs = [...new Set([...ENVS, ...targets.map((t) => t.env)])];
-  const set = (env, t) => onChange(envs.map((e) => (e === env ? t : byEnv[e])).filter(Boolean));
-  return (
-    <fieldset className="op-targets">
-      <legend>Environments</legend>
-      {envs.map((env) => (
-        <label key={env}>
-          <input type="checkbox" checked={!!byEnv[env]} onChange={(e) => set(env, e.target.checked ? { env, state: 'pending' } : null)} />
-          <span>{env}</span>
-          {byEnv[env] && (
-            <select className="sdd-status" aria-label={`${env} state`} value={byEnv[env].state}
-              onChange={(e) => set(env, { env, state: e.target.value })}>
-              {[...new Set([...OP_STATES, byEnv[env].state])].map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          )}
-        </label>
-      ))}
-    </fieldset>
   );
 }
 
@@ -732,7 +674,7 @@ function DeleteButton({ id, edit, children }) {
 
 // The entity pages of this file it is on (links) and a selector to show it on another one.
 function PagesOf({ doc, page, id, edit }) {
-  const pages = doc.pages.filter((p) => p.entities && !p.board);
+  const pages = doc.pages.filter((p) => p.entities);
   const on = pages.filter((p) => p.entities.includes(id));
   const off = pages.filter((p) => !p.entities.includes(id));
   return (
@@ -823,12 +765,6 @@ function Panel({ doc, page, entity, edit, menu, onFlow }) {
         </p>
       )}
       {described.length === 0 && !editable && <p>⚠ Not documented yet.</p>}
-      {editable && COMMAND_FIELDS[dimOf(entity)] && (
-        <label className="sdd-editor">{COMMAND_FIELDS[dimOf(entity)].label}
-          <textarea key={entity} rows={4} defaultValue={edit.raw.entities[entity]?.[COMMAND_FIELDS[dimOf(entity)].field] ?? ''}
-            onBlur={(e) => edit.field(entity, COMMAND_FIELDS[dimOf(entity)].field, e.target.value.trim())} />
-        </label>
-      )}
       <EntityDocs described={described} skip={editable ? edit.file : undefined} />
       <h3>Appears in</h3>
       <ul>
@@ -864,14 +800,14 @@ function useFold(key) {
   return [on, () => set((v) => !v), set];
 }
 
-// Grid columns: folded sides shrink to a strip; the WIP board widens the sidebar (Linear list). The panel is one width everywhere.
-// The right panel is wide on purpose: note editor and Claude chat, entity docs with column tables.
+// Grid columns: folded sides shrink to a strip; the panel is one width everywhere.
+// The right panel is wide on purpose: node editor and Claude chat, entity docs with column tables.
 const FOLDED_W = '36px';
-// Sidebar menu options: [key, icon, label]. Linear lists the current cycle and lives on the WIP board.
-const MENUS = [['browse', '☰', 'Browse'], ['linear', '◷', 'Linear']];
+// Sidebar menu options: [key, icon, label].
+const MENUS = [['browse', '☰', 'Browse']];
 
-const columnsOf = ({ focus, folded, panelFolded, panelMax, board }) => (focus || panelMax ? '1fr' : [
-  folded ? FOLDED_W : board ? '380px' : '240px',
+const columnsOf = ({ focus, folded, panelFolded, panelMax }) => (focus || panelMax ? '1fr' : [
+  folded ? FOLDED_W : '240px',
   '1fr',
   panelFolded ? FOLDED_W : '680px',
 ].join(' '));
@@ -881,7 +817,7 @@ function App() {
   const [hidden, setHidden] = useState(new Set());
   const [focus, setFocus] = useState(false);
   // Each side folds on its own (Focus hides both). Remembered per browser.
-  // The open sidebar menu ('browse' | 'linear'), '' when folded. Remembered per browser.
+  // The open sidebar menu ('browse'), '' when folded. Remembered per browser.
   const [menu, setMenuState] = useState(() => {
     try {
       return localStorage.getItem('sidebar-menu') ?? 'browse';
@@ -905,19 +841,14 @@ function App() {
     addEventListener('keydown', esc);
     return () => removeEventListener('keydown', esc);
   }, [panelMax]);
-  // Clicking a node (board note or diagram card) brings a folded panel back, even when that node is already
+  // Clicking a node (diagram card) brings a folded panel back, even when that node is already
   // selected and the route does not change. A node's own buttons and handles (✕, +, →) leave it folded.
-  // On a _sdd.json diagram it also leaves the Agent tab for the 🔎 Node tab, and so does an edge (relation panel).
+  // On a diagram it also leaves the Agent tab for the 🔎 Node tab, and so does an edge (relation panel).
   const showPanelOnNode = (e) => {
     if (!e.target.closest('.react-flow__node, .react-flow__edge') || e.target.closest('button, .react-flow__handle')) return;
     if (panelFolded) setPanelFolded(false);
     if (side === 'agent') setSide('node');
   };
-  // Filled by the WIP Board so the aside can show the selected note.
-  const [boardNotes, setBoardNotes] = useState([]);
-  // Linear cycle issues from the board sidebar; the Board registers its add-note function here.
-  const [issues, setIssues] = useState(null);
-  const apiRef = useRef(null);
   useEffect(() => {
     const onHash = () => setRoute(parseHash());
     addEventListener('hashchange', onHash);
@@ -1048,16 +979,11 @@ function App() {
     relabel: (rel, label) => commit(ops.relabel(doc.raw, rel, label)),
     side: (rel, end, side) => commit(ops.side(doc.raw, page.id, rel, end, side)),
   };
-  // On the WIP board the route entity is either a note id or a DSL ref clicked inside a note.
-  const note = page.board && boardNotes.find((n) => n.id === entity);
   // Filled by layouts/diagrams.html from the reactflow-* front matter; absent under `npm run dev:diagrams`.
   const home = window.reactflowHomes?.[doc.id];
   const i = doc.pages.indexOf(page);
   const [prev, next] = [doc.pages[i - 1], doc.pages[i + 1]];
-  const openMenu = (m) => {
-    setMenu(m);
-    if (m === 'linear' && !page.board) go('wip-board', 'board');
-  };
+  const openMenu = (m) => setMenu(m);
   const toggle = (d) => setHidden((h) => {
     const n = new Set(h);
     n.has(d) ? n.delete(d) : n.add(d);
@@ -1066,7 +992,7 @@ function App() {
 
   return (
     <div className={['layout', focus && 'focus', folded && 'folded', panelFolded && 'panel-folded', panelMax && 'panel-max'].filter(Boolean).join(' ')}
-      style={{ gridTemplateColumns: columnsOf({ focus, folded, panelFolded, panelMax, board: page.board }) }}>
+      style={{ gridTemplateColumns: columnsOf({ focus, folded, panelFolded, panelMax }) }}>
       <button className="fold-toggle panel-max-toggle" title="Full screen panel"
         onClick={() => {
           setPanelMax(true);
@@ -1097,53 +1023,38 @@ function App() {
             {home && <a className="back" href={home}>← Docs</a>}
             <h1>{doc.title}</h1>
             <DiagramTree route={route} />
-            {!page.board && (
-              <details className="tree">
-                <summary className="section">Dimensions{hidden.size ? ` (${hidden.size} hidden)` : ''}</summary>
-                {/* All on / all off. Half-checked when only some are hidden; a click then shows them all. */}
-                <label className="dim all">
-                  <input type="checkbox" checked={hidden.size === 0}
-                    ref={(el) => el && (el.indeterminate = hidden.size > 0 && hidden.size < Object.keys(DIMENSIONS).length)}
-                    onChange={() => setHidden(hidden.size === 0 ? new Set(Object.keys(DIMENSIONS)) : new Set())} />
-                  {hidden.size === 0 ? 'Unmark all' : 'Mark all'}
+            <details className="tree">
+              <summary className="section">Dimensions{hidden.size ? ` (${hidden.size} hidden)` : ''}</summary>
+              {/* All on / all off. Half-checked when only some are hidden; a click then shows them all. */}
+              <label className="dim all">
+                <input type="checkbox" checked={hidden.size === 0}
+                  ref={(el) => el && (el.indeterminate = hidden.size > 0 && hidden.size < Object.keys(DIMENSIONS).length)}
+                  onChange={() => setHidden(hidden.size === 0 ? new Set(Object.keys(DIMENSIONS)) : new Set())} />
+                {hidden.size === 0 ? 'Unmark all' : 'Mark all'}
+              </label>
+              {Object.entries(DIMENSIONS).map(([d, { label, color }]) => (
+                <label key={d} className="dim">
+                  <input type="checkbox" checked={!hidden.has(d)} onChange={() => toggle(d)} />
+                  <span className="swatch" style={{ background: color }} /> {label}
                 </label>
-                {Object.entries(DIMENSIONS).map(([d, { label, color }]) => (
-                  <label key={d} className="dim">
-                    <input type="checkbox" checked={!hidden.has(d)} onChange={() => toggle(d)} />
-                    <span className="swatch" style={{ background: color }} /> {label}
-                  </label>
-                ))}
-              </details>
-            )}
+              ))}
+            </details>
           </>
-        )}
-        {/* Mounted on the board even when hidden: the board reads note status from these issues. */}
-        {page.board && (
-          <div hidden={menu !== 'linear'}>
-            <CycleIssues onIssues={setIssues} onAdd={(i) => apiRef.current?.addIssue(i)}
-              onBoard={new Set(boardNotes.map((n) => n.linear?.id).filter(Boolean))} />
-          </div>
         )}
       </nav>
       <main>
         <header>
           <button className="focus-toggle" onClick={() => setFocus(!focus)}>{focus ? '⇤ Panels' : '⤢ Focus'}</button>
-          {!page.board && !page.sequence && (
+          {!page.sequence && (
             <input type="search" className="diagram-search" placeholder="🔍 Search nodes…" value={query}
               onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQuery('')} />
           )}
-          {doc.file && !page.board && <button className="focus-toggle resume-button" onClick={() => setResume(true)}>📝 Make Resume</button>}
+          {doc.file && <button className="focus-toggle resume-button" onClick={() => setResume(true)}>📝 Make Resume</button>}
           <div className="eyebrow">{doc.title} › {page.section}</div>
           <h2>{page.title}</h2>
         </header>
         <div className="canvas" onClickCapture={showPanelOnNode}>
-          {page.board ? (
-            <ReactFlowProvider>
-              <Board file={doc.file} pageId={page.id} isRef={isRef} colorOf={colorOf} onRef={(id) => go(doc.id, page.id, id)}
-                selected={entity} onSelect={(id) => go(doc.id, page.id, id)} onNotes={setBoardNotes}
-                issues={issues} apiRef={apiRef} />
-            </ReactFlowProvider>
-          ) : page.sequence ? (
+          {page.sequence ? (
             <Sequence doc={doc} page={page} entity={entity} hidden={hidden} />
           ) : (
             <ReactFlowProvider>
@@ -1156,17 +1067,7 @@ function App() {
           {next && <a onClick={() => go(doc.id, next.id)}>{next.title} →</a>}
         </footer>
       </main>
-      {note ? (
-        <NoteAside note={note} notes={boardNotes} issues={issues} wide={panelMax}
-          onReload={() => apiRef.current?.reload()}
-          onRename={(id, title) => apiRef.current?.rename(id, title)}
-          onSaveTags={(id, tags) => apiRef.current?.saveTags(id, tags) ?? Promise.reject(new Error('Board not loaded'))}
-          onSaveBody={(id, body) => apiRef.current?.saveBody(id, body) ?? Promise.reject(new Error('Board not loaded'))} isRef={isRef} colorOf={colorOf}
-          onRef={(id) => go(doc.id, page.id, id)} onSelect={(id) => go(doc.id, page.id, id)}
-          onSaveProps={(id, props) => apiRef.current?.saveProps(id, props)}
-          boards={docs.filter((d) => d !== doc && d.pages.some((p) => p.board))}
-          onMove={(to) => moveNote(note.id, to).then((m) => go(m.board, m.pageId, note.id))} />
-      ) : doc.file && side === 'agent' ? (
+      {doc.file && side === 'agent' ? (
         <aside className="panel">
           <SideMenu side={side} onSide={setSide} />
           <Orchestrator doc={doc} onReload={() => pullRef.current?.()} />
