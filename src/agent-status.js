@@ -29,8 +29,10 @@ const line = (log, kind, text) => {
   const li = document.createElement('li');
   li.className = kind;
   li.textContent = text;
+  // Follow only while the reader is at the bottom.
+  const pinned = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
   log.append(li);
-  log.scrollTop = log.scrollHeight;
+  if (pinned) log.scrollTop = log.scrollHeight;
 };
 
 // The run's conversation, replayed from its first event and followed until it ends.

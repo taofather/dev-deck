@@ -115,11 +115,19 @@ export function useRunChat(key, scope, onEvent) {
 
 // The conversation itself: log, input and the "running" state. Shared by note sessions and diagram orchestrators.
 export function ChatLog({ chat, input, setInput, onSend, emptyHint, onClose }) {
-  // Opens on, and follows, the latest message.
+  // Opens on the latest message, and follows new output only while the reader is at the bottom: scrolled up stays put.
   const log = useRef(null);
+  const pinned = useRef(true);
   useEffect(() => {
-    if (log.current) log.current.scrollTop = log.current.scrollHeight;
+    pinned.current = true;
+  }, [chat.session]);
+  useEffect(() => {
+    if (log.current && pinned.current) log.current.scrollTop = log.current.scrollHeight;
   }, [chat.log.length, chat.session]);
+  const onScroll = (e) => {
+    const el = e.currentTarget;
+    pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  };
   return (
     <div className="session-chat">
       <div className="session-chat-head">
@@ -127,7 +135,7 @@ export function ChatLog({ chat, input, setInput, onSend, emptyHint, onClose }) {
         {chat.run && <span className="muted"> · running…</span>}
         {onClose && <button className="focus-toggle" onClick={onClose}>✕</button>}
       </div>
-      <div className="session-log" ref={log}>
+      <div className="session-log" ref={log} onScroll={onScroll}>
         {chat.log.map(([role, text], i) => (role === 'agent'
           ? <div key={i} className="msg agent md" dangerouslySetInnerHTML={markdown(text)} />
           : <div key={i} className={`msg ${role}`}>{role === 'tool' ? `🔧 ${text}` : text}</div>))}
