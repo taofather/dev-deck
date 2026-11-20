@@ -553,7 +553,7 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
   const [saving, setSaving] = useState(null);
   // "+ property" in the label row: each click adds an empty property row (KeyValues addSignal).
   const [addProp, setAddProp] = useState(0);
-  const [tab, setTab] = useState('note');
+  const [tab, setTab] = useState('sessions');
   // Another note selected: drop the unsaved draft of the previous one.
   useEffect(() => {
     setDraft(null);
@@ -661,7 +661,7 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
       <div className="note-main">
         {head}
         <div className="menu panel-menu">
-          {[['note', '📝 Note'], ['sessions', '🤖 Claude sessions']].map(([t, label]) => (
+          {[['sessions', '🤖 Claude sessions'], ['note', '📝 Note']].map(([t, label]) => (
             <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{label}</button>
           ))}
         </div>
