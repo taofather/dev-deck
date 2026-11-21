@@ -55,6 +55,8 @@ const buildRelations = () => [...new Map(docs.flatMap((d) => d.relations).map((r
 // Rebuilt when a _sdd.json doc is edited or reloaded (App.refresh).
 let relations = buildRelations();
 
+// Undo/redo: snapshots of the diagram JSON kept per file (see `history` in App).
+const HISTORY_LIMIT = 100;
 const NODE_W = 230;
 const NODE_H = 66;
 // Cards with columns grow one row per column; must match .card-cols in styles.css.
@@ -815,7 +817,7 @@ function Panel({ doc, page, entity, edit, menu, onFlow }) {
         </div>
       )}
       {edit && <PagesOf doc={doc} page={page} id={entity} edit={edit} />}
-      {editable && <EntityEditor key={entity} id={entity} edit={edit} />}
+      {editable && <EntityEditor key={`${entity}#${edit.restored}`} id={entity} edit={edit} />}
       {edit && !editable && (
         <p className="muted">
           Declared in another diagram, edit it there.{' '}
@@ -936,6 +938,14 @@ function App() {
   const saving = useRef(0);
   // The same read, for the orchestrator: the agent edits the file, the diagram follows when a run ends.
   const pullRef = useRef(null);
+  // Undo/redo stack per diagram file: { past: [raw…], future: [raw…] }. Only the JSON: a request already sent
+  // elsewhere is not undone. A change from outside (agent, editor) empties the stack, since restoring an older
+  // snapshot would also wipe that change.
+  const history = useRef(new Map());
+  const historyOf = (file) => {
+    if (!history.current.has(file)) history.current.set(file, { past: [], future: [] });
+    return history.current.get(file);
+  };
   // Right panel tab on _sdd.json diagrams ('node' | 'agent'). Remembered per browser, like the sidebar menu.
   const [side, setSideState] = useState(() => {
     try {
@@ -956,6 +966,7 @@ function App() {
       return Promise.all(docs.filter((d) => d.file).map((d) => loadSdd(d.file).then((raw) => {
         if (saving.current || JSON.stringify(raw) === JSON.stringify(docs.find((x) => x.file === d.file)?.raw)) return false;
         replaceSdd(d.file, raw);
+        history.current.delete(d.file);
         return true;
       })))
         .then((changed) => {
@@ -1014,7 +1025,13 @@ function App() {
     document.title = `${doc.title} – ${SITE_TITLE}`;
   }, [doc.title]);
   // Every change is applied at once, then written; a failed write shows in the toolbar and the next load restores the file.
-  const commit = (raw, then) => {
+  // record: false for undo/redo themselves, which move snapshots between the two stacks.
+  const commit = (raw, then, { record = true } = {}) => {
+    if (record) {
+      const h = historyOf(doc.file);
+      h.past = [...h.past, doc.raw].slice(-HISTORY_LIMIT);
+      h.future = [];
+    }
     replaceSdd(doc.file, raw);
     refresh();
     then?.();
@@ -1023,9 +1040,42 @@ function App() {
       .then(() => setSddError(null), (e) => setSddError(`${e.message}. Not saved: editing needs npm run dev.`))
       .finally(() => saving.current--);
   };
+  const h = doc.file ? historyOf(doc.file) : { past: [], future: [] };
+  // Bumped by undo/redo: the node form remounts with the restored text instead of keeping (and re-saving) the undone one.
+  const restored = useRef(0);
+  const undo = () => {
+    if (!h.past.length) return;
+    restored.current++;
+    h.future = [doc.raw, ...h.future];
+    commit(h.past.at(-1), undefined, { record: false });
+    h.past = h.past.slice(0, -1);
+  };
+  const redo = () => {
+    if (!h.future.length) return;
+    restored.current++;
+    h.past = [...h.past, doc.raw];
+    commit(h.future[0], undefined, { record: false });
+    h.future = h.future.slice(1);
+  };
+  // ⌘Z / Ctrl+Z undoes, ⇧⌘Z / Ctrl+Y redoes; not while typing in a field, which keeps its own text undo.
+  const undoRedo = useRef();
+  undoRedo.current = !page.board && { undo, redo }; // the WIP board saves its own way
+  useEffect(() => {
+    const keys = (e) => {
+      if (!undoRedo.current || !(e.metaKey || e.ctrlKey) || e.altKey || e.target.closest?.('input, textarea, select, [contenteditable]')) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) undoRedo.current.undo();
+      else if ((k === 'z' && e.shiftKey) || k === 'y') undoRedo.current.redo();
+      else return;
+      e.preventDefault();
+    };
+    addEventListener('keydown', keys);
+    return () => removeEventListener('keydown', keys);
+  }, []);
   const edit = doc.file && {
     file: doc.file,
     raw: doc.raw,
+    restored: restored.current,
     error: sddError,
     move: (moves) => commit(ops.move(doc.raw, page.id, moves)),
     add: (kind, pos) => {
@@ -1128,6 +1178,12 @@ function App() {
       <main>
         <header>
           <button className="focus-toggle" onClick={() => setFocus(!focus)}>{focus ? '⇤ Panels' : '⤢ Focus'}</button>
+          {doc.file && !page.board && (
+            <span className="undo-redo">
+              <button className="focus-toggle" title={`Undo (⌘Z) · ${h.past.length}`} onClick={undo} disabled={!h.past.length}>↶</button>
+              <button className="focus-toggle" title={`Redo (⇧⌘Z) · ${h.future.length}`} onClick={redo} disabled={!h.future.length}>↷</button>
+            </span>
+          )}
           {!page.board && !page.sequence && (
             <input type="search" className="diagram-search" placeholder="🔍 Search nodes…" value={query}
               onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQuery('')} />

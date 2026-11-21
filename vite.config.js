@@ -15,7 +15,12 @@ const sddUnwatched = {
   enforce: 'pre',
   apply: () => process.argv.includes('--watch'),
   // The id keeps its `?raw` query: an id ending in `.json` would be parsed as JSON by vite:json (it skips ?raw ids).
-  resolveId: (id, importer) => (SDD.test(id) && importer ? `\0sdd:${resolve(dirname(importer), id)}` : null),
+  // Matched on the absolute path: a glob next to the importer comes in as ./x/x.json?raw, without its folder names.
+  resolveId: (id, importer) => {
+    if (!importer || !id.endsWith('.json?raw')) return null;
+    const abs = resolve(dirname(importer), id);
+    return SDD.test(abs) ? `\0sdd:${abs}` : null;
+  },
   load: (id) => (id.startsWith('\0sdd:') ? `export default ${JSON.stringify(readFileSync(id.slice(5).replace(/\?raw$/, ''), 'utf8'))}` : null),
 };
 
