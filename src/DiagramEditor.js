@@ -23,6 +23,11 @@ const pascal = (name) => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').s
   .filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join('');
 export const titleOf = (id) => id.replace(/^narrativeBlock\./, '').replace(/([A-Z])/g, ' $1').trim() || id;
 
+// A page's entity pattern: "*", "TASK-*" or "COD-*, OP-*" ("*" = any run of characters).
+export const glob = (pattern) => new RegExp(`^(${pattern.split(',').map((g) => g.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')).join('|')})$`);
+// Whether a listed page (entities: [...]) shows id through one of its patterns ("narrativeBlock.*") rather than by name.
+const globbed = (list, id) => list.some((x) => x.includes('*') && glob(x).test(id));
+
 const DEFAULT_PAGE = { id: 'overview', section: 'Home', title: 'Everything', entities: '*' };
 const clone = (raw) => structuredClone(raw);
 // The raw page behind a page id; a file without pages gets its default overview page written out.
@@ -193,8 +198,10 @@ export const ops = {
   hide: (raw, pageId, id) => {
     const next = clone(raw);
     const page = pageOf(next, pageId);
-    if (Array.isArray(page.entities)) page.entities = page.entities.filter((x) => x !== id);
-    else {
+    if (Array.isArray(page.entities)) {
+      page.entities = page.entities.filter((x) => x !== id);
+      if (globbed(page.entities, id)) page.exclude = [...new Set([...(page.exclude ?? []), id])];
+    } else {
       page.exclude = [...new Set([...(page.exclude ?? []), id])];
       page.include = page.include?.filter((x) => x !== id);
     }
@@ -206,8 +213,10 @@ export const ops = {
   show: (raw, pageId, id, matches, pos) => {
     const next = clone(raw);
     const page = pageOf(next, pageId);
-    if (Array.isArray(page.entities)) page.entities = [...new Set([...page.entities, id])];
-    else {
+    if (Array.isArray(page.entities)) {
+      page.entities = [...new Set([...page.entities, id])];
+      page.exclude = page.exclude?.filter((x) => x !== id);
+    } else {
       page.exclude = page.exclude?.filter((x) => x !== id);
       if (!matches) page.include = [...new Set([...(page.include ?? []), id])];
     }

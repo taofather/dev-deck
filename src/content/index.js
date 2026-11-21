@@ -1,28 +1,34 @@
+import { glob } from '../DiagramEditor.js';
 // Every src/content/<folder>/**/<doc>.js is a top-level tab under <folder>; tab order = path order.
 const modules = import.meta.glob('./*/**/*.js', { eager: true });
 
 // Every docs/**/_sdd.json and docs/**/_ops.json is a doc too, filed under its docs path (docs/_WIP/x/design → wip/x/design), and so is
-// the diagram of a root domain folder: docs/<reign>/<folder>/<folder>.json (docs/domains/tender/tender.json), and so
-// is a WIP sub-board: docs/_WIP/board/<name>/<name>.json.
+// the diagram of a docs folder: docs/<folder>/<folder>.json (docs/el-regreso/el-regreso.json) or
+// docs/<reign>/<folder>/<folder>.json (docs/domains/tender/tender.json), and so is a WIP sub-board: docs/_WIP/board/<name>/<name>.json.
+// Under docs/ only those names count, so other JSON files there stay plain files; src/content/**/*.json is any name.
 // Bundled as the starting point; under `npm run dev` the app reads and saves it live through agent-bridge.mjs (src/DiagramEditor.js).
 // Raw import: an empty or broken file is skipped instead of breaking the app.
 const isDiagram = (path) => {
   const [dir, name] = path.split('/').slice(-2);
-  return name === '_sdd.json' || name === '_ops.json' || name === `${dir}.json` || name.endsWith('.json');
+  return name === '_sdd.json' || name === '_ops.json' || name === `${dir}.json` || (!path.includes('/docs/') && name.endsWith('.json'));
 };
 const sdds = Object.fromEntries(Object.entries(
-  import.meta.glob(['../../docs/**/_sdd.json', '../../docs/**/_ops.json', '../content/**/*.json', '../../docs/*/*/*.json', '../../docs/_WIP/board/*/*.json'], { eager: true, query: '?raw', import: 'default' }),
+  import.meta.glob(['../../docs/**/_sdd.json', '../../docs/**/_ops.json', '../content/**/*.json', '../../docs/*/*.json', '../../docs/*/*/*.json', '../../docs/_WIP/board/*/*.json'], { eager: true, query: '?raw', import: 'default' }),
 ).filter(([path]) => isDiagram(path)));
 
 // raw: the file content, kept as is for saving. The doc is derived from it: JSON has no Object.keys, so a page's
 // `"entities"` may be a glob string over this file's entity ids: "*" (every entity), "TASK-*", or "COD-*, OP-*".
+// A listed page may mix ids and patterns: ["narrativeBlock.*", "event.X"] expands each pattern to this file's matching
+// ids (file order) in its place; ids stay as written. `exclude` applies to both kinds of page.
 // `"include"` / `"exclude"`: ids a glob page adds or leaves out (from the panel's "Show on page" and "this page only"). No pages means one overview page.
-const glob = (pattern) => new RegExp(`^(${pattern.split(',').map((g) => g.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')).join('|')})$`);
 export const sddDoc = (file, raw) => {
   const dirs = file.split('/').slice(1, -1).map((d, i) => (i === 0 ? d.replace(/^_/, '').toLowerCase() : d));
   const entities = raw.entities ?? {};
   const pages = (raw.pages ?? [{ id: 'overview', section: 'Home', title: 'Everything', entities: '*' }])
-    .map((p) => (typeof p.entities === 'string' ? { ...p, entities: Object.keys(entities).filter((k) => (glob(p.entities).test(k) || p.include?.includes(k)) && !p.exclude?.includes(k)) } : p));
+    .map((p) => (typeof p.entities === 'string' ? { ...p, entities: Object.keys(entities).filter((k) => (glob(p.entities).test(k) || p.include?.includes(k)) && !p.exclude?.includes(k)) }
+      : Array.isArray(p.entities) && p.entities.some((x) => x.includes('*'))
+        ? { ...p, entities: [...new Set(p.entities.flatMap((x) => (x.includes('*') ? Object.keys(entities).filter((k) => glob(x).test(k)) : [x])))].filter((k) => !p.exclude?.includes(k)) }
+        : p));
   return {
     id: raw.id ?? dirs.slice(1).join('-').toLowerCase(),
     title: raw.title ?? dirs.at(-1),
