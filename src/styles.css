@@ -351,6 +351,8 @@ html.dark .reactflow-app .area { border-color: var(--color-neutral-700); backgro
 
 /* Resume modal (ResumeModal in main.jsx): node picker, then every picked node's docs. */
 .reactflow-app .resume-button { margin-right: 8px; }
+.reactflow-app .sync-button { margin-right: 8px; }
+.reactflow-app .sync-msg { font-size: 12px; opacity: 0.8; margin-right: 8px; }
 .reactflow-app .resume-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 24px; font-size: 14px; }
 .reactflow-app .resume-body article { max-width: 900px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--color-neutral-200); }
 .reactflow-app .resume-body h2 { margin: 0 0 8px; font-size: 18px; }

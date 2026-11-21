@@ -17,6 +17,8 @@ export const isUml = (entry) => typeof entry === 'object' && entry?.type === 'um
 const STATUSES = ['draft', 'ready', 'active', 'done'];
 export const statusesOf = () => STATUSES;
 export const ID = /^[a-zA-Z][\w.-]*$/;
+// The title a narrative block gets from its id: narrativeBlock.CadenesBlanques -> 'Cadenes Blanques'.
+export const titleOf = (id) => id.replace(/^narrativeBlock\./, '').replace(/([A-Z])/g, ' $1').trim() || id;
 
 const DEFAULT_PAGE = { id: 'overview', section: 'Home', title: 'Everything', entities: '*' };
 const clone = (raw) => structuredClone(raw);
@@ -102,6 +104,33 @@ export const ops = {
     next.entities = { ...next.entities, [id]: Object.keys(entry).some((k) => k !== 'text') ? entry : entry.text };
     return next;
   },
+  // Narrative blocks from the web's narrative_blocks table: the table wins. A known node gets its text (content),
+  // why (dj_notes) and status 'published'; a node only in the table is added, stacked below pos on this page.
+  // A title is kept only when it differs from the one the id gives. Returns the counts for the toolbar.
+  sync: (raw, pageId, blocks, pos) => {
+    let next = clone(raw);
+    const counts = { updated: 0, added: 0, unchanged: 0 };
+    for (const b of blocks) {
+      const id = b.node_id;
+      if (typeof id !== 'string' || !ID.test(id)) continue;
+      const old = next.entities?.[id];
+      const base = old && typeof old === 'object' ? old : old !== undefined ? { text: old } : {};
+      const { title: _, ...rest } = base;
+      const value = { ...rest, text: b.content ?? '', why: b.dj_notes || undefined, status: 'published' };
+      if (b.title && b.title !== titleOf(id)) value.title = b.title;
+      if (value.why === undefined) delete value.why;
+      if (old === undefined) {
+        next = ops.put(next, pageId, id, value, { x: pos.x, y: pos.y + counts.added * 90 });
+        counts.added++;
+      } else if (JSON.stringify(old) === JSON.stringify(value)) {
+        counts.unchanged++;
+      } else {
+        next.entities[id] = value;
+        counts.updated++;
+      }
+    }
+    return { raw: next, counts };
+  },
   // Renames the declaration (keeping key order) and every reference in this file.
   rename: (raw, from, to) => {
     const next = clone(raw);
@@ -153,6 +182,13 @@ export const ops = {
   }),
 };
 
+// The web's narrative blocks (narrative_blocks table), fetched as DJ by agent-bridge.mjs.
+export const loadNarrativeBlocks = (campaignId = 1) => fetch(`${process.env.AGENT_BRIDGE_URL}/web/narrative-blocks?campaignId=${campaignId}`)
+  .then(async (r) => {
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `bridge answered ${r.status}`);
+    return data.blocks;
+  });
 export const loadSdd = (file) => fetch(`${SDD_BRIDGE}?file=${encodeURIComponent(file)}`)
   .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`bridge answered ${r.status}`))));
 

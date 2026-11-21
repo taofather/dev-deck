@@ -394,6 +394,27 @@ const server = createServer(async (req, res) => {
     });
   }
 
+  // Web integration: every narrative block of a campaign, as the DJ sees them (Sincronitzar button)
+  if (url.pathname === '/web/narrative-blocks' && req.method === 'GET') {
+    const campaignId = encodeURIComponent(url.searchParams.get('campaignId') || '1');
+    const history = (token) => fetch(`${webUrl()}/api/narrative/history?campaignId=${campaignId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    try {
+      let resWeb = await history(await getDjToken());
+      if (resWeb.status === 401 || resWeb.status === 403) {
+        cachedDjToken = null;
+        resWeb = await history(await getDjToken());
+      }
+      const data = await resWeb.json().catch(() => ({}));
+      if (!resWeb.ok) throw new Error(data.error || `web answered ${resWeb.status}`);
+      return json(res, { blocks: data.history ?? [] });
+    } catch (err) {
+      console.error('[web/narrative-blocks] error:', err.message);
+      return res.writeHead(502, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: err.message }));
+    }
+  }
+
   // Web integration: check connection & DJ authentication status
   if (url.pathname === '/web/status' && req.method === 'GET') {
     try {
