@@ -39,7 +39,8 @@ export const sddDoc = (file, raw) => {
 const parse = ([path, text]) => {
   if (!text.trim()) return null;
   try {
-    return sddDoc(path.replace(/^(\.\.\/)+/, ''), JSON.parse(text));
+    const file = path.startsWith('./') ? `src/content/${path.slice(2)}` : path.replace(/^(\.\.\/)+/, '');
+    return sddDoc(file, JSON.parse(text));
   } catch (e) {
     console.warn(`${path}: ${e.message}`);
     return null;
