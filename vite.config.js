@@ -3,8 +3,10 @@
 // hashed name would go stale. index.html is only used by `npm run dev:diagrams`.
 // emptyOutDir is off: Hugo stops watching dist/assets if it is deleted and recreated.
 // publicDir is off: public/ is Hugo's output.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+
+if (existsSync(`${import.meta.dirname}/.env`)) process.loadEnvFile(`${import.meta.dirname}/.env`);
 
 // `vite build --watch` (npm run dev): a docs/ diagram (_sdd.json, <folder>/<folder>.json) is saved live from the
 // diagram through agent-bridge.mjs, and the app reads it back from there. Loaded as a virtual module (\0 id), Rollup
@@ -23,6 +25,13 @@ export default {
   base: '/diagrams/',
   publicDir: false,
   esbuild: { jsx: 'automatic' },
+  define: {
+    'process.env.AGENT_BRIDGE_URL': JSON.stringify(process.env.AGENT_BRIDGE_URL || 'http://127.0.0.1:5662'),
+    // No defaults: the app throws where they are used if .env does not set them.
+    'process.env.WEB_URL': JSON.stringify(process.env.WEB_URL || ''),
+    'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL || ''),
+    'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY || ''),
+  },
   plugins: [sddUnwatched],
   build: {
     emptyOutDir: false,

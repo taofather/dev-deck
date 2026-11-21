@@ -1,15 +1,17 @@
-// Claude Code sessions of AGENT_ROOT, read from ~/.claude/projects/<AGENT_ROOT, non-alphanumerics as ->/<id>.jsonl.
-// Used by agent-bridge.mjs for the WIP note aside: the attach picker (listSessions) and the chat history (transcript).
+// Claude Code driver: `claude -p --output-format stream-json`, sessions read from
+// ~/.claude/projects/<AGENT_ROOT, non-alphanumerics as ->/<id>.jsonl. Model: env AGENT_MODEL (default: Claude's own).
 import { createReadStream } from 'node:fs';
 import { open, readdir, stat } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { relative } from 'node:path';
 import { createInterface } from 'node:readline';
+import { AGENT_ROOT, DECK_ROOT } from './paths.mjs';
 
-// Sessions run and resume here: `cd AGENT_ROOT && claude --resume <id>`. Defaults to the folder above dev-deck.
-export const AGENT_ROOT = resolve(import.meta.dirname, process.env.AGENT_ROOT || '..');
+const TOOLS = 'Read,Edit,Write,Glob,Grep';
+const MODEL = process.env.AGENT_MODEL || '';
 const PROJECT = `${homedir()}/.claude/projects/${AGENT_ROOT.replace(/[^A-Za-z0-9]/g, '-')}`;
-export const isSessionId = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id ?? '');
+const isSessionId = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id ?? '');
 
 const HEAD = 64 * 1024;
 const TAIL = 256 * 1024;
@@ -49,7 +51,7 @@ async function summary(file, size) {
 }
 
 // The most recent sessions, newest first: { id, title, updated }.
-export async function listSessions(limit = 30) {
+async function listSessions(limit = 30) {
   const files = (await readdir(PROJECT).catch(() => [])).filter((f) => f.endsWith('.jsonl') && isSessionId(f.slice(0, -6)));
   const stats = await Promise.all(files.map(async (f) => ({ f, s: await stat(`${PROJECT}/${f}`) })));
   const recent = stats.sort((a, b) => b.s.mtimeMs - a.s.mtimeMs).slice(0, limit);
@@ -61,7 +63,7 @@ export async function listSessions(limit = 30) {
 }
 
 // The conversation as the aside shows it: prompts, answers and tool calls, last `limit` entries.
-export async function transcript(id, limit = 200) {
+async function transcript(id, limit = 200) {
   if (!isSessionId(id)) return null;
   const file = `${PROJECT}/${id}.jsonl`;
   const exists = await stat(file).catch(() => null);
@@ -86,3 +88,43 @@ export async function transcript(id, limit = 200) {
   }
   return out.slice(-limit);
 }
+
+export default {
+  name: 'claude',
+  label: MODEL ? `Claude Code (${MODEL})` : 'Claude Code',
+  resume: 'claude --resume {id}',
+  isSessionId,
+  newSessionId: () => randomUUID(),
+
+  command({ prompt, session, isNew, title }) {
+    const args = ['-p', prompt];
+    if (isNew) {
+      args.push('--session-id', session);
+      if (title) args.push('--name', title);
+    } else {
+      args.push('--resume', session);
+    }
+    // The agent edits dev-deck files: give it access when dev-deck is outside AGENT_ROOT.
+    if (relative(AGENT_ROOT, DECK_ROOT).startsWith('..')) args.push('--add-dir', DECK_ROOT);
+    if (MODEL) args.push('--model', MODEL);
+    args.push('--output-format', 'stream-json', '--verbose', '--permission-mode', 'acceptEdits', '--allowedTools', TOOLS);
+    return ['claude', args];
+  },
+
+  parse(ev, { emit, finish }) {
+    if (ev.type === 'system' && ev.subtype === 'init') emit({ sid: ev.session_id });
+    if (ev.type === 'assistant') {
+      for (const c of ev.message?.content ?? []) {
+        if (c.type === 'text') emit({ text: c.text });
+        if (c.type === 'tool_use') emit({ tool: c.name, target: c.input?.file_path ?? c.input?.pattern ?? '' });
+      }
+    }
+    if (ev.type === 'result') {
+      emit({ sid: ev.session_id });
+      finish(ev.is_error ? ev.result : undefined);
+    }
+  },
+
+  listSessions,
+  transcript,
+};

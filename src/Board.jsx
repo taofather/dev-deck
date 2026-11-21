@@ -1,13 +1,13 @@
 // WIP board page: the `board: true` page of a JSON diagram (docs/_WIP/board/board.json), free-positioned notes edited
 // in place. The diagram loads and saves through /sdd with the DiagramEditor.js ops, like any other; note bodies, labels and
-// Claude sessions live in docs/_WIP/board pages, written by the bridge (note-pages.mjs, /wip/*). Only works under
+// Agent sessions live in docs/_WIP/board pages, written by the bridge (note-pages.mjs, /wip/*). Only works under
 // `npm run dev`, the bridge is local.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Sessions } from './Sessions.jsx';
 import { loadSdd, ops, saveSdd } from './DiagramEditor.js';
 import { ReactFlow, Background, Controls, Panel, Handle, Position, MarkerType, NodeResizeControl, useReactFlow, useConnection, useUpdateNodeInternals } from '@xyflow/react';
 
-const BRIDGE = 'http://127.0.0.1:5662/wip';
+const BRIDGE = `${process.env.AGENT_BRIDGE_URL}/wip`;
 // Relation label of a parent arrow (a note added with + under another); any other relation is a link.
 const FROM = 'from';
 const NOTE_W = 320;
@@ -157,7 +157,7 @@ function Note({ id, data }) {
       {dragging && <Handle id="drop" type="target" position={Position.Left} className="note-drop" isConnectableStart={false} />}
       <div className="note-title">
         <span className="note-title-text">{data.title}</span>
-        {data.sessions?.length > 0 && <span className="note-sessions" title="Claude sessions">🤖 {data.sessions.length}</span>}
+        {data.sessions?.length > 0 && <span className="note-sessions" title="Agent sessions">🤖 {data.sessions.length}</span>}
         {data.page && <span className="note-page" title="Has a WIP page (link in the aside)">📄</span>}
         <button className="nodrag" title="Delete note" onClick={() => confirm(`Delete "${data.title}"?`) && data.onDelete()}>✕</button>
       </div>
@@ -614,7 +614,7 @@ export function NoteAside({ note, notes, issues, isRef, colorOf, onRef, onSelect
       <div className="note-main">
         {head}
         <div className="menu panel-menu">
-          {[['note', '📝 Note'], ['sessions', '🤖 Claude sessions']].map(([t, label]) => (
+          {[['note', '📝 Note'], ['sessions', '🤖 Agent sessions']].map(([t, label]) => (
             <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{label}</button>
           ))}
         </div>

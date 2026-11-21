@@ -1,5 +1,6 @@
-// Claude sessions of a WIP note, in NoteAside. Sessions run in AGENT_ROOT through agent-bridge.mjs and are listed
-// in the note page's claude_sessions front matter, so `cd AGENT_ROOT && claude --resume <id>` picks them up.
+// Agent sessions of a WIP note, in NoteAside. Sessions run in AGENT_ROOT through agent-bridge.mjs (agent chosen by env
+// AGENT, src/agent-bridges) and are listed in the note page's claude_sessions front matter, so the agent's resume
+// command (resumeCommand) picks them up from AGENT_ROOT.
 // Recording a session or an agent edit livereloads the page: the open chat lives in sessionStorage and its run
 // is followed again from the last event seen.
 import { useEffect, useRef, useState } from 'react';
@@ -20,7 +21,11 @@ marked.use({
 });
 export const markdown = (text) => ({ __html: marked.parse(text) });
 
-export const BRIDGE = 'http://127.0.0.1:5662';
+export const BRIDGE = process.env.AGENT_BRIDGE_URL;
+
+// The shell command to continue a session by hand. catalog: GET /wip/sessions → { root, agent: { resume } }.
+export const resumeCommand = (catalog, id) =>
+  `cd ${catalog?.root ?? 'AGENT_ROOT'} && ${(catalog?.agent?.resume ?? '<agent> --resume {id}').replace('{id}', id)}`;
 
 const loadChat = (key) => {
   try {
@@ -133,7 +138,7 @@ export function ChatLog({ chat, input, setInput, onSend, emptyHint, onClose }) {
           : <div key={i} className={`msg ${role}`}>{role === 'tool' ? `🔧 ${text}` : text}</div>))}
         {!chat.log.length && <p className="muted">{chat.session ? 'Loading history…' : emptyHint}</p>}
       </div>
-      <textarea rows={3} value={input} disabled={!!chat.run} placeholder="Message Claude (Enter to send, Shift+Enter for a new line)"
+      <textarea rows={3} value={input} disabled={!!chat.run} placeholder="Message the agent (Enter to send, Shift+Enter for a new line)"
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
@@ -148,7 +153,7 @@ export function ChatLog({ chat, input, setInput, onSend, emptyHint, onClose }) {
 
 // onChanged: reload the board notes, a session was recorded on the page.
 export function Sessions({ note, onChanged }) {
-  const [catalog, setCatalog] = useState(null); // { root, sessions } from AGENT_ROOT
+  const [catalog, setCatalog] = useState(null); // { root, agent, sessions } from AGENT_ROOT
   const [error, setError] = useState(null);
   const [picking, setPicking] = useState(false);
   const [copied, setCopied] = useState(null);
@@ -160,7 +165,7 @@ export function Sessions({ note, onChanged }) {
   }, []);
   useEffect(() => setPicking(false), [note.id]);
 
-  const resumeCmd = (id) => `cd ${catalog?.root ?? 'AGENT_ROOT'} && claude --resume ${id}`;
+  const resumeCmd = (id) => resumeCommand(catalog, id);
   const copy = (id) => navigator.clipboard.writeText(resumeCmd(id)).then(() => {
     setCopied(id);
     setTimeout(() => setCopied(null), 1500);
@@ -188,7 +193,7 @@ export function Sessions({ note, onChanged }) {
   const attached = new Set(note.sessions?.map((s) => s.id));
   return (
     <section className="sessions">
-      <h3>Claude sessions</h3>
+      <h3>{catalog?.agent?.label ?? 'Agent'} sessions</h3>
       {error && <p className="board-error">{error}</p>}
       {note.sessions?.length ? (
         <ul className="session-list">
@@ -222,7 +227,7 @@ export function Sessions({ note, onChanged }) {
       )}
       {chat && (
         <ChatLog chat={chat} input={input} setInput={setInput} onSend={send} onClose={() => setChat(null)}
-          emptyHint={`Runs in ${catalog?.root ?? 'AGENT_ROOT'}. The first message starts the session.`} />
+          emptyHint={`Runs in ${catalog?.root ?? 'AGENT_ROOT'} with ${catalog?.agent?.label ?? 'the agent'}. The first message starts the session.`} />
       )}
     </section>
   );

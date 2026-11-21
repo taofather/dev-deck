@@ -2,7 +2,7 @@
 // every change rewrites the file through agent-bridge.mjs, so it only saves under `npm run dev`.
 // Each operation takes the raw file content and returns a new one; positions live on the page that shows them.
 
-export const SDD_BRIDGE = 'http://127.0.0.1:5662/sdd';
+export const SDD_BRIDGE = `${process.env.AGENT_BRIDGE_URL}/sdd`;
 // Node kinds created from the diagram toolbar, and their empty value.
 export const NEW_KINDS = {
   controlPoint: { text: '', why: '' },

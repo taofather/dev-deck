@@ -14,7 +14,13 @@ import { KeyValues, Labels, Stickies, useDark } from './Board.jsx';
 import { Orchestrator } from './Orchestrator.jsx';
 import { EntityDocs, ResumeModal } from './Resume.jsx';
 
-// Liber Daemonicus graph dimensions and prefixes
+// A base URL from .env (injected by vite.config.js define), without trailing slashes. Never defaulted: unset → throw.
+const requireEnvUrl = (name, value) => {
+  if (!value) throw new Error(`${name} is not set: add it to the deck's .env and restart npm run dev.`);
+  return value.replace(/\/+$/, '');
+};
+
+// Liber Daemonum graph dimensions and prefixes
 const DIMENSIONS = {
   controlPoint: { label: 'Control Point', color: '#e63946', prefixes: ['controlPoint'] },
   narrativeBlock: { label: 'Narrative Block', color: '#3a86ff', prefixes: ['narrativeBlock'] },
@@ -516,6 +522,114 @@ function EntityEditor({ id, edit }) {
   const methods = pairs(meths);
   const save = () => !problem && edit.save(id, nextId, { text: draft.text.trim(), why: draft.why.trim(), ...(uml && { properties, methods }) });
   const keys = (e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && save();
+
+  const [publishing, setPublishing] = useState(false);
+  const [publishMsg, setPublishMsg] = useState(null);
+
+  const publishToWeb = async () => {
+    if (!draft.text.trim()) return;
+    setPublishing(true);
+    setPublishMsg(null);
+    try {
+      const relTurn = relations.find(([a, b]) => (a === id && b.startsWith('turn.')) || (b === id && a.startsWith('turn.')));
+      const turnLabel = relTurn ? (relTurn[0].startsWith('turn.') ? relTurn[0] : relTurn[1]) : '';
+      const relCp = relations.find(([a, b]) => (a === id && b.startsWith('controlPoint.')) || (b === id && a.startsWith('controlPoint.')));
+      const controlPointLabel = relCp ? (relCp[0].startsWith('controlPoint.') ? relCp[0] : relCp[1]) : '';
+
+      const connectedActions = relations
+        .filter(([a, b]) => (a === id && (b.startsWith('actionSelection.') || b.startsWith('playerAction.'))) || (b === id && (a.startsWith('actionSelection.') || a.startsWith('playerAction.'))))
+        .map(([a, b]) => (a === id ? b : a));
+
+      const optionNodes = [];
+      for (const act of connectedActions) {
+        if (act.startsWith('actionSelection.')) {
+          const sub = relations.filter(([a]) => a === act).map(([, b]) => b).filter((b) => b.startsWith('playerAction.'));
+          if (sub.length) optionNodes.push(...sub);
+          else optionNodes.push(act);
+        } else {
+          optionNodes.push(act);
+        }
+      }
+
+      const actionSelector = [...new Set(optionNodes)].map((optId, idx) => ({
+        id: `opt_${idx + 1}`,
+        label: (edit.raw.entities?.[optId]?.text || optId).slice(0, 140),
+      }));
+
+      const title = entry?.title || draft.id.replace(/^narrativeBlock\./, '').replace(/([A-Z])/g, ' $1').trim() || draft.id;
+
+      const payload = {
+        campaignId: 1,
+        title,
+        content: draft.text.trim(),
+        why: draft.why.trim() || undefined,
+        turnLabel: turnLabel || undefined,
+        controlPointLabel: controlPointLabel || undefined,
+        actionSelector: actionSelector.length ? actionSelector : undefined,
+      };
+
+      const webBase = requireEnvUrl('WEB_URL', process.env.WEB_URL);
+      const apiUrl = webBase.endsWith('/api') ? webBase : `${webBase}/api`;
+      // Supabase Edge Function (the web's Express server emulates it locally). Header auth only, no cookies:
+      // Edge Functions answer CORS with a wildcard origin, which browsers reject for credentialed requests.
+      const supabaseUrl = requireEnvUrl('SUPABASE_URL', process.env.SUPABASE_URL);
+      const publishUrl = `${supabaseUrl}/functions/v1/publish-narrative`;
+      const functionHeaders = (token) => ({
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        ...(process.env.SUPABASE_ANON_KEY ? { apikey: process.env.SUPABASE_ANON_KEY } : {}),
+      });
+
+      const getWebDjToken = async () => {
+        let token = localStorage.getItem('ld_web_token');
+        if (token) return token;
+        const loginRes = await fetch(`${apiUrl}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-bypass-rate-limit': 'true' },
+          body: JSON.stringify({ email: 'dj@aquelarre.cat', password: 'password123' }),
+        });
+        if (!loginRes.ok) {
+          const err = await loginRes.json().catch(() => ({}));
+          throw new Error(err.message || `DJ Authentication failed (${loginRes.status})`);
+        }
+        const data = await loginRes.json();
+        if (data.token) {
+          localStorage.setItem('ld_web_token', data.token);
+          return data.token;
+        }
+        throw new Error('No authentication token returned by web server');
+      };
+
+      let token = await getWebDjToken();
+      let res = await fetch(publishUrl, {
+        method: 'POST',
+        headers: functionHeaders(token),
+        body: JSON.stringify(payload),
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('ld_web_token');
+        token = await getWebDjToken();
+        res = await fetch(publishUrl, {
+          method: 'POST',
+          headers: functionHeaders(token),
+          body: JSON.stringify(payload),
+        });
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || data.error || `HTTP ${res.status}`);
+      }
+      setPublishMsg(`✓ Published as Block #${data.narrativeBlock?.order_index ?? ''}`);
+      edit.field(id, 'status', 'published');
+    } catch (err) {
+      setPublishMsg(`Publish failed: ${err.message}`);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   return (
     <section className="sdd-editor" onKeyDown={keys}>
       {/* Labels and status save at once, like board labels; id, text and why save with the button. */}
@@ -528,12 +642,19 @@ function EntityEditor({ id, edit }) {
       {!uml && <KeyValues key={id} pairs={typeof entry === 'object' ? entry?.props ?? [] : []} onChange={(next) => edit.field(id, 'props', next)} />}
       <div className="note-editor-bar">
         <button className="focus-toggle" onClick={save} disabled={!!problem}>Save ⌘↵</button>
+        {kind === 'narrativeBlock' && (
+          <button className="focus-toggle publish-btn" title="Publish this narrative block to the web app as DJ"
+            onClick={publishToWeb} disabled={publishing || !draft.text.trim()}>
+            {publishing ? 'Publishing…' : '🚀 Publish'}
+          </button>
+        )}
         <select className="sdd-status" aria-label="Status" value={status} onChange={(e) => edit.field(id, 'status', e.target.value)}>
           <option value="">— no status</option>
-          {[...new Set([...statusesOf(kind), status].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
+          {[...new Set([...statusesOf(kind), 'published', status].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <DeleteButton id={id} edit={edit}>🗑 Delete</DeleteButton>
         {problem && <span className="board-error">{problem}</span>}
+        {publishMsg && <span className={publishMsg.startsWith('✓') ? 'board-hint publish-success' : 'board-error'}>{publishMsg}</span>}
       </div>
     </section>
   );
@@ -801,7 +922,7 @@ function useFold(key) {
 }
 
 // Grid columns: folded sides shrink to a strip; the panel is one width everywhere.
-// The right panel is wide on purpose: node editor and Claude chat, entity docs with column tables.
+// The right panel is wide on purpose: node editor and agent chat, entity docs with column tables.
 const FOLDED_W = '36px';
 // Sidebar menu options: [key, icon, label].
 const MENUS = [['browse', '☰', 'Browse']];

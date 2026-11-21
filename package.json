@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "trap 'kill 0' INT TERM EXIT; vite build --watch --mode development & node --env-file-if-exists=.env --watch-path=agent-bridge.mjs --watch-path=note-pages.mjs --watch-path=claude-sessions.mjs agent-bridge.mjs & hugo server --bind 0.0.0.0 --port 5660 --noHTTPCache --renderToMemory",
+    "dev": "trap 'kill 0' INT TERM EXIT; vite build --watch --mode development & node --env-file-if-exists=.env --watch-path=agent-bridge.mjs --watch-path=note-pages.mjs --watch-path=src/agent-bridges agent-bridge.mjs & hugo server --bind 0.0.0.0 --port 5660 --noHTTPCache --renderToMemory",
     "dev:diagrams": "vite --port 5179",
     "build": "vite build && hugo --gc --minify"
   },

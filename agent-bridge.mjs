@@ -1,39 +1,82 @@
-// Localhost bridge: the WIP board and SDD orchestrator chats POST here, this runs `claude -p` in the agent
-// root (AGENTS.md applies) and streams its stream-json events back as SSE. Started by `npm run dev`.
+// Localhost bridge: the diagram orchestrator and WIP note chats POST here, this runs the agent CLI chosen by
+// env AGENT (src/agent-bridges: claude | opencode) in the agent root and streams its events back as SSE.
+// Started by `npm run dev`.
 // Every agent edit livereloads the page, so a run outlives its HTTP request: events are buffered per
 // run and GET /stream?run=<id>&from=<n> replays them to the reloaded page.
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
-import { relative, resolve, sep } from 'node:path';
+import { resolve, sep } from 'node:path';
 import { addSession, boards, loadPages, movePage, noteContext, noteOf, readBoard, saveBody, saveTags, saveTitle } from './note-pages.mjs';
 import { ops } from './src/DiagramEditor.js';
-import { AGENT_ROOT, isSessionId, listSessions, transcript } from './claude-sessions.mjs';
+import { AGENT_ROOT, agent } from './src/agent-bridges/index.mjs';
 
 const PORT = 5662;
-// Any site open in the browser can reach 127.0.0.1; only the dev site may drive an agent that writes files.
-const ORIGINS = ['http://localhost:5660', 'http://127.0.0.1:5660', 'http://localhost:5180', 'http://127.0.0.1:5180'];
-const TOOLS = 'Read,Edit,Write,Glob,Grep';
+// Any site open in the browser can reach 127.0.0.1; only the dev site on localhost may drive an agent that writes files.
+const isAllowedOrigin = (origin) => !origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 const KEEP_MS = 10 * 60 * 1000;
 if (existsSync(`${import.meta.dirname}/.env`)) process.loadEnvFile(`${import.meta.dirname}/.env`);
 const json = (res, data) => res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
 
-// Diagram data files edited from the React Flow app (src/content/index.js): docs/**/_sdd.json,
-// docs/<folder>/<folder>.json, content/**/*.json, src/content/**/*.json.
-const DOCS = resolve(import.meta.dirname, 'docs');
-const CONTENT = resolve(import.meta.dirname, 'content');
-const SRC_CONTENT = resolve(import.meta.dirname, 'src', 'content');
-const DIAGRAM = /^_(sdd|ops)\.json$/;
+// Web integration (liber-daemonicus-web)
+// Base URLs come only from .env, never defaulted: unset → the web routes below throw (and answer 500 with the reason).
+const envUrl = (name) => {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is not set: add it to the deck's .env and restart npm run dev.`);
+  return value.replace(/\/+$/, '');
+};
+const webUrl = () => envUrl('WEB_URL');
+const DJ_EMAIL = process.env.DJ_EMAIL || 'dj@aquelarre.cat';
+const DJ_PASSWORD = process.env.DJ_PASSWORD || 'password123';
+// Supabase Edge Functions base URL; locally the web's Express server emulates /functions/v1/*.
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+const publishNarrativeUrl = () => `${envUrl('SUPABASE_URL')}/functions/v1/publish-narrative`;
+const functionHeaders = (token) => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${token}`,
+  ...(SUPABASE_ANON_KEY ? { apikey: SUPABASE_ANON_KEY } : {}),
+});
+let cachedDjToken = null;
+
+async function getDjToken() {
+  if (cachedDjToken) return cachedDjToken;
+  const res = await fetch(`${webUrl()}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-bypass-rate-limit': 'true' },
+    body: JSON.stringify({ email: DJ_EMAIL, password: DJ_PASSWORD }),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`DJ login failed on web server (${res.status}): ${errText}`);
+  }
+  const data = await res.json();
+  cachedDjToken = data.token;
+  return cachedDjToken;
+}
+
+// Diagram data files edited from the React Flow app: docs/**/_sdd.json, src/content/**/*.json, content/**/*.json
+const ROOT = resolve(import.meta.dirname);
 const sddPath = (file) => {
-  const abs = typeof file === 'string' && resolve(import.meta.dirname, file);
-  if (!abs) return null;
-  const inDocs = abs.startsWith(DOCS + sep);
-  const inContent = abs.startsWith(CONTENT + sep);
-  const inSrcContent = abs.startsWith(SRC_CONTENT + sep);
-  if (!inDocs && !inContent && !inSrcContent) return null;
-  return abs.endsWith('.json') ? abs : null;
+  if (typeof file !== 'string' || !file.trim()) return null;
+  const clean = file.replace(/^(\.\/)+/, '').replace(/^(\.\.\/)+/, '');
+  const candidates = [
+    resolve(ROOT, clean),
+    resolve(ROOT, 'src/content', clean),
+    resolve(ROOT, 'content', clean),
+    resolve(ROOT, 'docs', clean),
+  ];
+  for (const c of candidates) {
+    if (c.startsWith(ROOT + sep) && c.endsWith('.json') && existsSync(c)) {
+      return c;
+    }
+  }
+  for (const c of candidates) {
+    if (c.startsWith(ROOT + sep) && c.endsWith('.json')) {
+      return c;
+    }
+  }
+  return null;
 };
 const isSdd = (d) => d && typeof d === 'object' && !Array.isArray(d) && typeof (d.entities ?? {}) === 'object'
   && Array.isArray(d.relations ?? []) && Array.isArray(d.pages ?? []);
@@ -64,9 +107,10 @@ function readBody(req, done) {
 // ponytail: in-memory runs, lost on bridge restart; the panel reports it and starts over.
 const runs = new Map();
 
-// Runs `claude <args>` in cwd as run <id>, buffering its stream-json events for /stream.
+// Runs the agent in cwd as run <id>, buffering its events for /stream.
+// turn { prompt, session, isNew, title }: see src/agent-bridges/index.mjs.
 // meta { label, href, prompt }: what GET /runs shows in the corner status (src/agent-status.js).
-function start(id, args, cwd, meta) {
+function start(id, turn, cwd, meta) {
   const run = { ...meta, started: Date.now(), last: '', events: [], done: false, listeners: new Set() };
   runs.set(id, run);
   const emit = (ev) => {
@@ -84,8 +128,8 @@ function start(id, args, cwd, meta) {
     setTimeout(() => runs.delete(id), KEEP_MS);
   };
 
-  const child = spawn('claude', [...args, '--output-format', 'stream-json', '--verbose',
-    '--permission-mode', 'acceptEdits', '--allowedTools', TOOLS], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+  const [bin, args] = agent.command(turn);
+  const child = spawn(bin, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let buf = '';
   child.stdout.on('data', (chunk) => {
@@ -99,30 +143,20 @@ function start(id, args, cwd, meta) {
       } catch {
         continue;
       }
-      if (ev.type === 'system' && ev.subtype === 'init') emit({ sid: ev.session_id });
-      if (ev.type === 'assistant') {
-        for (const c of ev.message.content) {
-          if (c.type === 'text') emit({ text: c.text });
-          if (c.type === 'tool_use') emit({ tool: c.name, target: c.input.file_path ?? c.input.pattern ?? '' });
-        }
-      }
-      if (ev.type === 'result') {
-        emit({ sid: ev.session_id });
-        finish(ev.is_error ? ev.result : undefined);
-      }
+      agent.parse(ev, { emit, finish });
     }
   });
   let stderr = '';
   child.stderr.on('data', (c) => (stderr += c));
   child.on('error', (err) => finish(err.message));
-  child.on('close', (code) => finish(code ? stderr.trim() || `claude exited with ${code}` : undefined));
+  child.on('close', (code) => finish(code ? stderr.trim() || `${bin} exited with ${code}` : undefined));
   return emit;
 }
 
-createServer((req, res) => {
+const server = createServer(async (req, res) => {
   const origin = req.headers.origin;
-  if (!ORIGINS.includes(origin)) return res.writeHead(403).end();
-  res.setHeader('Access-Control-Allow-Origin', origin);
+  if (!isAllowedOrigin(origin)) return res.writeHead(403).end();
+  if (origin) res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT');
   if (req.method === 'OPTIONS') return res.writeHead(204).end();
@@ -229,35 +263,47 @@ createServer((req, res) => {
     }
   }
 
-  // The diagram's orchestrator: one Claude conversation per _sdd.json (src/Orchestrator.jsx). The first message
-  // creates it and records { id, started } as `orchestrator` in the file before claude starts; later ones resume it.
+  // The diagram's orchestrator: one agent conversation per diagram (src/Orchestrator.jsx). The first message creates it
+  // and records { id, started } as `orchestrator` in the file before the agent starts; later ones resume it.
   if (url.pathname === '/sdd/chat' && req.method === 'POST') {
     return readBody(req, async (b) => {
       const file = sddPath(b?.file);
-      if (!file || typeof b.message !== 'string' || !b.message.trim() || !/^[\w-]+$/.test(b.run ?? '') || runs.has(b.run)) {
-        return res.writeHead(400).end();
+      if (!file) {
+        console.warn(`[sdd/chat] 400: diagram file not found for "${b?.file}"`);
+        return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: `File not found: ${b?.file}` }));
+      }
+      if (typeof b?.message !== 'string' || !b.message.trim()) {
+        console.warn('[sdd/chat] 400: message required');
+        return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Message required' }));
+      }
+      if (!/^[\w-]+$/.test(b?.run ?? '')) {
+        console.warn(`[sdd/chat] 400: invalid run id: ${b?.run}`);
+        return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Invalid run id' }));
+      }
+      if (runs.has(b.run)) {
+        console.warn(`[sdd/chat] 400: run ${b.run} already in progress`);
+        return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Run already in progress' }));
       }
       try {
         const d = await readSdd(file);
-        let args;
+        let turn;
         let created;
-        if (isSessionId(d.orchestrator?.id)) {
-          args = ['-p', b.message, '--resume', d.orchestrator.id];
+        if (agent.isSessionId(d.orchestrator?.id)) {
+          turn = { prompt: b.message, session: d.orchestrator.id, isNew: false };
         } else {
-          created = randomUUID();
+          created = agent.newSessionId();
           d.orchestrator = { id: created, started: new Date().toISOString() };
           await writeFile(file, sddJson(d));
           const intro = [
-            `[Orchestrator of the Liber Daemonicus diagram "${d.title ?? b.file}".`,
-            `Its data: ${file}. Follow Liber Daemonicus graph and structured rules for LLM agents.`,
+            `[Orchestrator of the Liber Daemonum diagram "${d.title ?? b.file}".`,
+            `Its data: ${file}. Follow Liber Daemonum graph and structured rules for LLM agents.`,
             'Node ID prefixes follow Java-like package nomenclature: controlPoint, narrativeBlock, playerAction, actionSelection, turn, custom, intention, event, demiurge, cosmicStatistic, character, location, item.',
             'Edit that file in place: keep "orchestrator" as is, and give every new node a position.',
             `The user watches it live at /diagrams/#/${d.id ?? ''}.]`,
           ].join(' ');
-          args = ['-p', `${intro}\n\n${b.message}`, '--session-id', created, '--name', `Orchestrator ${d.title ?? b.file}`];
+          turn = { prompt: `${intro}\n\n${b.message}`, session: created, isNew: true, title: `Liber Daemonum: ${d.title ?? b.file}` };
         }
-        if (relative(AGENT_ROOT, import.meta.dirname).startsWith('..')) args.push('--add-dir', import.meta.dirname);
-        const emit = start(b.run, args, AGENT_ROOT, { label: `SDD ${d.title ?? b.file}`, href: `/diagrams/#/${d.id ?? ''}`, prompt: b.message });
+        const emit = start(b.run, turn, AGENT_ROOT, { label: `Orchestrator ${d.title ?? b.file}`, href: `/diagrams/#/${d.id ?? ''}`, prompt: b.message });
         if (created) emit({ session: created });
         res.writeHead(202).end();
       } catch (err) {
@@ -266,18 +312,20 @@ createServer((req, res) => {
     });
   }
 
-  // Claude sessions of WIP notes (src/Sessions.jsx): they run in AGENT_ROOT, so `claude --resume <id>` works from there.
+  // Agent sessions of notes (src/Sessions.jsx): they run in AGENT_ROOT, so agent.resume works from there.
+  // `agent` tells the UI which CLI runs and how to resume a session by hand.
   if (url.pathname === '/wip/sessions' && req.method === 'GET') {
-    return listSessions().then((sessions) => json(res, { root: AGENT_ROOT, sessions })).catch((err) => res.writeHead(500).end(err.message));
+    return agent.listSessions()
+      .then((sessions) => json(res, { root: AGENT_ROOT, agent: { name: agent.name, label: agent.label, resume: agent.resume }, sessions })).catch((err) => res.writeHead(500).end(err.message));
   }
   if (url.pathname === '/wip/session' && req.method === 'GET') {
-    return transcript(url.searchParams.get('id'))
+    return agent.transcript(url.searchParams.get('id'))
       .then((log) => (log ? json(res, { log }) : res.writeHead(400).end()))
       .catch((err) => res.writeHead(500).end(err.message));
   }
   if (url.pathname === '/wip/session/attach' && req.method === 'POST') {
     return readBody(req, (b) => {
-      if (typeof b?.note !== 'string' || !isSessionId(b.id) || typeof b.name !== 'string') return res.writeHead(400).end();
+      if (typeof b?.note !== 'string' || !agent.isSessionId(b.id) || typeof b.name !== 'string') return res.writeHead(400).end();
       addSession(b.note, { id: b.id, name: b.name, started: new Date().toISOString(), origin: 'attached' })
         .then((page) => (page ? json(res, { page }) : res.writeHead(404).end('no such note')))
         .catch((err) => res.writeHead(500).end(err.message));
@@ -286,30 +334,28 @@ createServer((req, res) => {
   if (url.pathname === '/wip/chat' && req.method === 'POST') {
     return readBody(req, async (b) => {
       if (typeof b?.note !== 'string' || typeof b.message !== 'string' || !b.message.trim()
-        || !/^[\w-]+$/.test(b.run ?? '') || runs.has(b.run) || (b.session && !isSessionId(b.session))) {
+        || !/^[\w-]+$/.test(b.run ?? '') || runs.has(b.run) || (b.session && !agent.isSessionId(b.session))) {
         return res.writeHead(400).end();
       }
       try {
         const ctx = await noteContext(b.note);
         if (!ctx) return res.writeHead(404).end('no such note');
-        let args;
+        let turn;
         if (b.session) {
-          args = ['-p', b.message, '--resume', b.session];
+          turn = { prompt: b.message, session: b.session, isNew: false };
         } else {
-          // A new session: its id goes into the note before claude starts, so it is tracked even if the run fails.
-          const session = randomUUID();
+          // A new session: its id goes into the note before the agent starts, so it is tracked even if the run fails.
+          const session = agent.newSessionId();
           await addSession(b.note, { id: session, name: ctx.note.title, started: new Date().toISOString(), origin: 'board' });
           const intro = [
             `[WIP note "${ctx.note.title}" from the dev-deck board.`,
             ctx.file ? `Its page, where its notes live: ${ctx.file}.` : 'It has no page yet.',
             ']', ctx.body ? `\nNote body:\n${ctx.body}\n` : '',
           ].filter(Boolean).join(' ');
-          args = ['-p', `${intro}\n\n${b.message}`, '--session-id', session, '--name', ctx.note.title];
+          turn = { prompt: `${intro}\n\n${b.message}`, session, isNew: true, title: ctx.note.title };
           b.newSession = session;
         }
-        // dev-deck outside AGENT_ROOT: the agent still needs to reach the note page.
-        if (relative(AGENT_ROOT, import.meta.dirname).startsWith('..')) args.push('--add-dir', import.meta.dirname);
-        const emit = start(b.run, args, AGENT_ROOT, { label: ctx.note.title, href: `/diagrams/#/${ctx.note.where.id}/${ctx.note.where.pageId}/${b.note}`, prompt: b.message });
+        const emit = start(b.run, turn, AGENT_ROOT, { label: ctx.note.title, href: `/diagrams/#/${ctx.note.where?.id ?? ''}/${ctx.note.where?.pageId ?? ''}/${b.note}`, prompt: b.message });
         if (b.newSession) emit({ session: b.newSession });
         res.writeHead(202).end();
       } catch (err) {
@@ -318,5 +364,60 @@ createServer((req, res) => {
     });
   }
 
+  // Web integration: publish narrative block via the publish-narrative Edge Function
+  if (url.pathname === '/web/publish-narrative' && req.method === 'POST') {
+    return readBody(req, async (b) => {
+      try {
+        const token = req.headers.authorization?.replace(/^Bearer\s+/i, '') || await getDjToken();
+        const resWeb = await fetch(publishNarrativeUrl(), {
+          method: 'POST',
+          headers: functionHeaders(token),
+          body: JSON.stringify(b),
+        });
+        const data = await resWeb.json().catch(() => ({}));
+        if (!resWeb.ok && (resWeb.status === 401 || resWeb.status === 403)) {
+          cachedDjToken = null;
+          const freshToken = await getDjToken();
+          const retryRes = await fetch(publishNarrativeUrl(), {
+            method: 'POST',
+            headers: functionHeaders(freshToken),
+            body: JSON.stringify(b),
+          });
+          const retryData = await retryRes.json().catch(() => ({}));
+          return res.writeHead(retryRes.status, { 'Content-Type': 'application/json' }).end(JSON.stringify(retryData));
+        }
+        return res.writeHead(resWeb.status, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
+      } catch (err) {
+        console.error('[web/publish-narrative] error:', err.message);
+        return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: err.message }));
+      }
+    });
+  }
+
+  // Web integration: check connection & DJ authentication status
+  if (url.pathname === '/web/status' && req.method === 'GET') {
+    try {
+      const token = await getDjToken();
+      const meRes = await fetch(`${webUrl()}/api/auth/me`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const me = await meRes.json().catch(() => null);
+      return json(res, { connected: meRes.ok, user: me?.user, webUrl: webUrl() });
+    } catch (err) {
+      return json(res, { connected: false, error: err.message, webUrl: process.env.WEB_URL || null });
+    }
+  }
+
   res.writeHead(404).end();
-}).listen(PORT, '0.0.0.0', () => console.log(`agent bridge on http://0.0.0.0:${PORT}`));
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`[agent-bridge] Port ${PORT} is already in use by another process.`);
+  } else {
+    console.error('[agent-bridge] server error:', err);
+  }
+  process.exit(1);
+});
+
+server.listen(PORT, '0.0.0.0', () => console.log(`agent bridge on http://0.0.0.0:${PORT} (agent: ${agent.label}, root: ${AGENT_ROOT})`));
