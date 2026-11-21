@@ -292,9 +292,11 @@
       "why": "Variació menor de to costumista segons la decisió d'allotjament còmode (habitació per 1 moneda d'or) a controlPoint.HostalatgeBurgui."
     },
     "narrativeBlock.ArribadaBurgui": {
-      "text": "La nevada s'intensifica mentre el sol cau rere les crestes pirinenques. Arribeu sangglaçats a la petita vila de Burgui. La taverna de l'hostal desprèn olor de caliu, fusta humida i guisat d'olla.\nArribada dels viatgers a Burgui al capvespre del 28 d'octubre sota un cel amenaçador. L'ambient a la vall de l'Esca és gèlid i desconfiat.",
-      "why": "Estableix el to opressiu d'Aquelarre i les condicions inicials dels personatges abans del desencadenament del malefici.",
-      "status": "published"
+      "text": "La nevada s'intensifica mentre el sol cau rere les crestes pirinenques. Arribeu sangglaçats a la petita vila de Burgui. La taverna de l'hostal desprèn olor de caliu, fusta humida i guisat d'olla.",
+      "why": "Inici del viatge forçat a aturar-se pel temporal.",
+      "status": "published",
+      "published": true,
+      "title": "Arribada a l'Hostalatge de Burgui"
     },
     "narrativeBlock.CadenesBlanques": {
       "text": "El matí del 29 d'octubre una tempesta sobtada de neu espessa bloqueja completament Burgui. El foll Ximún recorre els carrers balbucejant profecies en basc.",
@@ -302,8 +304,10 @@
       "status": "published"
     },
     "narrativeBlock.TragediaElixe": {
-      "text": "Reunió a la vora del foc amb els vilatans atemorits, que revelen la història d'Elixe, la mort de Mariñe i el secret de l'escapulari donat pels monjos de Leire.",
-      "why": "Aporta el context teològic i sobrenatural necessari per comprendre la naturalesa de la maledicció."
+      "text": "A la vora del foc de la llar, un vell cec anomenat Ximún murmura versos en basc antic mentre agita un estrany escapulari entre els dits tremolosos. 'No hi haurà pau fins que la sang d'Elixe s'alliberi'.",
+      "why": "Descobreix la tragèdia d'Elixe i l'escapulari sagrat.",
+      "published": true,
+      "title": "La Profecia de Ximún el Cec i el Malefici"
     },
     "narrativeBlock.EsclauFidel": {
       "text": "A l'alba del 30 d'octubre, els quinze gossos domèstics del poble embogeixen simultàniament i ataquen amb ràbia mortal els seus amos a les masies.",
@@ -325,17 +329,37 @@
       "text": "Desenterrament del cos putrefacte d'Elixe sota el terra de la cabana i arrencada de l'escapulari sagrat que reté la seva ànima damnada a la terra.",
       "why": "Clímax de l'aventura on l'esperit d'Elixe lluita per arrossegar els viatgers a la condemnació eterna."
     },
-    "narrativeBlock.ResoluciTotsSants": {
+    "narrativeBlock.ResolucioTotsSants": {
       "text": "Resolució la nit de Tots Sants: la tempesta s'esvaeix i Burgui recobra la calma, o bé els morts liderats per Mariñe s'alcen per venjar el seu destí.",
-      "why": "Desenllaç de la crònica kàrmica segons el desenllaç de les accions dels personatges."
+      "why": "Desenllaç de la crònica kàrmica segons el desenllaç de les accions dels personatges.",
+      "published": false,
+      "status": "draft"
     },
     "narrativeBlock.NitABurgui": {
       "text": "escollir si estable o habitació",
       "status": "published"
     },
-    "narrativeBlock.PassejadaNocturna": {
-      "text": "El Tarat surt a passejar... escolta esbufecs en la nit freda",
-      "status": "published"
+    "narrativeBlock.VigilanciaEstables": {
+      "text": "Bernat s'ha separat de la sala principal per revisar els cavalls als estables posteriors. Rere el torb de la tempesta, una presència demoníaca i un grup de gossos feréstecs amb ulls de sofre envolten la quadra.\n\nEl cavall renilla amb terror i la fusta de la porta comença a cedir davant les urpes.",
+      "why": "Separació de PJs: Bernat afronta el perill físic als estables.",
+      "published": true,
+      "title": "La Vigilància dels Estables i les Feres"
+    },
+    "narrativeBlock.HerbesCambraFunebre": {
+      "text": "Mentre en Bernat és als estables, la Clara ha pujat al pis superior cercant llenya seca. En una cambra en penombra descobreix un bagul obert d'on brolla una aroma intensa d'espígol podrit i acònit.\n\nRere les ampolles hi ha una carta tacada de cera vermella amb el nom d'Elixe i instruccions per conjurar l'escapulari.",
+      "why": "Separació de PJs: Clara investiga el secret ocult i les herbes.",
+      "published": true,
+      "title": "El Misteri de les Herbes a la Cambra Fúnebre"
+    },
+    "playerAction.HerbesCambraFunebre.ClaraDeYesa": {
+      "text": "Examinar la puresa del verí d'acònit (Tirada de Coneixement Vegetal)",
+      "status": "published",
+      "props": [
+        ["Jugador", "Clara de Yesa"],
+        ["Personatge", "Clara de Yesa"],
+        ["Tirada", "1d100: 81%"],
+        ["Opció", "opt_aconito"]
+      ]
     }
   },
   "relations": [
@@ -400,7 +424,7 @@
     ["narrativeBlock.SuplicaVilatans", "narrativeBlock.BoscTenebros", "condueix a"],
     ["narrativeBlock.BoscTenebros", "narrativeBlock.CabanaIditxa", "desemboca a"],
     ["narrativeBlock.CabanaIditxa", "narrativeBlock.ExorcismeEscapulari", "enfronta a"],
-    ["narrativeBlock.ExorcismeEscapulari", "narrativeBlock.ResoluciTotsSants", "culmina a"],
+    ["narrativeBlock.ExorcismeEscapulari", "narrativeBlock.ResolucioTotsSants", "culmina a"],
     ["controlPoint.HostalatgeBurgui", "narrativeBlock.ArribadaBurgui", "develops into"],
     ["controlPoint.ProfeciaXimun", "narrativeBlock.CadenesBlanques", "develops into"],
     ["controlPoint.MisteriEscapulari", "narrativeBlock.TragediaElixe", "develops into"],
@@ -409,10 +433,10 @@
     ["controlPoint.VeusDelBosc", "narrativeBlock.BoscTenebros", "develops into"],
     ["controlPoint.EnganyIditxa", "narrativeBlock.CabanaIditxa", "develops into"],
     ["controlPoint.DeslliurarEscapulari", "narrativeBlock.ExorcismeEscapulari", "develops into"],
-    ["controlPoint.DesenllacTotsSants", "narrativeBlock.ResoluciTotsSants", "develops into"],
+    ["controlPoint.DesenllacTotsSants", "narrativeBlock.ResolucioTotsSants", "develops into"],
     ["narrativeBlock.ArribadaBurgui", "narrativeBlock.NitABurgui", "next"],
     ["narrativeBlock.NitABurgui", "narrativeBlock.CadenesBlanques", "next"],
-    ["narrativeBlock.NitABurgui", "narrativeBlock.PassejadaNocturna"]
+    ["narrativeBlock.HerbesCambraFunebre", "playerAction.HerbesCambraFunebre.ClaraDeYesa", "tria"]
   ],
   "pages": [
     {
@@ -420,7 +444,21 @@
       "section": "Visió General",
       "title": "Visió General",
       "intro": "Diagrama complet interactiu del mòdul El Regreso d'Aquelarre sota el motor Liber Daemonum.",
-      "entities": "*"
+      "entities": "*",
+      "positions": {
+        "playerAction.HerbesCambraFunebre.ClaraDeYesa": {
+          "x": 537,
+          "y": -183
+        },
+        "narrativeBlock.HerbesCambraFunebre": {
+          "x": 536,
+          "y": -332
+        },
+        "narrativeBlock.VigilanciaEstables": {
+          "x": 1362,
+          "y": 201
+        }
+      }
     },
     {
       "id": "primera-part",
@@ -451,7 +489,7 @@
       "section": "narrativeBlock",
       "title": "Blocs Narratius",
       "intro": "Seqüència exclusiva de Blocs Narratius (narrativeBlock) del mòdul El Regreso d'Aquelarre sota el motor Liber Daemonum.",
-      "entities": "narrativeBlock.*",
+      "entities": ["narrativeBlock.*", "playerAction.*"],
       "positions": {
         "narrativeBlock.ArribadaBurgui": {
           "x": 236,
@@ -485,7 +523,7 @@
           "x": 250,
           "y": 1060
         },
-        "narrativeBlock.ResoluciTotsSants": {
+        "narrativeBlock.ResolucioTotsSants": {
           "x": 250,
           "y": 1200
         },
@@ -493,16 +531,20 @@
           "x": 244,
           "y": 82
         },
-        "narrativeBlock.PassejadaNocturna": {
-          "x": 519,
-          "y": 84
+        "narrativeBlock.VigilanciaEstables": {
+          "x": 0,
+          "y": 1320
+        },
+        "narrativeBlock.HerbesCambraFunebre": {
+          "x": 0,
+          "y": 1410
+        },
+        "playerAction.HerbesCambraFunebre.ClaraDeYesa": {
+          "x": 300,
+          "y": 1320
         }
       },
-      "sides": {
-        "narrativeBlock.NitABurgui~narrativeBlock.PassejadaNocturna": {
-          "to": "bottom"
-        }
-      }
+      "sides": {}
     }
   ],
   "orchestrator": {
