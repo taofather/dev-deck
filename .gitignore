@@ -3,7 +3,7 @@
 /dist
 
 # Hugo docs live in another repo, symlinked
-/docs
+#/docs
 # Hugo config lives in parent repo, symlinked
 hugo.yaml
 

@@ -1,0 +1,512 @@
+{
+  "id": "el-regreso",
+  "title": "El Regreso",
+  "subtitle": "Aquelarre (Ricard Ibáñez) · Motor Liber Daemonum",
+  "entities": {
+    "intention.pj.DePas": {
+      "text": "Intenció bàsica dels PJs: estan de pas per Burgui amb l'objectiu d'arribar a Yesa com més aviat millor.",
+      "why": "Intenció clàssica d'Aquelarre. El xoc amb el temporal els obliga a implicar-se en la supervivència del poble."
+    },
+    "intention.npc.XimunAvisar": {
+      "text": "Intenció obsessiva de Ximún d'alertar els veïns i forasters mitjançant versos profètics en basc, intentant expiar la tragèdia de Mariñe.",
+      "why": "Residu anímic de la seva voluntat heroica destrossada per les veus del bosc."
+    },
+    "intention.npc.AldeansDemanaAjuda": {
+      "text": "Intenció dels aldeans de suplicar auxili als PJs en descobrir que la tempesta només immobilitza els naturals de Burgui.",
+      "why": "Reconeixement de la pròpia impotència davant la maledicció d'Elixe."
+    },
+    "intention.npc.ElixeVenjanca": {
+      "text": "Intenció de l'ànima d'Elixe de consumir la seva venjança contra el poble de Burgui el dia de Tots Sants i posseir un nou cos humà.",
+      "why": "Mòbil maligne primordial d'Elixe, alimentat per la seva naturalesa infernal i l'odi etern."
+    },
+    "intention.npc.IditxaEngany": {
+      "text": "Intenció de l'Iditxa de simular innocència i oferir una poció de dominació als PJs per sotmetre'ls i entregar els seus cossos a Elixe.",
+      "why": "Servitud demoníaca cega envers la bruixa."
+    },
+    "intention.npc.MarineProteccio": {
+      "text": "Intenció espiritual de Mariñe de comandar els avantpassats difunts per protegir Burgui i venjar el seu estimat Ximún.",
+      "why": "Força kàrmica de la sang i de l'amor que supera la màgia negra."
+    },
+    "event.dia1.CadenesBlanques": {
+      "text": "29 d'octubre: Esclata una sobtada tempesta de neu persistent que aïlla Burgui. La intensitat del temporal augmenta si un nadiu surt a l'exterior.",
+      "why": "Primer vers profètic de Ximún ('El primer día presos por cadenas blancas')."
+    },
+    "event.dia2.EsclauFidel": {
+      "text": "30 d'octubre: A l'alba, els 15 gossos del poble embogeixen simultàniament i ataquen a mort els seus amos (15-25 vilatans ferits o morts).",
+      "why": "Segon vers de Ximún ('El segundo día seréis traicionados por vuestro esclavo más fiel')."
+    },
+    "event.dia3.NitTotsSants": {
+      "text": "Nit del 31 d'octubre a l'1 de novembre: L'obertura de la frontera entre el món terrenal i el món espiritual permet l'alçament dels morts.",
+      "why": "Tercer vers de Ximún ('La noche del tercer día volveré, con aquellos que os han abandonado')."
+    },
+    "event.bosc.VeusEmbogidores": {
+      "text": "Cor acústic d'un centenar d'ànimes turmentades al bosc d'Elixe (suplicants, sensuals, terrorífiques) que atordeix els viatgers.",
+      "why": "Efecte del malefici de les ànimes atrapades al bosc; causa del col·lapse intel·lectual de Ximún."
+    },
+    "event.bosc.TrobadaSobrenatural": {
+      "text": "Manifestacions de la natura màgica al bosc: sàtirs luxuriosos o bufons, mandràgores que xuclen la vitalitat o nimfes/fades a la font.",
+      "why": "Prova ambiental de la pulsió i la moralitat dels viatgers."
+    },
+    "cosmicStatistic.KarmicMatrix": {
+      "text": "Monstre kàrmic multi-tentacular de Liber Daemonum que recull les pulsions, decisions i tirades dels jugadors per modular la trama.",
+      "columns": [
+        ["Ira", "Pulsió", "Violència dels gossos, fúria venjativa d'Elixe i agressivitat en combat"],
+        ["Por", "Pulsió", "Pànic davant la ventisca, paràlisi comunitària i deliri de Ximún"],
+        ["Traïció", "Pulsió", "Rebel·lió de l'esclau fidel, impostura de l'Iditxa i temptació de fugir"],
+        ["Luxúria", "Pulsió", "Seducció de sàtirs, contemplació de fades nues i bes de la mandràgora"],
+        ["Supèrbia", "Pulsió", "Negligència davant el perill màgic i menyspreu als consells ancestrals"],
+        ["Racionalitat (RR)", "Atribut Aquelarre", "Resistència mental, seny i capacitat de desfer enganys"],
+        ["Irracionalitat (IRR)", "Atribut Aquelarre", "Exposició al món demoníac, pactes i pèrdua de control"]
+      ]
+    },
+    "character.pj.Viatgers": {
+      "type": "uml",
+      "text": "Grup de 3 a 5 viatgers del segle XIV travessant Navarra. Protagonistes de la crònica kàrmica.",
+      "properties": [
+        ["Coneixement Màgic", "Especialitat requerida en almenys un PJ"],
+        ["Racionalitat / RR", "Variable segons perfil"],
+        ["Elocuència / Mando", "Clau per interrogar vilatans"],
+        ["Rastrear / Otear", "Clau per al rastreig al bosc"],
+        ["Resistència al Fred", "Capítol 6 del manual d'Aquelarre"]
+      ]
+    },
+    "character.npc.Ximun": {
+      "type": "uml",
+      "text": "Antic mosso eixerit i valent, ara amb la ment destrossada per les veus del bosc. Gegant d'1'95m inofensiu que repeteix la profecia.",
+      "properties": [
+        ["FUE", "Excepcionalment alta"],
+        ["Alçada", "1'95 m"],
+        ["Intel·ligència", "Reduïda a balbotejos"],
+        ["Estat Mental", "Trauma per les Veus d'Elixe"],
+        ["Objecte Original", "Escapulari de Leire"]
+      ]
+    },
+    "character.npc.Marine": {
+      "type": "uml",
+      "text": "Promesa de Ximún, assassinada per les febres d'Elixe fa mig any. Enterrada a Burgui, lidera els morts la nit de Tots Sants.",
+      "properties": [
+        ["Estat", "Difunta / Reanimada per Tots Sants"],
+        ["Lloc Enterrament", "Cementiri de Burgui"],
+        ["Lideratge", "Comandant dels difunts de les 5 famílies"],
+        ["Pau de Ximún", "Repòs final de l'heroi sobre la seva tomba"]
+      ]
+    },
+    "character.npc.ElixeAnima": {
+      "type": "uml",
+      "text": "Esperit corromput de la bruixa Elixe, servidora de Llucifer dotada d'immortalitat. Atrapada a la terra per l'escapulari sagrat.",
+      "properties": [
+        ["RR", "0%"],
+        ["IRR", "150%"],
+        ["Hechizos", "Invocación de Ánimas, Possessió"],
+        ["Destí", "Caiguda a l'Infern en retirar l'escapulari"]
+      ]
+    },
+    "character.npc.ElixeCadaver": {
+      "type": "uml",
+      "text": "Cos inert i corromput d'Elixe enterrat sota terra batuda a la seva cabana del bosc, portant l'escapulari al coll.",
+      "properties": [
+        ["Estat", "Putrefacció sota terra"],
+        ["Ubicació", "Sòl de la cabana del bosc"],
+        ["Defensa Pòstuma", "Ulleres d'urpes que intenten arrossegar qui toqui la relíquia"]
+      ]
+    },
+    "character.npc.Iditxa": {
+      "type": "uml",
+      "text": "Criat demoníac d'Elixe. Adopta l'aspecte d'una venerable anciana i posseeix poders endevinatoris; en forma real és una bèstia monstruosa.",
+      "properties": [
+        ["FUE", "20"],
+        ["AGI", "32"],
+        ["RES", "20"],
+        ["PER", "20"],
+        ["COM", "15"],
+        ["CUL", "12"],
+        ["RR", "0%"],
+        ["IRR", "225%"],
+        ["Armes", "Urpes 50% (1D8+1D6, 2 atacs/assalt)"],
+        ["Competències", "Esquivar 99%, Elocuència 40%"],
+        ["Hechizos", "Visión del Futuro, Dominación, Invulnerabilidad, Protección Mágica, Conmoción"]
+      ]
+    },
+    "character.npc.AldeansBurgui": {
+      "type": "uml",
+      "text": "Comunitat de 50 vilatans (famílies emparentades) sense protecció màgica.",
+      "properties": [
+        ["Població", "Aprox. 50 persones"],
+        ["Famílies", "4 o 5 troncs familiars"],
+        ["Vulnerabilitat", "Castigats mortalment per la tempesta"],
+        ["Actitud", "Atemorits, dependents de la valentia dels PJs"]
+      ]
+    },
+    "character.npc.MonjosLeire": {
+      "type": "uml",
+      "text": "Comunitat benedictina del Monestir de Sant Salvador de Leire que va aconsellar Ximún i li va donar l'escapulari.",
+      "properties": [
+        ["Orde", "Benedictins"],
+        ["Lloc", "Monestir de Leire"],
+        ["Relíquia Donada", "Escapulari Sagrat Protector"]
+      ]
+    },
+    "character.creature.Gossos": {
+      "type": "uml",
+      "text": "15 gossos domèstics del poble afectats pel malefici d'Elixe a l'alba del dia 30.",
+      "properties": [
+        ["FUE", "8"],
+        ["AGI", "15"],
+        ["RES", "15"],
+        ["PER", "18"],
+        ["RR / IRR", "50% / 50%"],
+        ["Armes", "Mordisco 45% (Daño 1D4)"]
+      ]
+    },
+    "character.creature.Satirs": {
+      "type": "uml",
+      "text": "Grup d'1D6 éssers mitològics banyuts del bosc. Actitud variable: tímids, joganers o agressius segons tirades.",
+      "properties": [
+        ["FUE", "21"],
+        ["AGI", "12"],
+        ["RES", "30"],
+        ["PER", "20"],
+        ["HAB", "12"],
+        ["COM", "5"],
+        ["CUL", "2"],
+        ["RR / IRR", "0% / 150%"],
+        ["Armadura Natural", "1 punt (pèl espès)"],
+        ["Armes", "Pelea 65% (1D3+1D6)"],
+        ["Competències", "Esconderse 75%, Esquivar 70%, Música 35%"]
+      ]
+    },
+    "character.creature.Mandragores": {
+      "type": "uml",
+      "text": "Vegetals demoníacs antropomòrfics. Des del cadell innocent que drena forces fins a la mandràgora gegant de 8 metres.",
+      "properties": [
+        ["Cadell FUE / RES", "12 / 30 (Alçada 1'35m, Armadura 5 pts)"],
+        ["Cadell Habilitat", "Petó drena 1D6 FUE i RES"],
+        ["Adulta FUE / RES", "45 / 45 (Alçada 8m, Pes 1800kg, Armadura 12 pts)"],
+        ["Adulta Armes", "Branques 20% (1D8+6D6, 10 atacs/assalt)"]
+      ]
+    },
+    "character.creature.Hades": {
+      "type": "uml",
+      "text": "Dotze nimfes/fades nues banyant-se a la deu d'aigua pura del bosc. Màgia de seducció o beneït do de Sort.",
+      "properties": [
+        ["Comportament", "Esvaeixen metalls i embruixen qui les espiï"],
+        ["Recompensa de cortesia", "Hechizo de Suerte (6 hores de durada)"],
+        ["Requisit", "Parlar d'esquena amb alta Elocuència"]
+      ]
+    },
+    "character.creature.MortsBurgui": {
+      "type": "uml",
+      "text": "Difunts del cementiri de Burgui que s'aixequen per Tots Sants. Rebutgen l'ordre de la bruixa per lleialtat als vius.",
+      "properties": [
+        ["Composició", "Avantpassats de les 5 famílies de Burgui"],
+        ["Líder", "Cadàver de Mariñe"],
+        ["Acció Clímax", "Esbocinen Elixe i l'Iditxa"]
+      ]
+    },
+    "location.Burgui": {
+      "text": "Llogaret navarrès a la vora del riu Esca, format per masies disperses sense posada oficial.",
+      "why": "Nucli central d'aïllament i tragèdia de l'aventura."
+    },
+    "location.BoscElixe": {
+      "text": "Espessa i fosca forest a 45 minuts de Burgui, plena de senderons cecs, petjades demoníques i silenci sepulcral d'ocells.",
+      "why": "Regne sobrenatural de la bruixa on les lleis de la raó s'esvaeixen."
+    },
+    "location.CabanaBruixa": {
+      "text": "Tosca borda de fusta i pedra amb fum blanc a la xemeneia i terra remogut sota el qual jau Elixe.",
+      "why": "Cau de l'Iditxa i lloc de l'exorcisme i el combat final."
+    },
+    "location.CementiriBurgui": {
+      "text": "Petit recinte sagrat vora el poble on descansen els difunts familiars i la tomba de Mariñe.",
+      "why": "Escenari del desenllaç alternatiu de Tots Sants."
+    },
+    "location.SalvatierraEsca": {
+      "text": "Vila veïna situada a dues hores de marxa vall avall a través de la ventisca de gel.",
+      "why": "Ruta de temptació de fugida amb greu cost de congelació."
+    },
+    "item.EscapulariSagrat": {
+      "text": "Escapulari beneït pels monjos de Leire, penjat al coll del cadàver d'Elixe. Actua com a garjola espiritual per a l'ànima errant.",
+      "why": "Objecte fonamental de la trama; la seva retirada expulsa Elixe a l'Infern."
+    },
+    "item.PocioDominacio": {
+      "text": "Flascó de poció màgica groguenca (3 dosis) que anul·la el lliure albir de qui la beu durant 48 hores.",
+      "why": "Eina d'engany de l'Iditxa trobada a la cabana."
+    },
+    "item.TalismaRiquesa": {
+      "text": "Bossa de pell de porc tacada de sang; talismà màgic que atrau la fortuna i els guanys materials.",
+      "why": "Tresor màgic ocult a la cabana de la bruixa."
+    },
+    "item.TalismaResistenciaFred": {
+      "text": "Retall de tela brodat amb fils d'or i el símbol del sol que immunitza contra les baixes temperatures.",
+      "why": "Recompensa crucial per vèncer la neu i el temporal."
+    },
+    "controlPoint.HostalatgeBurgui": {
+      "text": "PC1: Arribada a Burgui el vespre del 28 d'octubre. Elecció de descans: pagar 2 monedes de plata per l'estable o 1 d'or per habitació.",
+      "why": "Fixa les condicions físiques i financeres inicials dels PJs."
+    },
+    "controlPoint.ProfeciaXimun": {
+      "text": "PC2: Matí del 29 d'octubre amb la gran nevada. Investigació de la cantinela de Ximún amb tirada d'Elocució o Mando.",
+      "why": "Descobreix la tragèdia d'Elixe, Mariñe i l'escapulari de Leire."
+    },
+    "controlPoint.MisteriEscapulari": {
+      "text": "PC3: Tirada de Coneixement Màgic o Llegendes davant la narració dels vilatans.",
+      "why": "Permet comprendre la regla teològica: cal arrencar l'escapulari del cadàver per enviar Elixe a l'Infern."
+    },
+    "controlPoint.DefensaGossos": {
+      "text": "PC4: Alba del 30 d'octubre: combat sobtat contra 5 gossos enfollits per defensar el poble.",
+      "why": "La rapidesa d'acció determina si moren 15 o 25 vilatans innocents."
+    },
+    "controlPoint.DilemaSalvatierra": {
+      "text": "PC5: Gran bifurcació moral: fugir cap a Salvatierra de Esca sota perill de congelació o acceptar la súplica i anar al Bosc d'Elixe.",
+      "why": "Mesura la pulsió de por vs la pulsió de solidaritat kàrmica."
+    },
+    "controlPoint.VeusDelBosc": {
+      "text": "PC6: Entrada al bosc i assalt de les Veus. Tirada de Racionalitat (-25%) llevat que es tapin les orelles amb cera o pa mastegat.",
+      "why": "Un fracàs redueix les competències a la meitat i perd la iniciativa; una pífia redueix el personatge a un guiñapo tremolós."
+    },
+    "controlPoint.TrobadesBosc": {
+      "text": "PC7: Superació d'encontres aleatoris al bosc: diplomàcia o combat amb sàtirs, alerta davant la mandràgora nena o respecte a les fades.",
+      "why": "Condiciona l'obtenció d'ajut màgic (Sort de les fades) o pèrdua de vitalitat."
+    },
+    "controlPoint.EnganyIditxa": {
+      "text": "PC8: Arribada a la cabana i diàleg amb la falsa anciana. Tirada de Rastrear (petjades de bèstia) i tirada de RR contra la poció.",
+      "why": "Desemmascarar el dimoni Iditxa o caure sota la seva dominació abans del combat a mort."
+    },
+    "controlPoint.LlindarPossessio": {
+      "text": "PC9: Entrada a la cabana i atac anímic d'Elixe. Tirada de Resistència a la Màgia (RR) per evitar ser posseït.",
+      "why": "Si falla, l'ànima d'Elixe usurpa el cos del PJ i intenta fugir lluny."
+    },
+    "controlPoint.DeslliurarEscapulari": {
+      "text": "PC10: Desenterrament del cadàver d'Elixe i extracció de l'escapulari sagrat. Tirada de RR (-40%) si no es resa o es duu una relíquia.",
+      "why": "Elixe obre els ulls podrits i intenta arrossegar el PJ amb ella cap a l'abisme infernal."
+    },
+    "controlPoint.DesenllacTotsSants": {
+      "text": "PC11: Resolució final: Si Elixe cau a l'Infern, cessa la tempesta i les veus. Si els PJs fallen, Mariñe alça els morts per venjar el poble.",
+      "why": "Desenllaç i recompensa: 35 punts d'aprenentatge per acabar, +20 punts per precipitar Elixe a l'Infern."
+    },
+    "event.estable.InquietudBestiar": {
+      "text": "Nit a l'estable: Els cavalls i el bestiar estan anormalment inquiets pel temporal que s'apropa, i un gos del paller gruny immòbil mirant cap a la foscor del bosc. Permet detectar el presagi sobre els animals o trobar una falç vella entre la palla.",
+      "why": "Variació menor de to ominós segons la decisió d'allotjament rústic (estable per 2 monedes de plata) a controlPoint.HostalatgeBurgui."
+    },
+    "event.habitacio.LlarDeFocIXafarderies": {
+      "text": "Nit a l'habitació: La família amfitriona comparteix escudella calenta vora la llar de foc i xafarderies rurals, esmentant de passada el dol de Ximún per la mort de Mariñe fa mig any. Atorga +5% d'empatia social amb els veïns l'endemà.",
+      "why": "Variació menor de to costumista segons la decisió d'allotjament còmode (habitació per 1 moneda d'or) a controlPoint.HostalatgeBurgui."
+    },
+    "narrativeBlock.ArribadaBurgui": {
+      "text": "La nevada s'intensifica mentre el sol cau rere les crestes pirinenques. Arribeu sangglaçats a la petita vila de Burgui. La taverna de l'hostal desprèn olor de caliu, fusta humida i guisat d'olla.\nArribada dels viatgers a Burgui al capvespre del 28 d'octubre sota un cel amenaçador. L'ambient a la vall de l'Esca és gèlid i desconfiat.",
+      "why": "Estableix el to opressiu d'Aquelarre i les condicions inicials dels personatges abans del desencadenament del malefici.",
+      "status": "published"
+    },
+    "narrativeBlock.CadenesBlanques": {
+      "text": "El matí del 29 d'octubre una tempesta sobtada de neu espessa bloqueja completament Burgui. El foll Ximún recorre els carrers balbucejant profecies en basc.",
+      "why": "Desenvolupa el primer vers profètic ('presos per cadenes blanques') i aïlla físicament el poble.",
+      "status": "published"
+    },
+    "narrativeBlock.TragediaElixe": {
+      "text": "Reunió a la vora del foc amb els vilatans atemorits, que revelen la història d'Elixe, la mort de Mariñe i el secret de l'escapulari donat pels monjos de Leire.",
+      "why": "Aporta el context teològic i sobrenatural necessari per comprendre la naturalesa de la maledicció."
+    },
+    "narrativeBlock.EsclauFidel": {
+      "text": "A l'alba del 30 d'octubre, els quinze gossos domèstics del poble embogeixen simultàniament i ataquen amb ràbia mortal els seus amos a les masies.",
+      "why": "Desenvolupa el segon vers profètic ('traïts pel vostre esclau més fidel') i força els personatges a actuar."
+    },
+    "narrativeBlock.SuplicaVilatans": {
+      "text": "Davant la carnisseria i la certesa que el temporal només immobilitza els naturals de Burgui, la comunitat suplica als viatgers que penetrin al Bosc d'Elixe.",
+      "why": "Planteja el dilema moral entre la fugida egoista cap a Salvatierra i la intervenció solidària al bosc."
+    },
+    "narrativeBlock.BoscTenebros": {
+      "text": "Travessia pel tenebrós Bosc d'Elixe, on la vegetació malaltissa i un cor esfereïdor de veus d'ànimes turmentades posen a prova el seny dels herois.",
+      "why": "Transició al territori demoníac on les regles de la realitat i la Racionalitat s'esquerden."
+    },
+    "narrativeBlock.CabanaIditxa": {
+      "text": "Arribada a la cabana aïllada amb fum blanc a la xemeneia. L'Iditxa, sota la disfressa d'una àvia càlida, intenta enverinar i sotmetre els viatgers.",
+      "why": "Desenvolupa l'emboscada de la serventa d'Elixe i el combat previ a l'exorcisme."
+    },
+    "narrativeBlock.ExorcismeEscapulari": {
+      "text": "Desenterrament del cos putrefacte d'Elixe sota el terra de la cabana i arrencada de l'escapulari sagrat que reté la seva ànima damnada a la terra.",
+      "why": "Clímax de l'aventura on l'esperit d'Elixe lluita per arrossegar els viatgers a la condemnació eterna."
+    },
+    "narrativeBlock.ResoluciTotsSants": {
+      "text": "Resolució la nit de Tots Sants: la tempesta s'esvaeix i Burgui recobra la calma, o bé els morts liderats per Mariñe s'alcen per venjar el seu destí.",
+      "why": "Desenllaç de la crònica kàrmica segons el desenllaç de les accions dels personatges."
+    },
+    "narrativeBlock.NitABurgui": {
+      "text": "escollir si estable o habitació",
+      "status": "published"
+    },
+    "narrativeBlock.PassejadaNocturna": {
+      "text": "El Tarat surt a passejar... escolta esbufecs en la nit freda",
+      "status": "published"
+    }
+  },
+  "relations": [
+    ["character.pj.Viatgers", "intention.pj.DePas", "té intenció"],
+    ["character.pj.Viatgers", "controlPoint.HostalatgeBurgui", "participa a"],
+    ["event.dia1.CadenesBlanques", "location.Burgui", "aïlla"],
+    ["character.npc.Ximun", "intention.npc.XimunAvisar", "expressa"],
+    ["character.npc.Ximun", "controlPoint.ProfeciaXimun", "protagonitza"],
+    ["controlPoint.ProfeciaXimun", "controlPoint.MisteriEscapulari", "revela"],
+    ["character.npc.MonjosLeire", "item.EscapulariSagrat", "van lliurar"],
+    ["character.creature.Gossos", "event.dia2.EsclauFidel", "executen"],
+    ["event.dia2.EsclauFidel", "controlPoint.DefensaGossos", "exigeix"],
+    ["controlPoint.DefensaGossos", "character.npc.AldeansBurgui", "protegeix"],
+    ["controlPoint.DefensaGossos", "controlPoint.DilemaSalvatierra", "condueix al"],
+    ["character.npc.AldeansBurgui", "intention.npc.AldeansDemanaAjuda", "manifiesten"],
+    ["intention.npc.AldeansDemanaAjuda", "controlPoint.DilemaSalvatierra", "suplica"],
+    ["controlPoint.DilemaSalvatierra", "location.SalvatierraEsca", "opció fugida"],
+    ["location.BoscElixe", "event.bosc.VeusEmbogidores", "ressona amb"],
+    ["event.bosc.VeusEmbogidores", "controlPoint.VeusDelBosc", "posa a prova a"],
+    ["controlPoint.VeusDelBosc", "controlPoint.TrobadesBosc", "superat porta a"],
+    ["controlPoint.TrobadesBosc", "event.bosc.TrobadaSobrenatural", "desencadena"],
+    ["event.bosc.TrobadaSobrenatural", "character.creature.Satirs", "pot trobar"],
+    ["event.bosc.TrobadaSobrenatural", "character.creature.Mandragores", "pot trobar"],
+    ["event.bosc.TrobadaSobrenatural", "character.creature.Hades", "pot trobar"],
+    ["character.npc.Iditxa", "intention.npc.IditxaEngany", "actua segons"],
+    ["character.npc.Iditxa", "controlPoint.EnganyIditxa", "intenta enganyar a"],
+    ["item.PocioDominacio", "controlPoint.EnganyIditxa", "utilitzada per"],
+    ["character.npc.ElixeAnima", "intention.npc.ElixeVenjanca", "impulsada per"],
+    ["character.npc.ElixeAnima", "controlPoint.LlindarPossessio", "intenta possessió a"],
+    ["controlPoint.LlindarPossessio", "controlPoint.DeslliurarEscapulari", "permet accedir a"],
+    ["character.npc.ElixeCadaver", "item.EscapulariSagrat", "porta al coll"],
+    ["controlPoint.DeslliurarEscapulari", "item.EscapulariSagrat", "arrenca"],
+    ["controlPoint.DeslliurarEscapulari", "controlPoint.DesenllacTotsSants", "fracàs o inacció activa"],
+    ["event.dia3.NitTotsSants", "controlPoint.DesenllacTotsSants", "marca el termini de"],
+    ["character.creature.MortsBurgui", "controlPoint.DesenllacTotsSants", "s'alcen a"],
+    ["character.npc.Marine", "intention.npc.MarineProteccio", "exerceix"],
+    ["character.npc.Marine", "character.creature.MortsBurgui", "lidera"],
+    ["character.creature.MortsBurgui", "character.npc.ElixeAnima", "destrueixen a"],
+    ["character.npc.Ximun", "location.CementiriBurgui", "mor en pau sobre Mariñe a"],
+    ["cosmicStatistic.KarmicMatrix", "controlPoint.DefensaGossos", "mesura Ira i Traïció"],
+    ["cosmicStatistic.KarmicMatrix", "controlPoint.DilemaSalvatierra", "mesura Por i Supèrbia"],
+    ["cosmicStatistic.KarmicMatrix", "controlPoint.TrobadesBosc", "mesura Luxúria"],
+    ["cosmicStatistic.KarmicMatrix", "controlPoint.LlindarPossessio", "modifica Racionalitat i Irracionalitat"],
+    ["cosmicStatistic.KarmicMatrix", "controlPoint.DeslliurarEscapulari", "determina el destí kàrmic"],
+    ["controlPoint.HostalatgeBurgui", "event.estable.InquietudBestiar", "opció estable"],
+    ["controlPoint.HostalatgeBurgui", "event.habitacio.LlarDeFocIXafarderies", "opció habitació"],
+    ["event.habitacio.LlarDeFocIXafarderies", "character.npc.Marine", "introdueix record de"],
+    ["event.habitacio.LlarDeFocIXafarderies", "controlPoint.ProfeciaXimun", "facilita diàleg a"],
+    ["controlPoint.HostalatgeBurgui", "location.Burgui", "té lloc a"],
+    ["controlPoint.HostalatgeBurgui", "controlPoint.ProfeciaXimun", "condueix a"],
+    ["event.dia1.CadenesBlanques", "controlPoint.ProfeciaXimun", "emmarca"],
+    ["controlPoint.MisteriEscapulari", "controlPoint.DefensaGossos", "avança cap a"],
+    ["controlPoint.DilemaSalvatierra", "controlPoint.VeusDelBosc", "opció bosc condueix a"],
+    ["controlPoint.TrobadesBosc", "controlPoint.EnganyIditxa", "avança a"],
+    ["controlPoint.EnganyIditxa", "location.CabanaBruixa", "descobreix"],
+    ["controlPoint.EnganyIditxa", "controlPoint.LlindarPossessio", "derrota obre accés a"],
+    ["event.estable.InquietudBestiar", "controlPoint.HostalatgeBurgui", "transcorre a l'opció estable de"],
+    ["event.habitacio.LlarDeFocIXafarderies", "controlPoint.HostalatgeBurgui", "transcorre a l'opció habitació de"],
+    ["narrativeBlock.CadenesBlanques", "narrativeBlock.TragediaElixe", "revela"],
+    ["narrativeBlock.TragediaElixe", "narrativeBlock.EsclauFidel", "precedeix"],
+    ["narrativeBlock.EsclauFidel", "narrativeBlock.SuplicaVilatans", "provoca"],
+    ["narrativeBlock.SuplicaVilatans", "narrativeBlock.BoscTenebros", "condueix a"],
+    ["narrativeBlock.BoscTenebros", "narrativeBlock.CabanaIditxa", "desemboca a"],
+    ["narrativeBlock.CabanaIditxa", "narrativeBlock.ExorcismeEscapulari", "enfronta a"],
+    ["narrativeBlock.ExorcismeEscapulari", "narrativeBlock.ResoluciTotsSants", "culmina a"],
+    ["controlPoint.HostalatgeBurgui", "narrativeBlock.ArribadaBurgui", "develops into"],
+    ["controlPoint.ProfeciaXimun", "narrativeBlock.CadenesBlanques", "develops into"],
+    ["controlPoint.MisteriEscapulari", "narrativeBlock.TragediaElixe", "develops into"],
+    ["controlPoint.DefensaGossos", "narrativeBlock.EsclauFidel", "develops into"],
+    ["controlPoint.DilemaSalvatierra", "narrativeBlock.SuplicaVilatans", "develops into"],
+    ["controlPoint.VeusDelBosc", "narrativeBlock.BoscTenebros", "develops into"],
+    ["controlPoint.EnganyIditxa", "narrativeBlock.CabanaIditxa", "develops into"],
+    ["controlPoint.DeslliurarEscapulari", "narrativeBlock.ExorcismeEscapulari", "develops into"],
+    ["controlPoint.DesenllacTotsSants", "narrativeBlock.ResoluciTotsSants", "develops into"],
+    ["narrativeBlock.ArribadaBurgui", "narrativeBlock.NitABurgui", "next"],
+    ["narrativeBlock.NitABurgui", "narrativeBlock.CadenesBlanques", "next"],
+    ["narrativeBlock.NitABurgui", "narrativeBlock.PassejadaNocturna"]
+  ],
+  "pages": [
+    {
+      "id": "overview",
+      "section": "Visió General",
+      "title": "Visió General",
+      "intro": "Diagrama complet interactiu del mòdul El Regreso d'Aquelarre sota el motor Liber Daemonum.",
+      "entities": "*"
+    },
+    {
+      "id": "primera-part",
+      "section": "Primera Part",
+      "title": "De l'Arribada a la Profecia de Ximún",
+      "intro": "Primera part de la història: tot el que pot succeir entre els dos primers Punts de Control (PC1 Allotjament a Burgui i PC2 Profecia de Ximún durant la nevada), la tempesta aïllant, les revelacions dels vilatans sobre Elixe i l'escapulari sagrat.",
+      "entities": [
+        "controlPoint.HostalatgeBurgui",
+        "event.dia1.CadenesBlanques",
+        "controlPoint.ProfeciaXimun",
+        "controlPoint.MisteriEscapulari",
+        "character.pj.Viatgers",
+        "intention.pj.DePas",
+        "character.npc.AldeansBurgui",
+        "character.npc.Ximun",
+        "intention.npc.XimunAvisar",
+        "character.npc.Marine",
+        "character.npc.MonjosLeire",
+        "item.EscapulariSagrat",
+        "location.Burgui",
+        "cosmicStatistic.KarmicMatrix",
+        "event.estable.InquietudBestiar",
+        "event.habitacio.LlarDeFocIXafarderies"
+      ]
+    },
+    {
+      "id": "blocs-narratius",
+      "section": "narrativeBlock",
+      "title": "Blocs Narratius",
+      "intro": "Seqüència exclusiva de Blocs Narratius (narrativeBlock) del mòdul El Regreso d'Aquelarre sota el motor Liber Daemonum.",
+      "entities": "narrativeBlock.*",
+      "positions": {
+        "narrativeBlock.ArribadaBurgui": {
+          "x": 236,
+          "y": -47
+        },
+        "narrativeBlock.CadenesBlanques": {
+          "x": 250,
+          "y": 220
+        },
+        "narrativeBlock.TragediaElixe": {
+          "x": 250,
+          "y": 360
+        },
+        "narrativeBlock.EsclauFidel": {
+          "x": 250,
+          "y": 500
+        },
+        "narrativeBlock.SuplicaVilatans": {
+          "x": 250,
+          "y": 640
+        },
+        "narrativeBlock.BoscTenebros": {
+          "x": 250,
+          "y": 780
+        },
+        "narrativeBlock.CabanaIditxa": {
+          "x": 250,
+          "y": 920
+        },
+        "narrativeBlock.ExorcismeEscapulari": {
+          "x": 250,
+          "y": 1060
+        },
+        "narrativeBlock.ResoluciTotsSants": {
+          "x": 250,
+          "y": 1200
+        },
+        "narrativeBlock.NitABurgui": {
+          "x": 244,
+          "y": 82
+        },
+        "narrativeBlock.PassejadaNocturna": {
+          "x": 519,
+          "y": 84
+        }
+      },
+      "sides": {
+        "narrativeBlock.NitABurgui~narrativeBlock.PassejadaNocturna": {
+          "to": "bottom"
+        }
+      }
+    }
+  ],
+  "orchestrator": {
+    "id": "ses_liber_1795211564414_54dd5767",
+    "started": "2026-11-20T21:52:44.416Z"
+  }
+}
