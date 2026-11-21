@@ -394,23 +394,28 @@ const server = createServer(async (req, res) => {
     });
   }
 
-  // Web integration: every narrative block of a campaign, as the DJ sees them (Sincronitzar button)
-  if (url.pathname === '/web/narrative-blocks' && req.method === 'GET') {
+  // Web integration (Sincronitzar button): narrative blocks and player actions of a campaign, fetched as DJ
+  const SYNC_ROUTES = {
+    '/web/narrative-blocks': ['/api/narrative/history', 'history', 'blocks'],
+    '/web/player-actions': ['/api/narrative/actions', 'actions', 'actions'],
+  };
+  if (SYNC_ROUTES[url.pathname] && req.method === 'GET') {
+    const [path, from, to] = SYNC_ROUTES[url.pathname];
     const campaignId = encodeURIComponent(url.searchParams.get('campaignId') || '1');
-    const history = (token) => fetch(`${webUrl()}/api/narrative/history?campaignId=${campaignId}`, {
+    const get = (token) => fetch(`${webUrl()}${path}?campaignId=${campaignId}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
     try {
-      let resWeb = await history(await getDjToken());
+      let resWeb = await get(await getDjToken());
       if (resWeb.status === 401 || resWeb.status === 403) {
         cachedDjToken = null;
-        resWeb = await history(await getDjToken());
+        resWeb = await get(await getDjToken());
       }
       const data = await resWeb.json().catch(() => ({}));
       if (!resWeb.ok) throw new Error(data.error || `web answered ${resWeb.status}`);
-      return json(res, { blocks: data.history ?? [] });
+      return json(res, { [to]: data[from] ?? [] });
     } catch (err) {
-      console.error('[web/narrative-blocks] error:', err.message);
+      console.error(`[${url.pathname}] error:`, err.message);
       return res.writeHead(502, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: err.message }));
     }
   }

@@ -7,7 +7,7 @@ import '../docs/assets/custom.css';
 import './styles.css';
 
 import { docs, replaceSdd, sddDoc } from './content/index.js';
-import { ID, NEW_KINDS, SIDES, isUml, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf } from './DiagramEditor.js';
+import { ID, NEW_KINDS, SIDES, isUml, loadNarrativeBlocks, loadPlayerActions, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf, titleOf } from './DiagramEditor.js';
 
 const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
 import { KeyValues, Labels, Stickies, useDark } from './Board.jsx';
@@ -72,7 +72,7 @@ const tagsOf = (id) => [...new Set(entityDocs(id).flatMap((e) => e.tags ?? []))]
 // a warning or block outranks done ("done ⚠" is yellow). Unknown words are grey; no status, no LED.
 // COD's "dev" (merged, not released) is yellow; "released" is green.
 const LEDS = [['red', /blocked|regressed|fail|❌/], ['yellow', /partial|review|progress|wip|doing|⚠|🟡|^dev$/],
-  ['green', /done|met|ok|released|✅/], ['grey', /./]];
+  ['green', /published|done|met|ok|released|✅/], ['grey', /./]];
 const statusOf = (id) => {
   const s = entityDocs(id).map((e) => e.status).find(Boolean);
   if (!s || typeof s !== 'string') return null;
@@ -503,8 +503,10 @@ function EntityEditor({ id, edit }) {
   const entry = edit.raw.entities?.[id];
   const [draft, setDraft] = useState(() => ({
     id, text: typeof entry === 'string' ? entry : entry?.text ?? '', why: typeof entry === 'object' ? entry?.why ?? '' : '',
+    published: typeof entry === 'object' && entry?.published === true,
   }));
   const kind = id.split(/[.-]/)[0];
+  const narrative = kind === 'narrativeBlock';
   // UML: a class box; properties edited as `name: type` lines.
   const uml = isUml(entry);
   const lines = (list) => (list ?? []).map(([n, t]) => (t ? `${n}: ${t}` : n)).join('\n');
@@ -520,14 +522,22 @@ function EntityEditor({ id, edit }) {
   const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value });
   const properties = pairs(props);
   const methods = pairs(meths);
-  const save = () => !problem && edit.save(id, nextId, { text: draft.text.trim(), why: draft.why.trim(), ...(uml && { properties, methods }) });
+  // Save: writes the active JSON and, for a narrativeBlock, sends it to the web (upsert by node_id) with its published flag.
+  const save = () => {
+    if (problem) return;
+    edit.save(id, nextId, { text: draft.text.trim(), why: draft.why.trim(), ...(uml && { properties, methods }), ...(narrative && { published: draft.published }) });
+    if (narrative) sendToWeb();
+  };
   const keys = (e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && save();
 
   const [publishing, setPublishing] = useState(false);
   const [publishMsg, setPublishMsg] = useState(null);
 
-  const publishToWeb = async () => {
-    if (!draft.text.trim()) return;
+  const sendToWeb = async () => {
+    if (!draft.text.trim()) {
+      setPublishMsg('Desat al JSON. No enviat a la web: falta el text.');
+      return;
+    }
     setPublishing(true);
     setPublishMsg(null);
     try {
@@ -556,10 +566,12 @@ function EntityEditor({ id, edit }) {
         label: (edit.raw.entities?.[optId]?.text || optId).slice(0, 140),
       }));
 
-      const title = entry?.title || draft.id.replace(/^narrativeBlock\./, '').replace(/([A-Z])/g, ' $1').trim() || draft.id;
+      const title = entry?.title || titleOf(nextId);
 
       const payload = {
         campaignId: 1,
+        nodeId: nextId,
+        published: draft.published,
         title,
         content: draft.text.trim(),
         why: draft.why.trim() || undefined,
@@ -621,10 +633,10 @@ function EntityEditor({ id, edit }) {
       if (!res.ok) {
         throw new Error(data.message || data.error || `HTTP ${res.status}`);
       }
-      setPublishMsg(`✓ Published as Block #${data.narrativeBlock?.order_index ?? ''}`);
-      edit.field(id, 'status', 'published');
+      const verb = res.status === 201 ? 'creat' : 'actualitzat';
+      setPublishMsg(`✓ Desat i ${verb} a la web (${draft.published ? 'publicat' : 'esborrany'})`);
     } catch (err) {
-      setPublishMsg(`Publish failed: ${err.message}`);
+      setPublishMsg(`Desat al JSON. Error enviant a la web: ${err.message}`);
     } finally {
       setPublishing(false);
     }
@@ -639,18 +651,23 @@ function EntityEditor({ id, edit }) {
       <label>Why <textarea rows={3} value={draft.why} onChange={set('why')} /></label>
       {uml && <label>Properties <span className="muted">one per line, name: type</span><textarea rows={Math.max(4, properties.length + 1)} value={props} onChange={(e) => setProps(e.target.value)} /></label>}
       {uml && <label>Methods <span className="muted">one per line, signature: note</span><textarea rows={Math.max(3, methods.length + 1)} value={meths} onChange={(e) => setMeths(e.target.value)} /></label>}
+      {narrative && (
+        <label>Published{' '}
+          <select className="sdd-published" value={String(draft.published)} onChange={(e) => setDraft({ ...draft, published: e.target.value === 'true' })}>
+            <option value="false">false</option>
+            <option value="true">true</option>
+          </select>
+        </label>
+      )}
       {!uml && <KeyValues key={id} pairs={typeof entry === 'object' ? entry?.props ?? [] : []} onChange={(next) => edit.field(id, 'props', next)} />}
       <div className="note-editor-bar">
-        <button className="focus-toggle" onClick={save} disabled={!!problem}>Save ⌘↵</button>
-        {kind === 'narrativeBlock' && (
-          <button className="focus-toggle publish-btn" title="Publish this narrative block to the web app as DJ"
-            onClick={publishToWeb} disabled={publishing || !draft.text.trim()}>
-            {publishing ? 'Publishing…' : '🚀 Publish'}
-          </button>
-        )}
+        <button className="focus-toggle" onClick={save} disabled={!!problem || publishing}
+          title={narrative ? 'Desa al JSON i envia el bloc a la web (narrative_blocks)' : undefined}>
+          {publishing ? 'Desant…' : 'Save ⌘↵'}
+        </button>
         <select className="sdd-status" aria-label="Status" value={status} onChange={(e) => edit.field(id, 'status', e.target.value)}>
           <option value="">— no status</option>
-          {[...new Set([...statusesOf(kind), 'published', status].filter(Boolean))].map((s) => <option key={s} value={s}>{s}</option>)}
+          {[...new Set([...statusesOf(kind), status].filter(Boolean))].map((s) => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
         </select>
         <DeleteButton id={id} edit={edit}>🗑 Delete</DeleteButton>
         {problem && <span className="board-error">{problem}</span>}
@@ -1100,6 +1117,28 @@ function App() {
     relabel: (rel, label) => commit(ops.relabel(doc.raw, rel, label)),
     side: (rel, end, side) => commit(ops.side(doc.raw, page.id, rel, end, side)),
   };
+  // Sincronitzar: narrative_blocks then player_actions (web DB) → this JSON, in one save. Blocks first, so a choice
+  // finds its block node. New nodes go below everything placed on this page.
+  const [sync, setSync] = useState({ busy: false, msg: null });
+  useEffect(() => setSync({ busy: false, msg: null }), [doc.id]);
+  const syncNarrative = async () => {
+    setSync({ busy: true, msg: null });
+    try {
+      const [blocks, actions] = await Promise.all([loadNarrativeBlocks(1), loadPlayerActions(1)]);
+      const placed = Object.values(doc.raw.pages?.find((p) => p.id === page.id)?.positions ?? {});
+      const pos = { x: 0, y: placed.length ? Math.max(...placed.map((p) => p.y)) + 120 : 0 };
+      const b = ops.sync(doc.raw, page.id, blocks, pos);
+      const a = ops.syncActions(b.raw, page.id, actions, { x: pos.x + 300, y: pos.y });
+      if (b.counts.updated || b.counts.added || a.counts.updated || a.counts.added) commit(a.raw);
+      const line = (c) => `${c.updated} actualitzats · ${c.added} nous · ${c.unchanged} sense canvis`;
+      setSync({
+        busy: false,
+        msg: `✓ Blocs: ${line(b.counts)} — Accions: ${line(a.counts)}${a.counts.orphan ? ` · ${a.counts.orphan} sense bloc` : ''}`,
+      });
+    } catch (err) {
+      setSync({ busy: false, msg: `Error sincronitzant: ${err.message}` });
+    }
+  };
   // Filled by layouts/diagrams.html from the reactflow-* front matter; absent under `npm run dev:diagrams`.
   const home = window.reactflowHomes?.[doc.id];
   const i = doc.pages.indexOf(page);
@@ -1171,6 +1210,13 @@ function App() {
               onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQuery('')} />
           )}
           {doc.file && <button className="focus-toggle resume-button" onClick={() => setResume(true)}>📝 Make Resume</button>}
+          {doc.file && (
+            <button className="focus-toggle sync-button" title="Porta els blocs narratius i les accions dels jugadors de la web (narrative_blocks, player_actions) a aquest JSON"
+              onClick={syncNarrative} disabled={sync.busy}>
+              {sync.busy ? 'Sincronitzant…' : '🔄 Sincronitzar'}
+            </button>
+          )}
+          {sync.msg && <span className="sync-msg">{sync.msg}</span>}
           <div className="eyebrow">{doc.title} › {page.section}</div>
           <h2>{page.title}</h2>
         </header>

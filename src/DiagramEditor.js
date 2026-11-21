@@ -14,10 +14,13 @@ export const NEW_KINDS = {
 export const prefixOf = (kind) => kind;
 export const isUml = (entry) => typeof entry === 'object' && entry?.type === 'uml';
 // Status values offered per kind
-const STATUSES = ['draft', 'ready', 'active', 'done'];
+const STATUSES = ['draft', 'published'];
 export const statusesOf = () => STATUSES;
 export const ID = /^[a-zA-Z][\w.-]*$/;
 // The title a narrative block gets from its id: narrativeBlock.CadenesBlanques -> 'Cadenes Blanques'.
+// "Bernat d'Aran" -> 'BernatDAran': a name as an id segment.
+const pascal = (name) => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^A-Za-z0-9]+/)
+  .filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join('');
 export const titleOf = (id) => id.replace(/^narrativeBlock\./, '').replace(/([A-Z])/g, ' $1').trim() || id;
 
 const DEFAULT_PAGE = { id: 'overview', section: 'Home', title: 'Everything', entities: '*' };
@@ -82,10 +85,11 @@ export const ops = {
   },
   // text and why: a plain string when there is no why, else { text, why } keeping any other field (columns, icon).
   // `properties` and `methods` (UML entities) are replaced when given; an empty methods list is dropped.
-  describe: (raw, id, { text, why, properties, methods }) => {
+  // `published` (narrativeBlock) is written when given as a boolean.
+  describe: (raw, id, { text, why, properties, methods, published }) => {
     const next = clone(raw);
     const old = next.entities?.[id];
-    const rest = { ...(old && typeof old === 'object' ? old : {}), ...(properties && { properties }) };
+    const rest = { ...(old && typeof old === 'object' ? old : {}), ...(properties && { properties }), ...(typeof published === 'boolean' && { published }) };
     if (methods) {
       if (methods.length) rest.methods = methods;
       else delete rest.methods;
@@ -105,7 +109,7 @@ export const ops = {
     return next;
   },
   // Narrative blocks from the web's narrative_blocks table: the table wins. A known node gets its text (content),
-  // why (dj_notes) and status 'published'; a node only in the table is added, stacked below pos on this page.
+  // why (dj_notes) and published flag; a node only in the table is added, stacked below pos on this page.
   // A title is kept only when it differs from the one the id gives. Returns the counts for the toolbar.
   sync: (raw, pageId, blocks, pos) => {
     let next = clone(raw);
@@ -116,7 +120,7 @@ export const ops = {
       const old = next.entities?.[id];
       const base = old && typeof old === 'object' ? old : old !== undefined ? { text: old } : {};
       const { title: _, ...rest } = base;
-      const value = { ...rest, text: b.content ?? '', why: b.dj_notes || undefined, status: 'published' };
+      const value = { ...rest, text: b.content ?? '', why: b.dj_notes || undefined, published: b.published !== false };
       if (b.title && b.title !== titleOf(id)) value.title = b.title;
       if (value.why === undefined) delete value.why;
       if (old === undefined) {
@@ -128,6 +132,46 @@ export const ops = {
         next.entities[id] = value;
         counts.updated++;
       }
+    }
+    return { raw: next, counts };
+  },
+  // Player choices from the web's player_actions table: one node per row, playerAction.<Block>.<Player>, linked
+  // from its narrative block ('tria'). The table wins on text (option chosen), why (notes), status and props.
+  // A row whose block is not in this file is skipped and counted, so a block sync should run first.
+  syncActions: (raw, pageId, actions, pos) => {
+    let next = clone(raw);
+    const counts = { updated: 0, added: 0, unchanged: 0, orphan: 0 };
+    const taken = new Map(); // id -> user_id, so two players with the same name in one block don't collide
+    for (const a of actions) {
+      const block = a.node_id;
+      if (typeof block !== 'string' || next.entities?.[block] === undefined) {
+        counts.orphan++;
+        continue;
+      }
+      const player = a.character_name || a.user_name || `U${a.user_id}`;
+      let id = `playerAction.${block.replace(/^narrativeBlock\./, '')}.${pascal(player) || `U${a.user_id}`}`;
+      if (taken.has(id) && taken.get(id) !== a.user_id) id += `U${a.user_id}`;
+      taken.set(id, a.user_id);
+      const old = next.entities[id];
+      const base = old && typeof old === 'object' ? old : {};
+      const props = [['Jugador', a.user_name], ['Personatge', a.character_name], ['Tirada', a.dice_roll], ['Opció', a.selected_option_id]]
+        .filter(([, v]) => v);
+      const value = { ...base, text: a.selected_option_text ?? '', status: 'published', props };
+      if (a.notes) value.why = a.notes;
+      else delete value.why;
+      const rel = [block, id, 'tria'];
+      const linked = (next.relations ?? []).some((r) => sameRel(r, rel));
+      if (old === undefined) {
+        next = ops.put(next, pageId, id, value, { x: pos.x, y: pos.y + counts.added * 90 });
+        counts.added++;
+      } else if (JSON.stringify(old) === JSON.stringify(value) && linked) {
+        counts.unchanged++;
+        continue;
+      } else {
+        next.entities[id] = value;
+        counts.updated++;
+      }
+      if (!linked) next.relations = [...(next.relations ?? []), rel];
     }
     return { raw: next, counts };
   },
@@ -182,13 +226,15 @@ export const ops = {
   }),
 };
 
-// The web's narrative blocks (narrative_blocks table), fetched as DJ by agent-bridge.mjs.
-export const loadNarrativeBlocks = (campaignId = 1) => fetch(`${process.env.AGENT_BRIDGE_URL}/web/narrative-blocks?campaignId=${campaignId}`)
+// The web's tables, fetched as DJ by agent-bridge.mjs: narrative_blocks and player_actions of a campaign.
+const loadWeb = (path, key) => (campaignId = 1) => fetch(`${process.env.AGENT_BRIDGE_URL}/web/${path}?campaignId=${campaignId}`)
   .then(async (r) => {
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || `bridge answered ${r.status}`);
-    return data.blocks;
+    return data[key];
   });
+export const loadNarrativeBlocks = loadWeb('narrative-blocks', 'blocks');
+export const loadPlayerActions = loadWeb('player-actions', 'actions');
 export const loadSdd = (file) => fetch(`${SDD_BRIDGE}?file=${encodeURIComponent(file)}`)
   .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`bridge answered ${r.status}`))));
 
