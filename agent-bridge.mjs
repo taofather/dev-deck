@@ -248,6 +248,11 @@ const server = createServer(async (req, res) => {
         .catch((err) => res.writeHead(err.code === 'ENOENT' ? 404 : 500).end(err.message));
     }
     if (req.method === 'PUT') {
+      // Only an existing diagram is overwritten: a page built before a diagram moved or was deleted would
+      // otherwise recreate the old copy (diagrams come from the bundle; adding or removing one needs a rebuild).
+      if (!existsSync(file)) {
+        return res.writeHead(404).end(`${url.searchParams.get('file')} no longer exists: reload the page (the bundle may be stale, restart npm run dev).`);
+      }
       return readBody(req, async (d) => {
         if (!isSdd(d)) return res.writeHead(400).end('not a diagram: { entities, relations, pages }');
         try {
