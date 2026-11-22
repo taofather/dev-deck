@@ -7,7 +7,7 @@ import '../docs/assets/custom.css';
 import './styles.css';
 
 import { docs, replaceSdd, sddDoc } from './content/index.js';
-import { ID, NEW_KINDS, OUTCOME_POINTERS, SIDES, cleanActions, isUml, loadNarrativeBlocks, loadPlayerActions, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf, titleOf } from './DiagramEditor.js';
+import { ID, NEW_KINDS, OUTCOME_POINTERS, SIDES, cleanActions, isUml, loadNarrativeBlocks, setBlockActive, loadPlayerActions, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf, titleOf } from './DiagramEditor.js';
 
 const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
 import { KeyValues, Labels, Stickies, useDark } from './Board.jsx';
@@ -560,6 +560,20 @@ function EntityEditor({ id, edit }) {
   const raw = typeof entry === 'object' ? entry?.status : undefined;
   // A narrativeBlock's status is its web `published` flag: Draft = false, Published = true (saved and sent at once).
   const published = typeof entry === 'object' && entry?.published === true;
+  // The block's is_active on the web, as last seen (Sincronitzar, Save, this button); undefined = not known yet.
+  const active = typeof entry === 'object' && typeof entry?.active === 'boolean' ? entry.active : undefined;
+  const [activating, setActivating] = useState(false);
+  const toggleActive = async () => {
+    setActivating(true);
+    setPublishMsg(null);
+    try {
+      edit.field(id, 'active', await setBlockActive(id, active !== true));
+    } catch (err) {
+      setPublishMsg(`Error canviant l'estat actiu: ${err.message}`);
+    } finally {
+      setActivating(false);
+    }
+  };
   const status = narrative ? (published ? 'published' : 'draft') : typeof raw === 'string' ? raw : '';
   const nextId = draft.id.trim();
   const actions = narrative ? cleanActions(draft.actions) : [];
@@ -673,6 +687,8 @@ function EntityEditor({ id, edit }) {
       if (!res.ok) {
         throw new Error(data.message || data.error || `HTTP ${res.status}`);
       }
+      // A new block is the active one on the web (the others are switched off there; Sincronitzar shows it).
+      if (typeof data.narrativeBlock?.is_active === 'boolean') edit.field(block.nodeId, 'active', data.narrativeBlock.is_active);
       const verb = res.status === 201 ? 'creat' : 'actualitzat';
       setPublishMsg(`✓ Desat i ${verb} a la web (${block.published ? 'publicat' : 'esborrany'})`);
     } catch (err) {
@@ -709,6 +725,13 @@ function EntityEditor({ id, edit }) {
           {!narrative && <option value="">— no status</option>}
           {[...new Set([...statusesOf(kind), status].filter(Boolean))].map((s) => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
         </select>
+        {narrative && (
+          <button type="button" className={`focus-toggle active-toggle ${active === true ? 'is-active' : active === false ? 'is-inactive' : ''}`}
+            onClick={toggleActive} disabled={activating || publishing}
+            title={active === undefined ? 'Estat actiu desconegut: prem Sincronitzar, o clica per activar-lo' : `Clica per ${active ? 'desactivar' : 'activar'} el bloc a la web`}>
+            {activating ? '…' : active === true ? '● Actiu' : active === false ? '○ Inactiu' : '◌ Actiu?'}
+          </button>
+        )}
         <DeleteButton id={id} edit={edit}>🗑 Delete</DeleteButton>
         {problem && <span className="board-error">{problem}</span>}
         {publishMsg && <span className={publishMsg.startsWith('✓') ? 'board-hint publish-success' : 'board-error'}>{publishMsg}</span>}
@@ -1136,11 +1159,13 @@ function App() {
     document.title = `${doc.title} – ${SITE_TITLE}`;
   }, [doc.title]);
   // Every change is applied at once, then written; a failed write shows in the toolbar and the next load restores the file.
+  // The file as it is now: doc.raw is this render's copy, older than a change made while a web request was pending.
+  const current = () => docs.find((d) => d.file === doc.file)?.raw ?? doc.raw;
   // record: false for undo/redo themselves, which move snapshots between the two stacks.
   const commit = (raw, then, { record = true } = {}) => {
     if (record) {
       const h = historyOf(doc.file);
-      h.past = [...h.past, doc.raw].slice(-HISTORY_LIMIT);
+      h.past = [...h.past, current()].slice(-HISTORY_LIMIT);
       h.future = [];
     }
     replaceSdd(doc.file, raw);
@@ -1201,9 +1226,10 @@ function App() {
       const matches = typeof p?.entities === 'string' && sddDoc(doc.file, { ...doc.raw, pages: [{ ...p, exclude: [], include: [] }] }).pages[0].entities.includes(id);
       commit(ops.show(doc.raw, pageId, id, matches));
     },
-    field: (id, key, value) => commit(ops.field(doc.raw, id, key, value)),
+    // On the current file, not this render's copy: also called when a web request answers.
+    field: (id, key, value) => commit(ops.field(current(), id, key, value)),
     // Several fields in one change (one undo step): { status, published } of a narrativeBlock.
-    fields: (id, values) => commit(Object.entries(values).reduce((raw, [k, v]) => ops.field(raw, id, k, v), doc.raw)),
+    fields: (id, values) => commit(Object.entries(values).reduce((raw, [k, v]) => ops.field(raw, id, k, v), current())),
     link: (rel) => commit(ops.link(doc.raw, rel)),
     unlink: (rel) => commit(ops.unlink(doc.raw, rel)),
     relabel: (rel, label) => commit(ops.relabel(doc.raw, rel, label)),

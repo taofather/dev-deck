@@ -147,7 +147,7 @@ export const ops = {
     return next;
   },
   // Narrative blocks from the web's narrative_blocks table: the table wins. A known node gets its text (content),
-  // why (dj_notes), published flag and actions (action_selector); a node only in the table is added, stacked below pos on this page.
+  // why (dj_notes), published flag, active flag (is_active) and actions (action_selector); a node only in the table is added, stacked below pos on this page.
   // A title is kept only when it differs from the one the id gives. Returns the counts for the toolbar.
   sync: (raw, pageId, blocks, pos) => {
     let next = clone(raw);
@@ -159,7 +159,7 @@ export const ops = {
       const base = old && typeof old === 'object' ? old : old !== undefined ? { text: old } : {};
       const { title: _, ...rest } = base;
       const published = b.published !== false;
-      const value = { ...rest, text: b.content ?? '', why: b.dj_notes || undefined, published, status: published ? 'published' : 'draft' };
+      const value = { ...rest, text: b.content ?? '', why: b.dj_notes || undefined, published, status: published ? 'published' : 'draft', active: b.is_active === true };
       if (b.title && b.title !== titleOf(id)) value.title = b.title;
       if (value.why === undefined) delete value.why;
       const actions = cleanActions(b.action_selector);
@@ -294,6 +294,14 @@ const loadWeb = (path, key) => (campaignId = 1) => fetch(`${process.env.AGENT_BR
     return data[key];
   });
 export const loadNarrativeBlocks = loadWeb('narrative-blocks', 'blocks');
+// Sets a narrative block's is_active on the web, by node; resolves to the stored value.
+export const setBlockActive = (nodeId, isActive, campaignId = 1) => fetch(`${process.env.AGENT_BRIDGE_URL}/web/block-active`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ campaignId, nodeId, isActive }),
+}).then(async (r) => {
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `bridge answered ${r.status}`);
+  return data.narrativeBlock.is_active;
+});
 export const loadPlayerActions = loadWeb('player-actions', 'actions');
 export const loadSdd = (file) => fetch(`${SDD_BRIDGE}?file=${encodeURIComponent(file)}`)
   .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`bridge answered ${r.status}`))));

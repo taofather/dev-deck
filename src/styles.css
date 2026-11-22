@@ -392,3 +392,6 @@ html.dark .reactflow-app .focus-toggle.danger, html.dark .reactflow-app .edge-me
 .reactflow-app .sdd-action-pointers span { white-space: nowrap; color: var(--color-neutral-600); }
 .reactflow-app .sdd-action-pointers input { flex: 1; min-width: 0; }
 .reactflow-app .sdd-actions .focus-toggle { float: none; }
+/* narrativeBlock is_active button (EntityEditor): green when active on the web, muted when not */
+.reactflow-app .active-toggle.is-active { color: #1e7d3a; border-color: #1e7d3a; }
+.reactflow-app .active-toggle.is-inactive { color: var(--color-neutral-500, #888); }

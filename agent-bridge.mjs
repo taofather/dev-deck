@@ -39,6 +39,17 @@ const functionHeaders = (token) => ({
 });
 let cachedDjToken = null;
 
+// fetch(url, init) against the web as the DJ; a refused token is renewed once.
+async function asDj(url, init = {}) {
+  const call = async () => fetch(url, { ...init, headers: { ...init.headers, Authorization: `Bearer ${await getDjToken()}` } });
+  let res = await call();
+  if (res.status === 401 || res.status === 403) {
+    cachedDjToken = null;
+    res = await call();
+  }
+  return res;
+}
+
 async function getDjToken() {
   if (cachedDjToken) return cachedDjToken;
   const res = await fetch(`${webUrl()}/api/auth/login`, {
@@ -407,15 +418,8 @@ const server = createServer(async (req, res) => {
   if (SYNC_ROUTES[url.pathname] && req.method === 'GET') {
     const [path, from, to] = SYNC_ROUTES[url.pathname];
     const campaignId = encodeURIComponent(url.searchParams.get('campaignId') || '1');
-    const get = (token) => fetch(`${webUrl()}${path}?campaignId=${campaignId}`, {
-      headers: { 'Authorization': `Bearer ${token}` },
-    });
     try {
-      let resWeb = await get(await getDjToken());
-      if (resWeb.status === 401 || resWeb.status === 403) {
-        cachedDjToken = null;
-        resWeb = await get(await getDjToken());
-      }
+      const resWeb = await asDj(`${webUrl()}${path}?campaignId=${campaignId}`);
       const data = await resWeb.json().catch(() => ({}));
       if (!resWeb.ok) throw new Error(data.error || `web answered ${resWeb.status}`);
       return json(res, { [to]: data[from] ?? [] });
@@ -423,6 +427,24 @@ const server = createServer(async (req, res) => {
       console.error(`[${url.pathname}] error:`, err.message);
       return res.writeHead(502, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: err.message }));
     }
+  }
+
+  // Web integration: a narrative block's is_active, by node (Actiu/Inactiu button). Body { campaignId, nodeId, isActive }.
+  if (url.pathname === '/web/block-active' && req.method === 'POST') {
+    return readBody(req, async (b) => {
+      try {
+        const resWeb = await asDj(`${webUrl()}/api/narrative/block/active`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campaignId: b?.campaignId ?? 1, nodeId: b?.nodeId, isActive: b?.isActive }),
+        });
+        const data = await resWeb.json().catch(() => ({}));
+        return res.writeHead(resWeb.status, { 'Content-Type': 'application/json' }).end(JSON.stringify(data));
+      } catch (err) {
+        console.error('[web/block-active] error:', err.message);
+        return res.writeHead(502, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: err.message }));
+      }
+    });
   }
 
   // Web integration: check connection & DJ authentication status
