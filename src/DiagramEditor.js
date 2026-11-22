@@ -18,6 +18,34 @@ const STATUSES = ['draft', 'published'];
 export const statusesOf = () => STATUSES;
 export const ID = /^[a-zA-Z][\w.-]*$/;
 // The title a narrative block gets from its id: narrativeBlock.CadenesBlanques -> 'Cadenes Blanques'.
+// A narrativeBlock's `actions`, the options the web offers players (narrative_blocks.action_selector):
+// [{ id, type?, label, excludes?, block_id_on_success?, block_id_on_failure?, block_id_on_critical?, block_id_on_slip? }].
+// Trimmed; rows without id are dropped; `excludes` keeps only other rows' ids. The block_id_on_* pointers are the
+// node_id of the next narrative block per roll outcome (success, failure, critical success, slip); a row whose
+// type is not 'roll' keeps only block_id_on_success, its default.
+export const OUTCOME_POINTERS = ['block_id_on_success', 'block_id_on_failure', 'block_id_on_critical', 'block_id_on_slip'];
+export const cleanActions = (list) => {
+  const rows = (Array.isArray(list) ? list : [])
+    .filter((a) => a && typeof a === 'object')
+    .map((a) => ({
+      ...a,
+      id: String(a.id ?? '').trim(),
+      type: String(a.type ?? a.kind ?? '').trim(),
+      label: String(a.label ?? '').trim(),
+    }))
+    .filter((a) => a.id);
+  const ids = new Set(rows.map((a) => a.id));
+  return rows.map((a) => {
+    const { id, type, label, excludes } = a;
+    const ex = Array.isArray(excludes) ? [...new Set(excludes)].filter((x) => x !== id && ids.has(x)) : [];
+    const pointers = Object.fromEntries(OUTCOME_POINTERS
+      .filter((k) => type === 'roll' || k === 'block_id_on_success')
+      .map((k) => [k, String(a[k] ?? '').trim()])
+      .filter(([, v]) => v));
+    return { id, ...(type && { type }), label, ...(ex.length && { excludes: ex }), ...pointers };
+  });
+};
+
 // "Bernat d'Aran" -> 'BernatDAran': a name as an id segment.
 const pascal = (name) => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^A-Za-z0-9]+/)
   .filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join('');
@@ -90,14 +118,19 @@ export const ops = {
   },
   // text and why: a plain string when there is no why, else { text, why } keeping any other field (columns, icon).
   // `properties` and `methods` (UML entities) are replaced when given; an empty methods list is dropped.
-  // `published` (narrativeBlock) is written when given as a boolean.
-  describe: (raw, id, { text, why, properties, methods, published }) => {
+  // `published` (narrativeBlock) is written when given as a boolean; `actions` (narrativeBlock) when given as an array,
+  // an empty one removing it.
+  describe: (raw, id, { text, why, properties, methods, published, actions }) => {
     const next = clone(raw);
     const old = next.entities?.[id];
     const rest = { ...(old && typeof old === 'object' ? old : {}), ...(properties && { properties }), ...(typeof published === 'boolean' && { published }) };
     if (methods) {
       if (methods.length) rest.methods = methods;
       else delete rest.methods;
+    }
+    if (Array.isArray(actions)) {
+      if (actions.length) rest.actions = actions;
+      else delete rest.actions;
     }
     next.entities = { ...next.entities, [id]: why || Object.keys(rest).some((k) => k !== 'text' && k !== 'why') ? { ...rest, text, why: why || undefined } : text };
     return next;
@@ -114,7 +147,7 @@ export const ops = {
     return next;
   },
   // Narrative blocks from the web's narrative_blocks table: the table wins. A known node gets its text (content),
-  // why (dj_notes) and published flag; a node only in the table is added, stacked below pos on this page.
+  // why (dj_notes), published flag and actions (action_selector); a node only in the table is added, stacked below pos on this page.
   // A title is kept only when it differs from the one the id gives. Returns the counts for the toolbar.
   sync: (raw, pageId, blocks, pos) => {
     let next = clone(raw);
@@ -125,9 +158,13 @@ export const ops = {
       const old = next.entities?.[id];
       const base = old && typeof old === 'object' ? old : old !== undefined ? { text: old } : {};
       const { title: _, ...rest } = base;
-      const value = { ...rest, text: b.content ?? '', why: b.dj_notes || undefined, published: b.published !== false };
+      const published = b.published !== false;
+      const value = { ...rest, text: b.content ?? '', why: b.dj_notes || undefined, published, status: published ? 'published' : 'draft' };
       if (b.title && b.title !== titleOf(id)) value.title = b.title;
       if (value.why === undefined) delete value.why;
+      const actions = cleanActions(b.action_selector);
+      if (actions.length) value.actions = actions;
+      else delete value.actions;
       if (old === undefined) {
         next = ops.put(next, pageId, id, value, { x: pos.x, y: pos.y + counts.added * 90 });
         counts.added++;
@@ -140,7 +177,7 @@ export const ops = {
     }
     return { raw: next, counts };
   },
-  // Player choices from the web's player_actions table: one node per row, playerAction.<Block>.<Player>, linked
+  // Player choices from the web's player_actions table: one node per row, playerAction.<Block>.<Player>.<option>, linked
   // from its narrative block ('tria'). The table wins on text (option chosen), why (notes), status and props.
   // A row whose block is not in this file is skipped and counted, so a block sync should run first.
   syncActions: (raw, pageId, actions, pos) => {
@@ -154,9 +191,23 @@ export const ops = {
         continue;
       }
       const player = a.character_name || a.user_name || `U${a.user_id}`;
-      let id = `playerAction.${block.replace(/^narrativeBlock\./, '')}.${pascal(player) || `U${a.user_id}`}`;
-      if (taken.has(id) && taken.get(id) !== a.user_id) id += `U${a.user_id}`;
-      taken.set(id, a.user_id);
+      let who = `playerAction.${block.replace(/^narrativeBlock\./, '')}.${pascal(player) || `U${a.user_id}`}`;
+      if (taken.has(who) && taken.get(who) !== a.user_id) who += `U${a.user_id}`;
+      taken.set(who, a.user_id);
+      // One node per choice: the web keeps one row per (block, player, option), so the option ends the id.
+      const option = String(a.selected_option_id ?? '').replace(/[^\w-]/g, '_') || `a${a.id}`;
+      const id = `${who}.${option}`;
+      // A node from before options were in the id (block + player only) becomes this choice's node when it holds this
+      // option, keeping its position and relations.
+      const legacy = next.entities[who];
+      let renamed = false;
+      if (legacy !== undefined && next.entities[id] === undefined) {
+        const held = (legacy?.props ?? []).find(([k]) => k === 'Opció')?.[1];
+        if (!held || held === a.selected_option_id) {
+          next = ops.rename(next, who, id);
+          renamed = true;
+        }
+      }
       const old = next.entities[id];
       const base = old && typeof old === 'object' ? old : {};
       const props = [['Jugador', a.user_name], ['Personatge', a.character_name], ['Tirada', a.dice_roll], ['Opció', a.selected_option_id]]
@@ -170,7 +221,7 @@ export const ops = {
         next = ops.put(next, pageId, id, value, { x: pos.x, y: pos.y + counts.added * 90 });
         counts.added++;
       } else if (JSON.stringify(old) === JSON.stringify(value) && linked) {
-        counts.unchanged++;
+        counts[renamed ? 'updated' : 'unchanged']++;
         continue;
       } else {
         next.entities[id] = value;

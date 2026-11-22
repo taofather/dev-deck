@@ -382,3 +382,13 @@ html.dark .reactflow-app .edge-menu button.danger:hover { background: rgb(248 11
 html.dark .reactflow-app .labels .sticky button { color: currentColor; opacity: .6; }
 html.dark .reactflow-app .board-error, html.dark .reactflow-app .session-log .msg.error,
 html.dark .reactflow-app .focus-toggle.danger, html.dark .reactflow-app .edge-menu button.danger { color: #f87171; }
+/* narrativeBlock actions (ActionsEditor in main.jsx): id · type · label · ✕ per row */
+.reactflow-app .sdd-actions { border: 1px solid var(--color-neutral-200); border-radius: 4px; padding: 6px 8px; margin: 4px 0; }
+.reactflow-app .sdd-actions legend { font-size: 12px; font-weight: 600; padding: 0 4px; }
+.reactflow-app .sdd-action-row { display: grid; grid-template-columns: 7em 7em 1fr auto; gap: 4px; margin-bottom: 4px; }
+.reactflow-app .sdd-action-row input { min-width: 0; }
+.reactflow-app .sdd-action-pointers { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 6px; padding-left: 7em; font-size: 11px; }
+.reactflow-app .sdd-action-pointers label { display: flex; align-items: center; gap: 4px; }
+.reactflow-app .sdd-action-pointers span { white-space: nowrap; color: var(--color-neutral-600); }
+.reactflow-app .sdd-action-pointers input { flex: 1; min-width: 0; }
+.reactflow-app .sdd-actions .focus-toggle { float: none; }

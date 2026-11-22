@@ -7,7 +7,7 @@ import '../docs/assets/custom.css';
 import './styles.css';
 
 import { docs, replaceSdd, sddDoc } from './content/index.js';
-import { ID, NEW_KINDS, SIDES, isUml, loadNarrativeBlocks, loadPlayerActions, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf, titleOf } from './DiagramEditor.js';
+import { ID, NEW_KINDS, OUTCOME_POINTERS, SIDES, cleanActions, isUml, loadNarrativeBlocks, loadPlayerActions, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf, titleOf } from './DiagramEditor.js';
 
 const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
 import { KeyValues, Labels, Stickies, useDark } from './Board.jsx';
@@ -501,11 +501,51 @@ const openEntity = (doc, page, id) => {
 };
 
 // Panel editor of a node declared in the open diagram: id, text, why. Remounted per entity (key).
+// A narrativeBlock's actions (the web's ActionSelector): one row per option, id · type · label, and below it the
+// next block (node_id) per roll outcome; an option that is not 'roll' only has block_id_on_success. Saved with Save.
+const ACTION_TYPES = ['option', 'roll', 'other', 'tactical', 'bravery', 'stealth', 'faith'];
+const OUTCOME_LABELS = {
+  block_id_on_success: '✔ Èxit', block_id_on_critical: '★ Èxit rotund', block_id_on_failure: '✘ Fracàs', block_id_on_slip: '☠ Pífia',
+};
+function ActionsEditor({ actions, onChange, blockIds = [] }) {
+  const set = (i, key) => (e) => onChange(actions.map((a, n) => (n === i ? { ...a, [key]: e.target.value } : a)));
+  const nextId = () => {
+    const taken = new Set(actions.map((a) => a.id));
+    let n = actions.length + 1;
+    while (taken.has(`opt_${n}`)) n++;
+    return `opt_${n}`;
+  };
+  return (
+    <fieldset className="sdd-actions">
+      <legend>Accions <span className="muted">opcions per als jugadors</span></legend>
+      {actions.map((a, i) => (
+        <div key={i} className="sdd-action-row">
+          <input aria-label="id" placeholder="id" value={a.id ?? ''} onChange={set(i, 'id')} />
+          <input aria-label="type" placeholder="type" list="sdd-action-types" value={a.type ?? ''} onChange={set(i, 'type')} />
+          <input aria-label="label" placeholder="label" value={a.label ?? ''} onChange={set(i, 'label')} />
+          <button type="button" className="focus-toggle danger" title="Treu l'acció" onClick={() => onChange(actions.filter((_, n) => n !== i))}>✕</button>
+          <div className="sdd-action-pointers">
+            {OUTCOME_POINTERS.filter((k) => a.type === 'roll' || k === 'block_id_on_success').map((k) => (
+              <label key={k}>
+                <span>{a.type === 'roll' ? OUTCOME_LABELS[k] : '→ Bloc següent'}</span>
+                <input aria-label={k} placeholder="narrativeBlock.…" list="sdd-block-ids" value={a[k] ?? ''} onChange={set(i, k)} />
+              </label>
+            ))}
+          </div>
+        </div>
+      ))}
+      <datalist id="sdd-action-types">{ACTION_TYPES.map((t) => <option key={t} value={t} />)}</datalist>
+      <datalist id="sdd-block-ids">{blockIds.map((b) => <option key={b} value={b} />)}</datalist>
+      <button type="button" className="focus-toggle" onClick={() => onChange([...actions, { id: nextId(), type: '', label: '' }])}>+ Acció</button>
+    </fieldset>
+  );
+}
+
 function EntityEditor({ id, edit }) {
   const entry = edit.raw.entities?.[id];
   const [draft, setDraft] = useState(() => ({
     id, text: typeof entry === 'string' ? entry : entry?.text ?? '', why: typeof entry === 'object' ? entry?.why ?? '' : '',
-    published: typeof entry === 'object' && entry?.published === true,
+    actions: typeof entry === 'object' ? (entry?.actions ?? []).map((a) => ({ ...a })) : [],
   }));
   const kind = id.split(/[.-]/)[0];
   const narrative = kind === 'narrativeBlock';
@@ -518,25 +558,42 @@ function EntityEditor({ id, edit }) {
   // Methods: `signature: note` lines; the first colon splits, so a signature cannot hold one.
   const [meths, setMeths] = useState(() => lines(entry?.methods));
   const raw = typeof entry === 'object' ? entry?.status : undefined;
-  const status = typeof raw === 'string' ? raw : '';
+  // A narrativeBlock's status is its web `published` flag: Draft = false, Published = true (saved and sent at once).
+  const published = typeof entry === 'object' && entry?.published === true;
+  const status = narrative ? (published ? 'published' : 'draft') : typeof raw === 'string' ? raw : '';
   const nextId = draft.id.trim();
-  const problem = !ID.test(nextId) ? 'Id: prefix.Name (e.g. controlPoint.Action)' : nextId !== id && edit.raw.entities?.[nextId] !== undefined ? `${nextId} already exists` : null;
+  const actions = narrative ? cleanActions(draft.actions) : [];
+  const actionIds = actions.map((a) => a.id);
+  const actionProblem = !narrative ? null
+    : draft.actions.some((a) => !String(a.id ?? '').trim() && String(a.label ?? '').trim()) ? 'Accions: cada acció necessita un id'
+      : actionIds.length !== new Set(actionIds).size ? 'Accions: ids repetits'
+        : actions.some((a) => !a.label) ? 'Accions: cada acció necessita un label' : null;
+  const problem = !ID.test(nextId) ? 'Id: prefix.Name (e.g. controlPoint.Action)' : nextId !== id && edit.raw.entities?.[nextId] !== undefined ? `${nextId} already exists` : actionProblem;
   const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value });
   const properties = pairs(props);
   const methods = pairs(meths);
   // Save: writes the active JSON and, for a narrativeBlock, sends it to the web (upsert by node_id) with its published flag.
   const save = () => {
     if (problem) return;
-    edit.save(id, nextId, { text: draft.text.trim(), why: draft.why.trim(), ...(uml && { properties, methods }), ...(narrative && { published: draft.published }) });
-    if (narrative) sendToWeb();
+    edit.save(id, nextId, { text: draft.text.trim(), why: draft.why.trim(), ...(uml && { properties, methods }), ...(narrative && { actions }) });
+    if (narrative) sendToWeb({ nodeId: nextId, text: draft.text.trim(), why: draft.why.trim(), published, actions });
+  };
+  // Status of a narrativeBlock: JSON (status + published) and web at once, with the block as saved (not the open draft).
+  const setStatus = (value) => {
+    if (!narrative) return edit.field(id, 'status', value);
+    const next = value === 'published';
+    edit.fields(id, { status: value || undefined, published: next });
+    const stored = typeof entry === 'object' ? entry : { text: entry ?? '' };
+    sendToWeb({ nodeId: id, text: (stored.text ?? '').trim(), why: (stored.why ?? '').trim(), published: next, actions: cleanActions(stored.actions) });
   };
   const keys = (e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && save();
 
   const [publishing, setPublishing] = useState(false);
   const [publishMsg, setPublishMsg] = useState(null);
 
-  const sendToWeb = async () => {
-    if (!draft.text.trim()) {
+  // block: { nodeId, text, why, published, actions } as it should be on the web.
+  const sendToWeb = async (block) => {
+    if (!block.text) {
       setPublishMsg('Desat al JSON. No enviat a la web: falta el text.');
       return;
     }
@@ -548,38 +605,19 @@ function EntityEditor({ id, edit }) {
       const relCp = relations.find(([a, b]) => (a === id && b.startsWith('controlPoint.')) || (b === id && a.startsWith('controlPoint.')));
       const controlPointLabel = relCp ? (relCp[0].startsWith('controlPoint.') ? relCp[0] : relCp[1]) : '';
 
-      const connectedActions = relations
-        .filter(([a, b]) => (a === id && (b.startsWith('actionSelection.') || b.startsWith('playerAction.'))) || (b === id && (a.startsWith('actionSelection.') || a.startsWith('playerAction.'))))
-        .map(([a, b]) => (a === id ? b : a));
-
-      const optionNodes = [];
-      for (const act of connectedActions) {
-        if (act.startsWith('actionSelection.')) {
-          const sub = relations.filter(([a]) => a === act).map(([, b]) => b).filter((b) => b.startsWith('playerAction.'));
-          if (sub.length) optionNodes.push(...sub);
-          else optionNodes.push(act);
-        } else {
-          optionNodes.push(act);
-        }
-      }
-
-      const actionSelector = [...new Set(optionNodes)].map((optId, idx) => ({
-        id: `opt_${idx + 1}`,
-        label: (edit.raw.entities?.[optId]?.text || optId).slice(0, 140),
-      }));
-
-      const title = entry?.title || titleOf(nextId);
+      const title = entry?.title || titleOf(block.nodeId);
 
       const payload = {
         campaignId: 1,
-        nodeId: nextId,
-        published: draft.published,
+        nodeId: block.nodeId,
+        published: block.published,
         title,
-        content: draft.text.trim(),
-        why: draft.why.trim() || undefined,
+        content: block.text,
+        why: block.why || undefined,
         turnLabel: turnLabel || undefined,
         controlPointLabel: controlPointLabel || undefined,
-        actionSelector: actionSelector.length ? actionSelector : undefined,
+        // The block's own actions: always sent, so removing them all clears the web's options too.
+        actionSelector: block.actions,
       };
 
       const webBase = requireEnvUrl('WEB_URL', process.env.WEB_URL);
@@ -636,7 +674,7 @@ function EntityEditor({ id, edit }) {
         throw new Error(data.message || data.error || `HTTP ${res.status}`);
       }
       const verb = res.status === 201 ? 'creat' : 'actualitzat';
-      setPublishMsg(`✓ Desat i ${verb} a la web (${draft.published ? 'publicat' : 'esborrany'})`);
+      setPublishMsg(`✓ Desat i ${verb} a la web (${block.published ? 'publicat' : 'esborrany'})`);
     } catch (err) {
       setPublishMsg(`Desat al JSON. Error enviant a la web: ${err.message}`);
     } finally {
@@ -654,12 +692,11 @@ function EntityEditor({ id, edit }) {
       {uml && <label>Properties <span className="muted">one per line, name: type</span><textarea rows={Math.max(4, properties.length + 1)} value={props} onChange={(e) => setProps(e.target.value)} /></label>}
       {uml && <label>Methods <span className="muted">one per line, signature: note</span><textarea rows={Math.max(3, methods.length + 1)} value={meths} onChange={(e) => setMeths(e.target.value)} /></label>}
       {narrative && (
-        <label>Published{' '}
-          <select className="sdd-published" value={String(draft.published)} onChange={(e) => setDraft({ ...draft, published: e.target.value === 'true' })}>
-            <option value="false">false</option>
-            <option value="true">true</option>
-          </select>
-        </label>
+        <ActionsEditor
+          actions={draft.actions}
+          onChange={(next) => setDraft({ ...draft, actions: next })}
+          blockIds={Object.keys(edit.raw.entities ?? {}).filter((k) => k.startsWith('narrativeBlock.') && k !== id)}
+        />
       )}
       {!uml && <KeyValues key={id} pairs={typeof entry === 'object' ? entry?.props ?? [] : []} onChange={(next) => edit.field(id, 'props', next)} />}
       <div className="note-editor-bar">
@@ -667,8 +704,9 @@ function EntityEditor({ id, edit }) {
           title={narrative ? 'Desa al JSON i envia el bloc a la web (narrative_blocks)' : undefined}>
           {publishing ? 'Desant…' : 'Save ⌘↵'}
         </button>
-        <select className="sdd-status" aria-label="Status" value={status} onChange={(e) => edit.field(id, 'status', e.target.value)}>
-          <option value="">— no status</option>
+        <select className="sdd-status" aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} disabled={publishing}
+          title={narrative ? 'Draft / Published: es desa al JSON i s\'envia a la web en aquest moment' : undefined}>
+          {!narrative && <option value="">— no status</option>}
           {[...new Set([...statusesOf(kind), status].filter(Boolean))].map((s) => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
         </select>
         <DeleteButton id={id} edit={edit}>🗑 Delete</DeleteButton>
@@ -1009,6 +1047,9 @@ function App() {
   // web (Save of a narrativeBlock, Sincronitzar) is not undone. A change from outside (agent, editor) empties the stack,
   // since restoring an older snapshot would also wipe that change.
   const history = useRef(new Map());
+  // Bumped whenever the JSON changes under an open node form (undo/redo, Sincronitzar, a reload from disk): the form
+  // remounts with the stored values instead of keeping, and re-saving, the ones it was opened with.
+  const restored = useRef(0);
   const historyOf = (file) => {
     if (!history.current.has(file)) history.current.set(file, { past: [], future: [] });
     return history.current.get(file);
@@ -1036,6 +1077,7 @@ function App() {
         if (saving.current || JSON.stringify(raw) === JSON.stringify(docs.find((x) => x.file === d.file)?.raw)) return false;
         replaceSdd(d.file, raw);
         history.current.delete(d.file);
+        restored.current++;
         return true;
       })))
         .then((changed) => {
@@ -1110,8 +1152,6 @@ function App() {
       .finally(() => saving.current--);
   };
   const h = doc.file ? historyOf(doc.file) : { past: [], future: [] };
-  // Bumped by undo/redo: the node form remounts with the restored text instead of keeping (and re-saving) the undone one.
-  const restored = useRef(0);
   const undo = () => {
     if (!h.past.length) return;
     restored.current++;
@@ -1162,6 +1202,8 @@ function App() {
       commit(ops.show(doc.raw, pageId, id, matches));
     },
     field: (id, key, value) => commit(ops.field(doc.raw, id, key, value)),
+    // Several fields in one change (one undo step): { status, published } of a narrativeBlock.
+    fields: (id, values) => commit(Object.entries(values).reduce((raw, [k, v]) => ops.field(raw, id, k, v), doc.raw)),
     link: (rel) => commit(ops.link(doc.raw, rel)),
     unlink: (rel) => commit(ops.unlink(doc.raw, rel)),
     relabel: (rel, label) => commit(ops.relabel(doc.raw, rel, label)),
@@ -1179,7 +1221,10 @@ function App() {
       const pos = { x: 0, y: placed.length ? Math.max(...placed.map((p) => p.y)) + 120 : 0 };
       const b = ops.sync(doc.raw, page.id, blocks, pos);
       const a = ops.syncActions(b.raw, page.id, actions, { x: pos.x + 300, y: pos.y });
-      if (b.counts.updated || b.counts.added || a.counts.updated || a.counts.added) commit(a.raw);
+      if (b.counts.updated || b.counts.added || a.counts.updated || a.counts.added) {
+        restored.current++;
+        commit(a.raw);
+      }
       const line = (c) => `${c.updated} actualitzats · ${c.added} nous · ${c.unchanged} sense canvis`;
       setSync({
         busy: false,
