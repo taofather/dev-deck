@@ -296,6 +296,13 @@
       "why": "Inici del viatge forçat a aturar-se pel temporal.",
       "status": "published",
       "published": true,
+      "actions": [
+        {
+          "id": "opt_escalfar",
+          "label": "Demanar vi calent i apropar-se a la llar de foc"
+        }
+      ],
+      "active": false,
       "title": "Arribada a l'Hostalatge de Burgui"
     },
     "narrativeBlock.CadenesBlanques": {
@@ -307,6 +314,14 @@
       "text": "A la vora del foc de la llar, un vell cec anomenat Ximún murmura versos en basc antic mentre agita un estrany escapulari entre els dits tremolosos. 'No hi haurà pau fins que la sang d'Elixe s'alliberi'.",
       "why": "Descobreix la tragèdia d'Elixe i l'escapulari sagrat.",
       "published": true,
+      "actions": [
+        {
+          "id": "opt_escoltar",
+          "label": "Escoltar amb atenció la cantinela de Ximún"
+        }
+      ],
+      "status": "published",
+      "active": false,
       "title": "La Profecia de Ximún el Cec i el Malefici"
     },
     "narrativeBlock.EsclauFidel": {
@@ -335,31 +350,220 @@
       "published": false,
       "status": "draft"
     },
-    "narrativeBlock.NitABurgui": {
-      "text": "escollir si estable o habitació",
-      "status": "published"
-    },
     "narrativeBlock.VigilanciaEstables": {
       "text": "Bernat s'ha separat de la sala principal per revisar els cavalls als estables posteriors. Rere el torb de la tempesta, una presència demoníaca i un grup de gossos feréstecs amb ulls de sofre envolten la quadra.\n\nEl cavall renilla amb terror i la fusta de la porta comença a cedir davant les urpes.",
       "why": "Separació de PJs: Bernat afronta el perill físic als estables.",
       "published": true,
+      "actions": [
+        {
+          "id": "opt_espasa",
+          "type": "roll",
+          "label": "Desenvainar l'espasa toledana i plantar cara a la bèstia líder (Tirada d'Espasa)"
+        },
+        {
+          "id": "opt_barricada",
+          "type": "option",
+          "label": "Reforçar la tranca de la porta amb una biga de roure"
+        },
+        {
+          "id": "opt_torxa",
+          "type": "bravery",
+          "label": "Prendre una torxa d'oli i llançar flames cap a les ombres"
+        }
+      ],
+      "status": "published",
+      "active": false,
       "title": "La Vigilància dels Estables i les Feres"
     },
     "narrativeBlock.HerbesCambraFunebre": {
-      "text": "Mentre en Bernat és als estables, la Clara ha pujat al pis superior cercant llenya seca. En una cambra en penombra descobreix un bagul obert d'on brolla una aroma intensa d'espígol podrit i acònit.\n\nRere les ampolles hi ha una carta tacada de cera vermella amb el nom d'Elixe i instruccions per conjurar l'escapulari.",
-      "why": "Separació de PJs: Clara investiga el secret ocult i les herbes.",
+      "text": "Mentre en Bernat és als estables, la Clara ha pujat al pis superior cercant llenya seca. En una cambra en penombra descobreix un bagul obert d'on brolla una aroma intensa.\n\nRere les ampolles hi ha una carta tacada de cera vermella.",
+      "why": "Separació de PJs: Clara investiga el secret ocult i les herbes.\n\n- La carta té el nom d'Elixe i instruccions per conjurar l'escapulari.\n- L'olor és d'espígol podrit i acònit.",
+      "actions": [
+        {
+          "id": "opt_olor",
+          "type": "option",
+          "label": "Examinar el bagul a la cerca de la font de l'olor",
+          "block_id_on_success": "narrativeBlock.HerbesCambraFunebre.ExaminarBagul"
+        },
+        {
+          "id": "opt_carta",
+          "type": "option",
+          "label": "Examinar la carta",
+          "block_id_on_success": "narrativeBlock.HerbesCambraFunebre.ExaminarCarta"
+        }
+      ],
+      "status": "published",
       "published": true,
+      "active": false,
       "title": "El Misteri de les Herbes a la Cambra Fúnebre"
     },
-    "playerAction.HerbesCambraFunebre.ClaraDeYesa": {
-      "text": "Examinar la puresa del verí d'acònit (Tirada de Coneixement Vegetal)",
+    "narrativeBlock.HerbesCambraFunebre.ExaminarBagul": {
+      "text": "La Clara remena entre les ampolles i els farcells d'herbes. L'olor és d'espígol podrit i una altra planta.",
+      "why": "- Pista cap a l'Iditxa i la seva poció de dominació.\n- Tirada d'Alquímia o Conèixer Plantes per identificar l'acònit.",
+      "props": [
+        ["Opció", "opt_olor"],
+        ["Bloc", "narrativeBlock.HerbesCambraFunebre"]
+      ],
+      "status": "published",
+      "published": true,
+      "actions": [
+        {
+          "id": "plantes",
+          "type": "roll",
+          "label": "Tirada de Coneixement Vegetal"
+        }
+      ],
+      "active": false
+    },
+    "narrativeBlock.HerbesCambraFunebre.ExaminarCarta": {
+      "text": "La Clara trenca el segell de cera vermella. La carta porta el nom d'Elixe.",
+      "why": "- Revela el vincle entre Elixe i instruccions per conjurar l'escapulari.\n- Tirada de Llegir i Escriure (o Llatí) per desxifrar-la sencera.",
+      "props": [
+        ["Opció", "opt_carta"],
+        ["Bloc", "narrativeBlock.HerbesCambraFunebre"]
+      ],
+      "status": "published",
+      "published": true,
+      "actions": [
+        {
+          "id": "opt_llegir_carta",
+          "type": "roll",
+          "label": "Intentar llegir (tirada de llatí)",
+          "block_id_on_success": "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit",
+          "block_id_on_failure": "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas"
+        }
+      ],
+      "active": false
+    },
+    "playerAction.HerbesCambraFunebre.ExaminarBagul.ClaraDeYesa.plantes": {
+      "text": "Tirada de Coneixement Vegetal",
       "status": "published",
       "props": [
         ["Jugador", "Clara de Yesa"],
         ["Personatge", "Clara de Yesa"],
-        ["Tirada", "1d100: 81%"],
-        ["Opció", "opt_aconito"]
+        ["Tirada", "1d100: 91%"],
+        ["Opció", "plantes"]
       ]
+    },
+    "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Exit": {
+      "text": "Els dits de la Clara aparten l'espígol podrit i troben, al fons del bagul, arrels d'acònit embolicades en drap negre i un flascó de líquid espès que fa olor de mel i de mort.\n\nNo són remeis de cap remeiera: són els ingredients d'un beuratge per doblegar la voluntat.",
+      "why": "Èxit a la tirada de Coneixement Vegetal.\n\n- La Clara identifica l'acònit i la preparació de la poció de dominació.\n- Quan l'Iditxa els ofereixi menjar o beure a la cabana, la Clara en reconeixerà l'olor i podrà advertir el grup.",
+      "props": [
+        ["Resultat", "Èxit"],
+        ["Tirada", "playerAction.HerbesCambraFunebre.ExaminarBagul.ClaraDeYesa.plantes"]
+      ],
+      "status": "published",
+      "published": true,
+      "active": false,
+      "title": "L'Acònit Reconegut"
+    },
+    "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Fracas": {
+      "title": "La Pols que Adorm els Dits",
+      "text": "La Clara remena els farcells sense reconèixer-ne cap. Una pols fina se li enganxa als dits i, en fregar-se la cara, sent una fiblada gelada als llavis.\n\nUn formigueig li adorm les mans i el cap li roda. Surt de la cambra convençuda que només ha trobat les herbes velles d'alguna curandera.",
+      "why": "Fracàs a la tirada de Coneixement Vegetal.\n\n- La Clara pateix una lleu intoxicació d'acònit: penalitzador a les tirades de destresa fins a l'alba.\n- No reconeixerà el beuratge de l'Iditxa: el grup serà més vulnerable al seu engany.",
+      "status": "draft",
+      "props": [
+        ["Resultat", "Fracàs"],
+        ["Tirada", "playerAction.HerbesCambraFunebre.ExaminarBagul.ClaraDeYesa.plantes"]
+      ]
+    },
+    "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit": {
+      "text": "A la llum de l'espelma, la Clara desxifra la lletra atapeïda, barreja de llatí i èuscar. La carta parla d'Elixe: el seu cos jau sota el terra d'una cabana del bosc, i l'escapulari que li penja del coll encadena la seva ànima a aquesta terra.\n\nL'última línia és una ordre: «Que ningú no li arrenqui abans de Tots Sants».",
+      "why": "Èxit a la tirada de Llegir i Escriure (o Llatí).\n\n- La Clara sap on és el cos d'Elixe i que cal arrencar-li l'escapulari per alliberar Burgui.\n- Sap també que el termini és la nit de Tots Sants.",
+      "props": [
+        ["Resultat", "Èxit"],
+        ["Tirada", "Llegir i Escriure (o Llatí)"]
+      ],
+      "status": "published",
+      "published": true,
+      "active": false,
+      "title": "Les Paraules sota la Cera"
+    },
+    "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas": {
+      "title": "La Carta Mal Llegida",
+      "text": "La tinta s'ha corregut i la lletra és estranya. La Clara només n'arrenca fragments: «Elixe», «escapulari», «Tots Sants», «protegeix».\n\nEn treu una conclusió tranquil·litzadora i falsa: l'escapulari és un amulet que guarda de la bruixa, i cal conservar-lo.",
+      "why": "Fracàs a la tirada de Llegir i Escriure (o Llatí).\n\n- La Clara creu que l'escapulari protegeix contra Elixe, quan en realitat la reté a la terra.\n- Si el grup troba el cos, pot dubtar a arrencar-lo, i això deixa el camí obert a la possessió.",
+      "status": "draft",
+      "props": [
+        ["Resultat", "Fracàs"],
+        ["Tirada", "Llegir i Escriure (o Llatí)"]
+      ]
+    },
+    "playerAction.TragediaElixe.ClaraDeYesa.opt_escoltar": {
+      "text": "Escoltar amb atenció la cantinela de Ximún",
+      "status": "published",
+      "props": [
+        ["Jugador", "Clara de Yesa"],
+        ["Personatge", "Clara de Yesa"],
+        ["Opció", "opt_escoltar"]
+      ]
+    },
+    "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_olor": {
+      "text": "Examinar el bagul a la cerca de la font de l'olor",
+      "status": "published",
+      "props": [
+        ["Jugador", "Clara de Yesa"],
+        ["Personatge", "Clara de Yesa"],
+        ["Opció", "opt_olor"]
+      ]
+    },
+    "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_carta": {
+      "text": "Examinar la carta",
+      "status": "published",
+      "props": [
+        ["Jugador", "Clara de Yesa"],
+        ["Personatge", "Clara de Yesa"],
+        ["Opció", "opt_carta"]
+      ]
+    },
+    "playerAction.HerbesCambraFunebre.ExaminarCarta.ClaraDeYesa.opt_llegir_carta": {
+      "text": "Intentar llegir (tirada de llatí)",
+      "status": "published",
+      "props": [
+        ["Jugador", "Clara de Yesa"],
+        ["Personatge", "Clara de Yesa"],
+        ["Tirada", "1d100: 39%"],
+        ["Opció", "opt_llegir_carta"]
+      ]
+    },
+    "playerAction.HerbesCambraFunebre.ExaminarCarta.BernatDAran.opt_llegir_carta": {
+      "text": "Intentar llegir (tirada de llatí)",
+      "status": "published",
+      "props": [
+        ["Jugador", "Bernat d'Aran"],
+        ["Personatge", "Bernat d'Aran"],
+        ["Tirada", "1d100: 50%"],
+        ["Opció", "opt_llegir_carta"]
+      ]
+    },
+    "playerAction.HerbesCambraFunebre.ExaminarCarta.Exit.ClaraDeYesa.a38": {
+      "text": "Baixo als estables a dir-li al Bernat",
+      "status": "published",
+      "props": [
+        ["Jugador", "Clara de Yesa"],
+        ["Personatge", "Clara de Yesa"]
+      ]
+    },
+    "playerAction.VigilanciaEstables.BernatDAran.opt_barricada": {
+      "text": "Reforçar la tranca de la porta amb una biga de roure",
+      "status": "published",
+      "props": [
+        ["Jugador", "Bernat d'Aran"],
+        ["Personatge", "Bernat d'Aran"],
+        ["Opció", "opt_barricada"]
+      ]
+    },
+    "narrativeBlock.VigilanciaEstables.Barricada": {
+      "text": "En Bernat encaixa la biga de roure sota la tranca just quan una envestida fa saltar estelles de la porta. La fusta gemega però aguanta. A fora, les urpes rasquen i els grunyits ronden la quadra, buscant una escletxa.\n\nLlavors s'obre la porteta que dona a l'hostal: és la Clara, amb una espelma i la carta de cera vermella a la mà. En aquell mateix instant els grunyits paren en sec. Només queda el xiulet del torb i la respiració esverada del cavall.",
+      "why": "Convergència de PJs: en Bernat i la Clara es retroben als estables.\n\n- Els gossos no són bèsties qualsevol: serveixen Elixe i la seva serventa. Callen perquè reconeixen l'olor de la cera i de les herbes de la cambra, que la Clara porta a sobre, o perquè algú els ha cridat.\n- El silenci és més inquietant que l'atac: anticipa l'Esclau Fidel i que els gossos tornaran.\n- Bon moment perquè la Clara comparteixi amb en Bernat el que ha llegit a la carta.",
+      "props": [
+        ["Opció", "opt_barricada"],
+        ["Bloc", "narrativeBlock.VigilanciaEstables"]
+      ],
+      "status": "published",
+      "published": true,
+      "active": true,
+      "title": "La Biga de Roure i el Silenci"
     }
   },
   "relations": [
@@ -434,9 +638,65 @@
     ["controlPoint.EnganyIditxa", "narrativeBlock.CabanaIditxa", "develops into"],
     ["controlPoint.DeslliurarEscapulari", "narrativeBlock.ExorcismeEscapulari", "develops into"],
     ["controlPoint.DesenllacTotsSants", "narrativeBlock.ResolucioTotsSants", "develops into"],
-    ["narrativeBlock.ArribadaBurgui", "narrativeBlock.NitABurgui", "next"],
-    ["narrativeBlock.NitABurgui", "narrativeBlock.CadenesBlanques", "next"],
-    ["narrativeBlock.HerbesCambraFunebre", "playerAction.HerbesCambraFunebre.ClaraDeYesa", "tria"]
+    ["narrativeBlock.HerbesCambraFunebre", "narrativeBlock.HerbesCambraFunebre.ExaminarBagul", "ofereix"],
+    ["narrativeBlock.HerbesCambraFunebre.ExaminarCarta", "item.EscapulariSagrat", "revela"],
+    [
+      "narrativeBlock.HerbesCambraFunebre.ExaminarBagul",
+      "playerAction.HerbesCambraFunebre.ExaminarBagul.ClaraDeYesa.plantes",
+      "tria"
+    ],
+    [
+      "playerAction.HerbesCambraFunebre.ExaminarBagul.ClaraDeYesa.plantes",
+      "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Exit",
+      "èxit"
+    ],
+    [
+      "playerAction.HerbesCambraFunebre.ExaminarBagul.ClaraDeYesa.plantes",
+      "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Fracas",
+      "fracàs"
+    ],
+    ["narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Exit", "item.PocioDominacio", "identifica"],
+    ["narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Fracas", "controlPoint.EnganyIditxa", "afavoreix"],
+    ["narrativeBlock.HerbesCambraFunebre", "narrativeBlock.HerbesCambraFunebre.ExaminarCarta", "a"],
+    ["narrativeBlock.HerbesCambraFunebre.ExaminarCarta", "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit", "èxit"],
+    [
+      "narrativeBlock.HerbesCambraFunebre.ExaminarCarta",
+      "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas",
+      "fracàs"
+    ],
+    ["narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit", "controlPoint.DeslliurarEscapulari", "prepara"],
+    ["narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas", "controlPoint.LlindarPossessio", "exposa a"],
+    ["narrativeBlock.TragediaElixe", "playerAction.TragediaElixe.ClaraDeYesa.opt_escoltar", "tria"],
+    ["narrativeBlock.HerbesCambraFunebre", "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_olor", "tria"],
+    ["narrativeBlock.HerbesCambraFunebre", "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_carta", "tria"],
+    [
+      "narrativeBlock.HerbesCambraFunebre.ExaminarCarta",
+      "playerAction.HerbesCambraFunebre.ExaminarCarta.ClaraDeYesa.opt_llegir_carta",
+      "tria"
+    ],
+    [
+      "narrativeBlock.HerbesCambraFunebre.ExaminarCarta",
+      "playerAction.HerbesCambraFunebre.ExaminarCarta.BernatDAran.opt_llegir_carta",
+      "tria"
+    ],
+    [
+      "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit",
+      "playerAction.HerbesCambraFunebre.ExaminarCarta.Exit.ClaraDeYesa.a38",
+      "tria"
+    ],
+    ["narrativeBlock.VigilanciaEstables", "playerAction.VigilanciaEstables.BernatDAran.opt_barricada", "tria"],
+    [
+      "playerAction.VigilanciaEstables.BernatDAran.opt_barricada",
+      "narrativeBlock.VigilanciaEstables.Barricada",
+      "condueix a"
+    ],
+    [
+      "playerAction.HerbesCambraFunebre.ExaminarCarta.Exit.ClaraDeYesa.a38",
+      "narrativeBlock.VigilanciaEstables.Barricada",
+      "condueix a"
+    ],
+    ["narrativeBlock.VigilanciaEstables.Barricada", "character.creature.Gossos", "fa callar"],
+    ["narrativeBlock.VigilanciaEstables.Barricada", "narrativeBlock.EsclauFidel", "anticipa"]
   ],
   "pages": [
     {
@@ -446,10 +706,6 @@
       "intro": "Diagrama complet interactiu del mòdul El Regreso d'Aquelarre sota el motor Liber Daemonum.",
       "entities": "*",
       "positions": {
-        "playerAction.HerbesCambraFunebre.ClaraDeYesa": {
-          "x": 537,
-          "y": -183
-        },
         "narrativeBlock.HerbesCambraFunebre": {
           "x": 536,
           "y": -332
@@ -457,39 +713,54 @@
         "narrativeBlock.VigilanciaEstables": {
           "x": 1362,
           "y": 201
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarBagul": {
+          "x": 320,
+          "y": -183
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta": {
+          "x": 760,
+          "y": -183
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Exit": {
+          "x": 180,
+          "y": -40
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Fracas": {
+          "x": 460,
+          "y": -40
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit": {
+          "x": 740,
+          "y": -40
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas": {
+          "x": 1020,
+          "y": -40
+        },
+        "narrativeBlock.VigilanciaEstables.Barricada": {
+          "x": 1362,
+          "y": 360
         }
       }
-    },
-    {
-      "id": "primera-part",
-      "section": "Primera Part",
-      "title": "De l'Arribada a la Profecia de Ximún",
-      "intro": "Primera part de la història: tot el que pot succeir entre els dos primers Punts de Control (PC1 Allotjament a Burgui i PC2 Profecia de Ximún durant la nevada), la tempesta aïllant, les revelacions dels vilatans sobre Elixe i l'escapulari sagrat.",
-      "entities": [
-        "controlPoint.HostalatgeBurgui",
-        "event.dia1.CadenesBlanques",
-        "controlPoint.ProfeciaXimun",
-        "controlPoint.MisteriEscapulari",
-        "character.pj.Viatgers",
-        "intention.pj.DePas",
-        "character.npc.AldeansBurgui",
-        "character.npc.Ximun",
-        "intention.npc.XimunAvisar",
-        "character.npc.Marine",
-        "character.npc.MonjosLeire",
-        "item.EscapulariSagrat",
-        "location.Burgui",
-        "cosmicStatistic.KarmicMatrix",
-        "event.estable.InquietudBestiar",
-        "event.habitacio.LlarDeFocIXafarderies"
-      ]
     },
     {
       "id": "blocs-narratius",
       "section": "narrativeBlock",
       "title": "Blocs Narratius",
       "intro": "Seqüència exclusiva de Blocs Narratius (narrativeBlock) del mòdul El Regreso d'Aquelarre sota el motor Liber Daemonum.",
-      "entities": ["narrativeBlock.*", "playerAction.*"],
+      "entities": [
+        "narrativeBlock.*",
+        "narrativeAction.*",
+        "playerAction.*",
+        "playerAction.TragediaElixe.ClaraDeYesa.opt_escoltar",
+        "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_olor",
+        "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_carta",
+        "playerAction.HerbesCambraFunebre.ExaminarCarta.ClaraDeYesa.opt_llegir_carta",
+        "playerAction.HerbesCambraFunebre.ExaminarCarta.BernatDAran.opt_llegir_carta",
+        "playerAction.HerbesCambraFunebre.ExaminarCarta.Exit.ClaraDeYesa.a38",
+        "playerAction.VigilanciaEstables.BernatDAran.opt_barricada"
+      ],
       "positions": {
         "narrativeBlock.ArribadaBurgui": {
           "x": 236,
@@ -527,28 +798,279 @@
           "x": 250,
           "y": 1200
         },
-        "narrativeBlock.NitABurgui": {
-          "x": 244,
-          "y": 82
-        },
         "narrativeBlock.VigilanciaEstables": {
-          "x": 0,
-          "y": 1320
+          "x": 586,
+          "y": 12
         },
         "narrativeBlock.HerbesCambraFunebre": {
-          "x": 0,
-          "y": 1410
+          "x": 581,
+          "y": 153
         },
-        "playerAction.HerbesCambraFunebre.ClaraDeYesa": {
+        "narrativeBlock.HerbesCambraFunebre.ExaminarBagul": {
+          "x": 1009,
+          "y": 55
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta": {
+          "x": 1030,
+          "y": 251
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Exit": {
+          "x": 1460,
+          "y": -21
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Fracas": {
+          "x": 1466,
+          "y": 96
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit": {
+          "x": 1460,
+          "y": 220
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas": {
+          "x": 1466,
+          "y": 340
+        },
+        "playerAction.TragediaElixe.ClaraDeYesa.opt_escoltar": {
           "x": 300,
           "y": 1320
+        },
+        "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_olor": {
+          "x": 300,
+          "y": 1410
+        },
+        "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_carta": {
+          "x": 300,
+          "y": 1500
+        },
+        "playerAction.HerbesCambraFunebre.ExaminarCarta.ClaraDeYesa.opt_llegir_carta": {
+          "x": 296,
+          "y": 1569
+        },
+        "playerAction.HerbesCambraFunebre.ExaminarCarta.BernatDAran.opt_llegir_carta": {
+          "x": 300,
+          "y": 1680
+        },
+        "playerAction.HerbesCambraFunebre.ExaminarCarta.Exit.ClaraDeYesa.a38": {
+          "x": 1454,
+          "y": 708
+        },
+        "playerAction.VigilanciaEstables.BernatDAran.opt_barricada": {
+          "x": 300,
+          "y": 1920
+        },
+        "narrativeBlock.VigilanciaEstables.Barricada": {
+          "x": 1456,
+          "y": 1050
         }
       },
-      "sides": {}
+      "sides": {
+        "narrativeBlock.HerbesCambraFunebre~narrativeBlock.HerbesCambraFunebre.ExaminarCarta": {
+          "from": "bottom",
+          "to": "left"
+        },
+        "narrativeBlock.HerbesCambraFunebre~narrativeBlock.HerbesCambraFunebre.ExaminarBagul": {
+          "to": "left",
+          "from": "top"
+        }
+      },
+      "exclude": ["playerAction.HerbesCambraFunebre.ExaminarBagul.ClaraDeYesa.plantes"]
+    },
+    {
+      "id": "nb-1-arribada-burgui",
+      "section": "narrativeBlock",
+      "title": "1. Arribada a Burgui",
+      "intro": "La primera nit a l'hostal de Burgui: l'arribada sota la nevada i la separació de PJs entre els estables (Bernat) i la cambra fúnebre (Clara).",
+      "entities": [
+        "narrativeBlock.ArribadaBurgui*",
+        "narrativeBlock.NitABurgui*"
+      ],
+      "positions": {
+        "narrativeBlock.ArribadaBurgui": {
+          "x": 0,
+          "y": 0
+        },
+        "narrativeBlock.VigilanciaEstables": {
+          "x": -560,
+          "y": 160
+        },
+        "narrativeBlock.HerbesCambraFunebre": {
+          "x": 280,
+          "y": 160
+        },
+        "playerAction.VigilanciaEstables.BernatDAran.opt_barricada": {
+          "x": -560,
+          "y": 320
+        },
+        "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_olor": {
+          "x": 0,
+          "y": 320
+        },
+        "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_carta": {
+          "x": 560,
+          "y": 320
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarBagul": {
+          "x": 0,
+          "y": 460
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta": {
+          "x": 560,
+          "y": 460
+        },
+        "playerAction.HerbesCambraFunebre.ExaminarBagul.ClaraDeYesa.plantes": {
+          "x": 0,
+          "y": 600
+        },
+        "playerAction.HerbesCambraFunebre.ExaminarCarta.ClaraDeYesa.opt_llegir_carta": {
+          "x": 420,
+          "y": 600
+        },
+        "playerAction.HerbesCambraFunebre.ExaminarCarta.BernatDAran.opt_llegir_carta": {
+          "x": 700,
+          "y": 600
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Exit": {
+          "x": -140,
+          "y": 760
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Fracas": {
+          "x": 140,
+          "y": 760
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit": {
+          "x": 420,
+          "y": 760
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas": {
+          "x": 700,
+          "y": 760
+        },
+        "playerAction.HerbesCambraFunebre.ExaminarCarta.Exit.ClaraDeYesa.a38": {
+          "x": 420,
+          "y": 900
+        },
+        "narrativeBlock.VigilanciaEstables.Barricada": {
+          "x": -280,
+          "y": 1040
+        }
+      }
+    },
+    {
+      "id": "nb-2-cadenes-blanques",
+      "section": "narrativeBlock",
+      "title": "2. Cadenes Blanques",
+      "intro": "El 29 d'octubre la tempesta de neu aïlla Burgui: primer vers profètic, «presos per cadenes blanques».",
+      "entities": [
+
+        "narrativeBlock.NitABurgui*",
+        "narrativeBlock.VigilanciaEstables*",
+        "narrativeBlock.HerbesCambraFunebre*",
+        "playerAction.ArribadaBurgui.*",
+        "playerAction.NitABurgui.*",
+        "playerAction.VigilanciaEstables.*",
+        "playerAction.HerbesCambraFunebre.*"
+      ],
+      "positions": {
+        "narrativeBlock.CadenesBlanques": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": "nb-3-historia-ximun",
+      "section": "narrativeBlock",
+      "title": "3. La Història de Ximún",
+      "intro": "El vell Ximún murmura versos en basc antic: la tragèdia d'Elixe i l'escapulari sagrat.",
+      "entities": ["narrativeBlock.TragediaElixe*", "playerAction.TragediaElixe.*"],
+      "positions": {
+        "narrativeBlock.TragediaElixe": {
+          "x": 0,
+          "y": 0
+        },
+        "playerAction.TragediaElixe.ClaraDeYesa.opt_escoltar": {
+          "x": 0,
+          "y": 160
+        }
+      }
+    },
+    {
+      "id": "nb-4-esclau-mes-fidel",
+      "section": "narrativeBlock",
+      "title": "4. L'Esclau més Fidel",
+      "intro": "A l'alba del 30 d'octubre els gossos del poble embogeixen i ataquen els seus amos; els vilatans supliquen ajuda als viatgers.",
+      "entities": [
+        "narrativeBlock.EsclauFidel*",
+        "narrativeBlock.SuplicaVilatans*",
+        "playerAction.EsclauFidel.*",
+        "playerAction.SuplicaVilatans.*"
+      ],
+      "positions": {
+        "narrativeBlock.EsclauFidel": {
+          "x": 0,
+          "y": 0
+        },
+        "narrativeBlock.SuplicaVilatans": {
+          "x": 0,
+          "y": 160
+        }
+      }
+    },
+    {
+      "id": "nb-5-bosc-elixe",
+      "section": "narrativeBlock",
+      "title": "5. El Bosc d'Elixe",
+      "intro": "Travessia pel bosc tenebrós, entre veus d'ànimes turmentades.",
+      "entities": ["narrativeBlock.BoscTenebros*", "playerAction.BoscTenebros.*"],
+      "positions": {
+        "narrativeBlock.BoscTenebros": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": "nb-6-iditxa",
+      "section": "narrativeBlock",
+      "title": "6. L'Iditxa",
+      "intro": "La serventa d'Elixe, disfressada d'àvia càlida, intenta enverinar i sotmetre els viatgers.",
+      "entities": ["narrativeBlock.CabanaIditxa*", "playerAction.CabanaIditxa.*"],
+      "positions": {
+        "narrativeBlock.CabanaIditxa": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": "nb-7-cabana",
+      "section": "narrativeBlock",
+      "title": "7. La Cabana",
+      "intro": "Sota el terra de la cabana jau el cos d'Elixe amb l'escapulari sagrat al coll.",
+      "entities": ["narrativeBlock.ExorcismeEscapulari*", "playerAction.ExorcismeEscapulari.*"],
+      "positions": {
+        "narrativeBlock.ExorcismeEscapulari": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "id": "nb-8-retorn-elixe",
+      "section": "narrativeBlock",
+      "title": "8. El Retorn d'Elixe",
+      "intro": "La nit de Tots Sants: Burgui recobra la calma, o els morts liderats per Mariñe s'alcen.",
+      "entities": ["narrativeBlock.ResolucioTotsSants*", "playerAction.ResolucioTotsSants.*"],
+      "positions": {
+        "narrativeBlock.ResolucioTotsSants": {
+          "x": 0,
+          "y": 0
+        }
+      }
     }
   ],
   "orchestrator": {
-    "id": "ses_liber_1795211564414_54dd5767",
-    "started": "2026-11-20T21:52:44.416Z"
+    "id": "1daecd64-1715-43eb-a01f-b954c22c4ba8",
+    "started": "2026-11-22T08:14:48.092Z"
   }
 }
