@@ -395,3 +395,7 @@ html.dark .reactflow-app .focus-toggle.danger, html.dark .reactflow-app .edge-me
 /* narrativeBlock is_active button (EntityEditor): green when active on the web, muted when not */
 .reactflow-app .active-toggle.is-active { color: #1e7d3a; border-color: #1e7d3a; }
 .reactflow-app .active-toggle.is-inactive { color: var(--color-neutral-500, #888); }
+/* narrativeBlock players (PlayersEditor in main.jsx): one checkbox per PJ of the campaign */
+.reactflow-app .sdd-players { border: 1px solid var(--color-neutral-200); border-radius: 4px; padding: 6px 8px; margin: 4px 0; }
+.reactflow-app .sdd-players legend { font-size: 12px; font-weight: 600; padding: 0 4px; }
+.reactflow-app .sdd-player { display: flex; align-items: center; gap: 6px; font-size: 13px; }

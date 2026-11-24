@@ -7,7 +7,7 @@ import '../docs/assets/custom.css';
 import './styles.css';
 
 import { docs, replaceSdd, sddDoc } from './content/index.js';
-import { ID, NEW_KINDS, OUTCOME_POINTERS, SIDES, cleanActions, isUml, loadNarrativeBlocks, setBlockActive, loadPlayerActions, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf, titleOf } from './DiagramEditor.js';
+import { ID, NEW_KINDS, OUTCOME_POINTERS, SIDES, cleanActions, cleanPlayers, isUml, loadNarrativeBlocks, loadParticipants, setBlockActive, loadPlayerActions, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf, titleOf } from './DiagramEditor.js';
 
 const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
 import { KeyValues, Labels, Stickies, useDark } from './Board.jsx';
@@ -501,6 +501,43 @@ const openEntity = (doc, page, id) => {
 };
 
 // Panel editor of a node declared in the open diagram: id, text, why. Remounted per entity (key).
+// The campaign's PJs, fetched once per page through the bridge; a failed fetch is retried on the next use.
+let participants = null;
+const campaignPlayers = () => (participants ??= loadParticipants().catch((err) => {
+  participants = null;
+  throw err;
+}));
+
+// A narrativeBlock's players: who it is addressed to (narrative_block_users). None ticked = the whole campaign.
+// Emails in the JSON that the campaign no longer has stay listed, flagged, until unticked.
+function PlayersEditor({ players, onChange }) {
+  const [list, setList] = useState(null);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    campaignPlayers().then(setList, (err) => setError(err.message));
+  }, []);
+  const toggle = (email) => onChange(players.includes(email) ? players.filter((e) => e !== email) : [...players, email]);
+  const known = new Set((list ?? []).map((p) => p.email));
+  return (
+    <fieldset className="sdd-players">
+      <legend>Jugadors <span className="muted">{players.length ? 'només aquests PJs' : 'tota la campanya'}</span></legend>
+      {error && <span className="board-error">No es poden carregar els PJs: {error}</span>}
+      {!list && !error && <span className="muted">Carregant PJs…</span>}
+      {(list ?? []).map((p) => (
+        <label key={p.email} className="sdd-player">
+          <input type="checkbox" checked={players.includes(p.email)} onChange={() => toggle(p.email)} />
+          {p.character_name || p.display_name} <span className="muted">{p.email}</span>
+        </label>
+      ))}
+      {list && players.filter((e) => !known.has(e)).map((e) => (
+        <label key={e} className="sdd-player board-error" title="Aquest email no és cap PJ de la campanya">
+          <input type="checkbox" checked onChange={() => toggle(e)} /> ⚠ {e}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
 // A narrativeBlock's actions (the web's ActionSelector): one row per option, id · type · label, and below it the
 // next block (node_id) per roll outcome; an option that is not 'roll' only has block_id_on_success. Saved with Save.
 const ACTION_TYPES = ['option', 'roll', 'other', 'tactical', 'bravery', 'stealth', 'faith'];
@@ -546,6 +583,7 @@ function EntityEditor({ id, edit }) {
   const [draft, setDraft] = useState(() => ({
     id, text: typeof entry === 'string' ? entry : entry?.text ?? '', why: typeof entry === 'object' ? entry?.why ?? '' : '',
     actions: typeof entry === 'object' ? (entry?.actions ?? []).map((a) => ({ ...a })) : [],
+    players: typeof entry === 'object' ? cleanPlayers(entry?.players) : [],
   }));
   const kind = id.split(/[.-]/)[0];
   const narrative = kind === 'narrativeBlock';
@@ -589,8 +627,9 @@ function EntityEditor({ id, edit }) {
   // Save: writes the active JSON and, for a narrativeBlock, sends it to the web (upsert by node_id) with its published flag.
   const save = () => {
     if (problem) return;
-    edit.save(id, nextId, { text: draft.text.trim(), why: draft.why.trim(), ...(uml && { properties, methods }), ...(narrative && { actions }) });
-    if (narrative) sendToWeb({ nodeId: nextId, text: draft.text.trim(), why: draft.why.trim(), published, actions });
+    const players = cleanPlayers(draft.players);
+    edit.save(id, nextId, { text: draft.text.trim(), why: draft.why.trim(), ...(uml && { properties, methods }), ...(narrative && { actions, players }) });
+    if (narrative) sendToWeb({ nodeId: nextId, text: draft.text.trim(), why: draft.why.trim(), published, actions, players });
   };
   // Status of a narrativeBlock: JSON (status + published) and web at once, with the block as saved (not the open draft).
   const setStatus = (value) => {
@@ -598,14 +637,14 @@ function EntityEditor({ id, edit }) {
     const next = value === 'published';
     edit.fields(id, { status: value || undefined, published: next });
     const stored = typeof entry === 'object' ? entry : { text: entry ?? '' };
-    sendToWeb({ nodeId: id, text: (stored.text ?? '').trim(), why: (stored.why ?? '').trim(), published: next, actions: cleanActions(stored.actions) });
+    sendToWeb({ nodeId: id, text: (stored.text ?? '').trim(), why: (stored.why ?? '').trim(), published: next, actions: cleanActions(stored.actions), players: cleanPlayers(stored.players) });
   };
   const keys = (e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && save();
 
   const [publishing, setPublishing] = useState(false);
   const [publishMsg, setPublishMsg] = useState(null);
 
-  // block: { nodeId, text, why, published, actions } as it should be on the web.
+  // block: { nodeId, text, why, published, actions, players } as it should be on the web; players are emails.
   const sendToWeb = async (block) => {
     if (!block.text) {
       setPublishMsg('Desat al JSON. No enviat a la web: falta el text.');
@@ -620,6 +659,14 @@ function EntityEditor({ id, edit }) {
       const controlPointLabel = relCp ? (relCp[0].startsWith('controlPoint.') ? relCp[0] : relCp[1]) : '';
 
       const title = entry?.title || titleOf(block.nodeId);
+      // Emails → the web's user ids. Always sent: none = the whole campaign (narrative_block_users emptied).
+      let targetUserIds = [];
+      if (block.players.length) {
+        const byEmail = new Map((await campaignPlayers()).map((p) => [p.email, p.user_id]));
+        const unknown = block.players.filter((e) => !byEmail.has(e));
+        if (unknown.length) throw new Error(`jugadors que no són PJs de la campanya: ${unknown.join(', ')}`);
+        targetUserIds = block.players.map((e) => byEmail.get(e));
+      }
 
       const payload = {
         campaignId: 1,
@@ -632,6 +679,7 @@ function EntityEditor({ id, edit }) {
         controlPointLabel: controlPointLabel || undefined,
         // The block's own actions: always sent, so removing them all clears the web's options too.
         actionSelector: block.actions,
+        targetUserIds,
       };
 
       const webBase = requireEnvUrl('WEB_URL', process.env.WEB_URL);
@@ -707,6 +755,7 @@ function EntityEditor({ id, edit }) {
       <label>Why <textarea rows={3} value={draft.why} onChange={set('why')} /></label>
       {uml && <label>Properties <span className="muted">one per line, name: type</span><textarea rows={Math.max(4, properties.length + 1)} value={props} onChange={(e) => setProps(e.target.value)} /></label>}
       {uml && <label>Methods <span className="muted">one per line, signature: note</span><textarea rows={Math.max(3, methods.length + 1)} value={meths} onChange={(e) => setMeths(e.target.value)} /></label>}
+      {narrative && <PlayersEditor players={draft.players} onChange={(next) => setDraft({ ...draft, players: next })} />}
       {narrative && (
         <ActionsEditor
           actions={draft.actions}

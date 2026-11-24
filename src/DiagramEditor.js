@@ -46,6 +46,11 @@ export const cleanActions = (list) => {
   });
 };
 
+// A narrativeBlock's `players`: emails of the PJs it is addressed to (narrative_block_users). Emails, not user ids,
+// so a reseeded database still matches. Empty or absent = the whole campaign.
+export const cleanPlayers = (list) => [...new Set((Array.isArray(list) ? list : [])
+  .map((e) => String(e ?? '').trim().toLowerCase()).filter(Boolean))];
+
 // "Bernat d'Aran" -> 'BernatDAran': a name as an id segment.
 const pascal = (name) => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^A-Za-z0-9]+/)
   .filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join('');
@@ -119,8 +124,8 @@ export const ops = {
   // text and why: a plain string when there is no why, else { text, why } keeping any other field (columns, icon).
   // `properties` and `methods` (UML entities) are replaced when given; an empty methods list is dropped.
   // `published` (narrativeBlock) is written when given as a boolean; `actions` (narrativeBlock) when given as an array,
-  // an empty one removing it.
-  describe: (raw, id, { text, why, properties, methods, published, actions }) => {
+  // an empty one removing it; so is `players` (narrativeBlock, emails).
+  describe: (raw, id, { text, why, properties, methods, published, actions, players }) => {
     const next = clone(raw);
     const old = next.entities?.[id];
     const rest = { ...(old && typeof old === 'object' ? old : {}), ...(properties && { properties }), ...(typeof published === 'boolean' && { published }) };
@@ -131,6 +136,10 @@ export const ops = {
     if (Array.isArray(actions)) {
       if (actions.length) rest.actions = actions;
       else delete rest.actions;
+    }
+    if (Array.isArray(players)) {
+      if (players.length) rest.players = players;
+      else delete rest.players;
     }
     next.entities = { ...next.entities, [id]: why || Object.keys(rest).some((k) => k !== 'text' && k !== 'why') ? { ...rest, text, why: why || undefined } : text };
     return next;
@@ -147,7 +156,7 @@ export const ops = {
     return next;
   },
   // Narrative blocks from the web's narrative_blocks table: the table wins. A known node gets its text (content),
-  // why (dj_notes), published flag, active flag (is_active) and actions (action_selector); a node only in the table is added, stacked below pos on this page.
+  // why (dj_notes), published flag, active flag (is_active), actions (action_selector) and players (narrative_block_users); a node only in the table is added, stacked below pos on this page.
   // A title is kept only when it differs from the one the id gives. Returns the counts for the toolbar.
   sync: (raw, pageId, blocks, pos) => {
     let next = clone(raw);
@@ -165,6 +174,9 @@ export const ops = {
       const actions = cleanActions(b.action_selector);
       if (actions.length) value.actions = actions;
       else delete value.actions;
+      const players = cleanPlayers((b.target_users ?? []).map((u) => u.email));
+      if (players.length) value.players = players;
+      else delete value.players;
       if (old === undefined) {
         next = ops.put(next, pageId, id, value, { x: pos.x, y: pos.y + counts.added * 90 });
         counts.added++;
@@ -294,6 +306,8 @@ const loadWeb = (path, key) => (campaignId = 1) => fetch(`${process.env.AGENT_BR
     return data[key];
   });
 export const loadNarrativeBlocks = loadWeb('narrative-blocks', 'blocks');
+// The campaign's PJs: [{ user_id, email, display_name, character_name }].
+export const loadParticipants = loadWeb('participants', 'players');
 // Sets a narrative block's is_active on the web, by node; resolves to the stored value.
 export const setBlockActive = (nodeId, isActive, campaignId = 1) => fetch(`${process.env.AGENT_BRIDGE_URL}/web/block-active`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ campaignId, nodeId, isActive }),

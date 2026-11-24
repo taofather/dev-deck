@@ -429,6 +429,21 @@ const server = createServer(async (req, res) => {
     }
   }
 
+  // Web integration: the campaign's players (PJs), to assign narrative blocks to them. Only the current campaign.
+  if (url.pathname === '/web/participants' && req.method === 'GET') {
+    try {
+      const resWeb = await asDj(`${webUrl()}/api/campaign/current`);
+      const data = await resWeb.json().catch(() => ({}));
+      if (!resWeb.ok) throw new Error(data.error || `web answered ${resWeb.status}`);
+      const players = (data.campaign?.participants ?? []).filter((p) => p.role === 'pj')
+        .map(({ user_id, email, display_name, character_name }) => ({ user_id, email, display_name, character_name }));
+      return json(res, { campaignId: data.campaign?.id, players });
+    } catch (err) {
+      console.error('[web/participants] error:', err.message);
+      return res.writeHead(502, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: err.message }));
+    }
+  }
+
   // Web integration: a narrative block's is_active, by node (Actiu/Inactiu button). Body { campaignId, nodeId, isActive }.
   if (url.pathname === '/web/block-active' && req.method === 'POST') {
     return readBody(req, async (b) => {
