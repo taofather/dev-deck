@@ -4,4 +4,15 @@
 {{- if hugo.IsServer }}
   {{- with resources.Get "agent-chat.css" }}<link rel="stylesheet" href="{{ .RelPermalink }}" />{{ end }}
   {{- with resources.Get "src/agent-status.js" }}<script type="module" src="{{ .RelPermalink }}"></script>{{ end }}
+  {{- /* Agent drawer (src/page-agent.jsx) on every page. Its Page tab: the Markdown file, or for the home and sections without
+       an _index.md, that file (the bridge creates it on the first message); none on /diagrams/ (its css is already there). */ -}}
+  {{- $file := "" }}
+  {{- with .File }}{{ if eq .Ext "md" }}{{ $file = printf "docs/%s" .Path }}{{ end }}{{ end }}
+  {{- /* content/_content.gotmpl passes the folder's real name (its page path is lower-cased). */ -}}
+  {{- if $file }}{{ else if .IsHome }}{{ $file = "docs/_index.md" }}{{ else if .Params.dir }}{{ $file = printf "docs/%s/_index.md" .Params.dir }}{{ end }}
+  {{- if eq .Layout "diagrams" }}{{ $file = "" }}{{ else }}
+  <link rel="stylesheet" href="{{ "diagrams/assets/index.css" | relURL }}?v={{ now.Unix }}" />
+  {{- end }}
+  {{- with $file }}<meta name="page-agent-file" content="{{ . }}" />{{ end }}
+  <script type="module" src="{{ "diagrams/assets/page-agent.js" | relURL }}?v={{ now.Unix }}"></script>
 {{- end }}

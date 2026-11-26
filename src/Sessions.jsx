@@ -27,25 +27,48 @@ export const BRIDGE = 'http://127.0.0.1:5182';
 export const resumeCommand = (catalog, id) =>
   `cd ${catalog?.root ?? 'AGENT_ROOT'} && ${(catalog?.agent?.resume ?? '<agent> --resume {id}').replace('{id}', id)}`;
 
+// localStorage, not sessionStorage: chats and the recent list survive closing the tab and are shared by every tab.
 const loadChat = (key) => {
   try {
-    return JSON.parse(sessionStorage.getItem(key));
+    return JSON.parse(localStorage.getItem(key));
   } catch {
     return null;
   }
 };
 const storeChat = (key, chat) => {
   try {
-    chat ? sessionStorage.setItem(key, JSON.stringify(chat)) : sessionStorage.removeItem(key);
+    chat ? localStorage.setItem(key, JSON.stringify(chat)) : localStorage.removeItem(key);
   } catch {}
 };
+
+// Every agent conversation seen in any panel (WIP note, diagram orchestrator, Hugo page), newest activity first:
+// [{ session, file, title, href, at }]. file binds it to what it edits (a docs .md, an _sdd/_ops.json, `wip:<note>`);
+// href is where it was first open, so the drawer's ‹ › (src/page-agent.jsx) can go back there.
+const RECENT = 'agent-recent';
+export const recentSessions = () => loadChat(RECENT) ?? [];
+// touch: new activity, moves it first; otherwise only its title and place are updated, so stepping through the
+// list with ‹ › does not reorder it.
+export const forgetSession = (entry) => {
+  storeChat(RECENT, recentSessions().filter((e) => e.session !== entry.session || e.file !== entry.file));
+  window.dispatchEvent(new Event(RECENT));
+};
+export function rememberSession(entry, touch) {
+  const list = recentSessions();
+  const old = list.find((e) => e.session === entry.session && e.file === entry.file); // a session may serve several files
+  // href: where it was first open, its home; the drawer may show it elsewhere without moving it.
+  const next = { ...old, ...entry, href: old?.href ?? location.pathname + location.hash, at: touch || !old ? new Date().toISOString() : old.at };
+  const rest = list.filter((e) => e !== old);
+  storeChat(RECENT, (touch || !old ? [next, ...rest] : list.map((e) => (e === old ? next : e))).slice(0, 40));
+  window.dispatchEvent(new Event(RECENT));
+}
 export const when = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 export const short = (id) => id.slice(0, 8);
 
 // One open chat per storage key, bound to a scope (a note id, a _sdd.json path): survives livereloads in
 // sessionStorage and follows a run still going after one. chat: { note: scope, session (null until the bridge
 // names it), log: [[role, text]], run: { id, seen } | null }. onEvent(ev) sees every run event (session, done…).
-export function useRunChat(key, scope, onEvent) {
+// bind { file, title }: what the conversation edits, for the recent list (rememberSession).
+export function useRunChat(key, scope, onEvent, bind) {
   const [chat, setChatState] = useState(() => {
     const c = loadChat(key);
     return c?.note === scope ? c : null;
@@ -60,6 +83,22 @@ export function useRunChat(key, scope, onEvent) {
     const c = loadChat(key);
     setChatState(c?.note === scope ? c : null);
   }, [key, scope]);
+  // The stored log is this tab's copy: other tabs, the diagram and the Hugo page drawer, or a terminal resume may have
+  // added turns since. Re-read the transcript on open and when the tab shows again, unless a run is going here.
+  useEffect(() => {
+    const refresh = () => {
+      const c = loadChat(key);
+      if (c?.note === scope && c.session && !c.run) loadHistory(c.session).catch(() => {});
+    };
+    refresh();
+    const onShow = () => document.visibilityState === 'visible' && refresh();
+    document.addEventListener('visibilitychange', onShow);
+    return () => document.removeEventListener('visibilitychange', onShow);
+  }, [key, scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // Only once the chat is this scope's: switching notes or diagrams briefly keeps the previous one.
+    if (chat?.session && chat.note === scope && bind) rememberSession({ session: chat.session, ...bind });
+  }, [chat?.session, chat?.note, scope, bind?.file, bind?.title]); // eslint-disable-line react-hooks/exhaustive-deps
   // A run still going after a reload: follow it again.
   useEffect(() => {
     if (chat?.run) follow(chat.run);
@@ -90,6 +129,12 @@ export function useRunChat(key, scope, onEvent) {
             const session = c.session ?? ev.session ?? ev.sid ?? null;
             return { ...c, log, session, run: ev.done ? null : { ...run } };
           });
+          // follow() closes over the scope and bind of the panel that started the run.
+          if (bind && (ev.session || ev.done)) {
+            const stored = loadChat(key);
+            const session = ev.session ?? (stored?.note === scope ? stored.session : null);
+            if (session) rememberSession({ session, ...bind }, true);
+          }
           onEvent?.(ev);
           if (ev.done) return;
         }
@@ -113,7 +158,7 @@ export function useRunChat(key, scope, onEvent) {
 
   // Loads a session's history from its transcript into the open chat.
   const loadHistory = (session) => fetch(`${BRIDGE}/wip/session?id=${session}`).then((r) => r.json())
-    .then(({ log }) => setChat((c) => (c?.session === session ? { ...c, log: log.map((m) => [m.role, m.text]) } : c)));
+    .then(({ log }) => setChat((c) => (c?.session === session && !c.run ? { ...c, log: log.map((m) => [m.role, m.text]) } : c)));
 
   return { chat, setChat, send, loadHistory };
 }
@@ -165,7 +210,8 @@ export function Sessions({ note, onChanged }) {
   const [error, setError] = useState(null);
   const [picking, setPicking] = useState(false);
   const [copied, setCopied] = useState(null);
-  const { chat, setChat, send: post, loadHistory } = useRunChat('wip-chat', note.id, (ev) => ev.session && onChanged());
+  const { chat, setChat, send: post, loadHistory } = useRunChat('wip-chat', note.id, (ev) => ev.session && onChanged(),
+    { file: `wip:${note.id}`, title: note.title });
   const [input, setInput] = useState('');
 
   useEffect(() => {

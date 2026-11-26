@@ -15,6 +15,6 @@
 {{- end -}}
 {{- range $dir, $name := $dirs -}}
   {{- if not (fileExists (printf "docs/%s/_index.md" $dir)) -}}
-    {{- $.AddPage (dict "path" (lower $dir) "kind" "section" "title" (strings.FirstUpper $name)) -}}
+    {{- $.AddPage (dict "path" (lower $dir) "kind" "section" "title" (strings.FirstUpper $name) "params" (dict "dir" $dir)) -}}
   {{- end -}}
 {{- end -}}

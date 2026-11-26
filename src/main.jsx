@@ -10,7 +10,7 @@ import { docs, replaceSdd, sddDoc } from './content/index.js';
 import { ENVS, ID, NEW_KINDS, OP_STATES, SIDES, isUml, loadSdd, nextSide, ops, prefixOf, saveSdd, statusesOf } from './SddEdit.js';
 
 const POSITIONS = { right: Position.Right, bottom: Position.Bottom, left: Position.Left, top: Position.Top };
-import { Board, KeyValues, Labels, NoteAside, Stickies, moveNote, useDark } from './Board.jsx';
+import { Board, KeyValues, Labels, NoteAside, Stickies, moveNote, noteMatches, useDark } from './Board.jsx';
 import { CycleIssues } from './Linear.jsx';
 import { Orchestrator } from './Orchestrator.jsx';
 import { EntityDocs, ResumeModal } from './Resume.jsx';
@@ -332,6 +332,34 @@ const linkLabel = (a, b) => LINK_LABELS.find(([x, y]) => x.test(a.split('-')[0])
 // Search over a node: its id, label and, in a _sdd.json, its whole entity (text, why, tags, status, env).
 const matches = (doc, n, q) => [n.data.ref, n.data.label, JSON.stringify(doc.raw?.entities?.[n.data.ref] ?? '')]
   .join(' ').toLowerCase().includes(q);
+
+// Search across every WIP board json (live, through the bridge): one hit per matching note, a click opens it on its board.
+function BoardHits({ query, go }) {
+  const [hits, setHits] = useState([]);
+  const q = query.trim().toLowerCase();
+  useEffect(() => {
+    if (!q) return setHits([]);
+    const boards = docs.filter((d) => d.file && d.pages.some((p) => p.board));
+    const t = setTimeout(() => Promise.all([
+      fetch('http://127.0.0.1:5182/wip/pages').then((r) => r.json()).then((b) => b.pages),
+      ...boards.map((d) => loadSdd(d.file)),
+    ]).then(([pages, ...raws]) => setHits(boards.flatMap((d, i) => Object.entries(raws[i].entities ?? {})
+      .filter(([id, e]) => noteMatches(id, e, pages[id], q))
+      .map(([id, e]) => ({ doc: d, id, title: typeof e === 'string' ? e : e.title })))))
+      .catch(() => setHits([])), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+  if (!q) return null;
+  return (
+    <ul className="board-hits">
+      {hits.length ? hits.map((h) => (
+        <li key={`${h.doc.id}/${h.id}`}><a onClick={() => go(h.doc.id, 'board', h.id)}>
+          <span className="board-hits-board">{h.doc.title}</span> {h.title}
+        </a></li>
+      )) : <li className="muted">No note matches.</li>}
+    </ul>
+  );
+}
 
 function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }) {
   const base = useMemo(() => layout(page), [page]);
@@ -1019,7 +1047,10 @@ function App() {
   const [zoomTo, setZoomTo] = useState(null);
   // Diagram search (header input); cleared when the page changes.
   const [query, setQuery] = useState('');
-  useEffect(() => setQuery(''), [doc.id, page.id]);
+  // Kept from one WIP board to another, so a cross-board hit opens with the same search.
+  useEffect(() => {
+    if (!page.board) setQuery('');
+  }, [doc.id, page.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Browser tab: the open diagram's title in place of Hugo's "Diagrams", keeping the site name after it.
   useEffect(() => {
     document.title = `${doc.title} – ${SITE_TITLE}`;
@@ -1184,9 +1215,12 @@ function App() {
               <button className="focus-toggle" title={`Redo (⇧⌘Z) · ${h.future.length}`} onClick={redo} disabled={!h.future.length}>↷</button>
             </span>
           )}
-          {!page.board && !page.sequence && (
-            <input type="search" className="diagram-search" placeholder="🔍 Search nodes…" value={query}
-              onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQuery('')} />
+          {!page.sequence && (
+            <span className="diagram-search-box">
+              <input type="search" className="diagram-search" placeholder={page.board ? '🔍 Search all WIP boards…' : '🔍 Search nodes…'} value={query}
+                onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQuery('')} />
+              {page.board && <BoardHits query={query} go={go} />}
+            </span>
           )}
           {doc.file && !page.board && <button className="focus-toggle resume-button" onClick={() => setResume(true)}>📝 Make Resume</button>}
           <div className="eyebrow">{doc.title} › {page.section}</div>
@@ -1197,7 +1231,7 @@ function App() {
             <ReactFlowProvider>
               <Board file={doc.file} pageId={page.id} isRef={isRef} colorOf={colorOf} onRef={(id) => go(doc.id, page.id, id)}
                 selected={entity} onSelect={(id) => go(doc.id, page.id, id)} onNotes={setBoardNotes}
-                issues={issues} apiRef={apiRef} />
+                issues={issues} apiRef={apiRef} query={query} />
             </ReactFlowProvider>
           ) : page.sequence ? (
             <Sequence doc={doc} page={page} entity={entity} hidden={hidden} />

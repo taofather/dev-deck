@@ -25,6 +25,10 @@ const sidesOf = (kind, s, t) => (kind === 'from'
 // The notes the board draws, from the diagram (entities, relations, the page's positions and sides) and the note
 // pages (body, page url, sessions, tags). Parent arrows keep their sides on the child (fromSide, toSide), links on the
 // source note (linkSides, linkToSides), as Note, NoteAside and the edge menu read them.
+// Search over a WIP note: its board entity (title, linear, props) and its page (body, tags). Shared by every board.
+export const noteMatches = (id, e, page, q) => [id, JSON.stringify(e ?? ''), page?.body ?? '', (page?.tags ?? []).join(' ')]
+  .join(' ').toLowerCase().includes(q);
+
 const notesOf = (raw, pageId, pages) => {
   const page = raw.pages?.find((p) => p.id === pageId) ?? {};
   const notes = Object.entries(raw.entities ?? {}).map(([id, e]) => ({
@@ -164,7 +168,7 @@ function Note({ id, data }) {
     updateNodeInternals(id);
   }, [dragging, id, updateNodeInternals]);
   return (
-    <div className={['note', droppable && 'droppable', data.linkSource && 'linking'].filter(Boolean).join(' ')} style={data.state && { borderTopColor: data.state.color }}>
+    <div className={['note', droppable && 'droppable', data.linkSource && 'linking', data.match && 'match', data.faded && 'faded'].filter(Boolean).join(' ')} style={data.state && { borderTopColor: data.state.color }}>
       <Stickies labels={labelsOf(data)} />
       {SIDES.map((side) => <Handle key={`t-${side}`} id={`t-${side}`} type="target" position={POSITION[side]} className="note-side" isConnectable={false} />)}
       {SIDES.map((side) => <Handle key={side} id={`s-${side}`} type="source" position={POSITION[side]} className="note-side" isConnectable={false} />)}
@@ -246,12 +250,13 @@ export function useDark() {
 
 // issues: the sidebar's Linear cycle issues. apiRef: App's handle on addIssue (sidebar +) and saveBody (aside editor).
 // file, pageId: the diagram and its board page.
-export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect, onNotes, issues, apiRef }) {
+export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect, onNotes, issues, apiRef, query = '' }) {
   // raw: the diagram file as saved; pages: note id → its page data (body, page, sessions, tags).
   const [raw, setRaw] = useState(null);
   const dark = useDark();
   const [pages, setPages] = useState({});
   const notes = useMemo(() => raw && notesOf(raw, pageId, pages), [raw, pageId, pages]);
+  const q = query.trim().toLowerCase();
   const [error, setError] = useState(null);
   // Node sizes React Flow measured (id → { width, height }), handed back as node.measured. Without them every
   // rebuilt node (e.g. after the focus reload) is hidden until re-measured, and a background Firefox tab misses
@@ -421,6 +426,7 @@ export function Board({ file, pageId, isRef, colorOf, onRef, selected, onSelect,
       onDelete: () => remove(n.id), onAddRelated: () => add(n.id),
       onStartLink: () => setLinkFrom(linkFrom === n.id ? null : n.id),
       linkSource: linkFrom === n.id, linkTarget: !!linkFrom && linkFrom !== n.id,
+      ...(q && (noteMatches(n.id, raw.entities[n.id], pages[n.id], q) ? { match: true } : { faded: true })),
     },
   };
   })];

@@ -8,7 +8,7 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { LinearClient } from '@linear/sdk';
-import { resolve, sep } from 'node:path';
+import { basename, dirname, relative, resolve, sep } from 'node:path';
 import { addSession, boards, loadPages, movePage, noteContext, noteOf, readBoard, saveBody, saveTags, saveTitle } from './note-pages.mjs';
 import { ops } from './src/SddEdit.js';
 import { AGENT_ROOT, agent } from './src/agent-bridges/index.mjs';
@@ -62,6 +62,33 @@ const sddJson = (d) => {
   });
   return `${JSON.stringify(JSON.parse(compact)) === JSON.stringify(d) ? compact : plain}\n`;
 };
+
+// Hugo pages (src/page-agent.jsx): docs/**/*.md outside dot folders. Each page keeps one agent conversation,
+// recorded in its front matter as `agent_session: { id: <uuid>, started: "<ISO>" }`; its folder's _sdd.json and
+// _ops.json keep their own orchestrators (/sdd/chat).
+const pagePath = (file) => {
+  const abs = typeof file === 'string' && resolve(import.meta.dirname, file);
+  if (!abs || !abs.startsWith(DOCS + sep) || !abs.endsWith('.md')) return null;
+  return abs.slice(DOCS.length + 1).split(sep).some((p) => p.startsWith('.')) ? null : abs;
+};
+const FRONT = /^---\n([\s\S]*?)\n---\n?/;
+const PAGE_SESSION = /^agent_session: \{ id: ([0-9a-f-]{36}), started: "([^"]+)" \}\n?/m;
+async function pageOf(abs) {
+  // A section without its _index.md yet (home, generated sections): empty until the first message writes it.
+  const text = await readFile(abs, 'utf8').catch((e) => (e.code === 'ENOENT' && basename(abs) === '_index.md' ? '' : Promise.reject(e)));
+  const fm = text.match(FRONT)?.[1] ?? '';
+  const s = fm.match(PAGE_SESSION);
+  const dir = dirname(abs);
+  return {
+    text,
+    title: fm.match(/^title:[ \t]*(.+)$/m)?.[1].trim().replace(/^(["'])(.*)\1$/, '$2') ?? (basename(abs) === '_index.md' ? basename(dirname(abs)) : basename(abs, '.md')),
+    session: s && { id: s[1], started: s[2] },
+    diagrams: ['_sdd.json', '_ops.json'].filter((n) => existsSync(`${dir}/${n}`)).map((n) => relative(import.meta.dirname, `${dir}/${n}`)),
+  };
+}
+const withPageSession = (text, line) => (FRONT.test(text)
+  ? text.replace(FRONT, (all, fm) => `---\n${fm.replace(PAGE_SESSION, '').trimEnd()}\n${line}\n---\n`)
+  : `---\n${line}\n---\n\n${text}`);
 
 function readBody(req, done) {
   let body = '';
@@ -266,6 +293,68 @@ createServer((req, res) => {
         res.writeHead(202).end();
       } catch (err) {
         res.writeHead(500).end(err.message);
+      }
+    });
+  }
+
+  // An existing agent session attached as the conversation of a Hugo page (front matter) or of a diagram (`orchestrator`).
+  if ((url.pathname === '/page/chat/attach' || url.pathname === '/sdd/chat/attach') && req.method === 'POST') {
+    return readBody(req, async (b) => {
+      const page = url.pathname.startsWith('/page');
+      const file = page ? pagePath(b?.file) : sddPath(b?.file);
+      if (!file || !agent.isSessionId(b.id)) return res.writeHead(400).end();
+      const record = { id: b.id, started: new Date().toISOString() };
+      try {
+        if (page) {
+          await writeFile(file, withPageSession((await pageOf(file)).text, `agent_session: { id: ${record.id}, started: "${record.started}" }`));
+        } else {
+          const d = await readSdd(file);
+          await writeFile(file, sddJson({ ...d, orchestrator: record }));
+        }
+        json(res, record);
+      } catch (err) {
+        res.writeHead(err.code === 'ENOENT' ? 404 : 500).end(err.message);
+      }
+    });
+  }
+  // A Hugo page's agent drawer (src/page-agent.jsx): its title, its own session and its folder's diagrams.
+  if (url.pathname === '/page' && req.method === 'GET') {
+    const file = pagePath(url.searchParams.get('file'));
+    if (!file) return res.writeHead(400).end('file must be docs/**/*.md');
+    return pageOf(file)
+      .then(({ text, ...page }) => json(res, page))
+      .catch((err) => res.writeHead(err.code === 'ENOENT' ? 404 : 500).end(err.message));
+  }
+  // The page's own conversation: the first message records it in the front matter before the agent starts.
+  if (url.pathname === '/page/chat' && req.method === 'POST') {
+    return readBody(req, async (b) => {
+      const file = pagePath(b?.file);
+      if (!file || typeof b.message !== 'string' || !b.message.trim() || !/^[\w-]+$/.test(b.run ?? '') || runs.has(b.run)) {
+        return res.writeHead(400).end();
+      }
+      try {
+        const page = await pageOf(file);
+        const href = typeof b.href === 'string' && b.href.startsWith('/') ? b.href : '';
+        let turn;
+        let created;
+        if (agent.isSessionId(page.session?.id)) {
+          turn = { prompt: b.message, session: page.session.id, isNew: false };
+        } else {
+          created = agent.newSessionId();
+          await writeFile(file, withPageSession(page.text, `agent_session: { id: ${created}, started: "${new Date().toISOString()}" }`));
+          const intro = [
+            `[Agent of the dev-deck Hugo page "${page.title}". Its file: ${file}.`,
+            'Load the unified-docs skill first. Keep the front matter line `agent_session` as is.',
+            page.diagrams.length ? `Its folder's diagrams (each with its own orchestrator): ${page.diagrams.join(', ')}.` : '',
+            href && `The user reads it live at http://localhost:5180${href}.`, ']',
+          ].filter(Boolean).join(' ');
+          turn = { prompt: `${intro}\n\n${b.message}`, session: created, isNew: true, title: `Page ${page.title}` };
+        }
+        const emit = start(b.run, turn, AGENT_ROOT, { label: `Page ${page.title}`, href, prompt: b.message });
+        if (created) emit({ session: created });
+        res.writeHead(202).end();
+      } catch (err) {
+        res.writeHead(err.code === 'ENOENT' ? 404 : 500).end(err.message);
       }
     });
   }

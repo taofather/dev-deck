@@ -32,6 +32,8 @@ export default {
   build: {
     emptyOutDir: false,
     rollupOptions: {
+      // page-agent: the agent drawer of every Hugo page (src/page-agent.jsx, loaded by layouts/_partials/custom/head-end.html).
+      input: { index: resolve(import.meta.dirname, 'index.html'), 'page-agent': resolve(import.meta.dirname, 'src/page-agent.jsx') },
       output: { entryFileNames: 'assets/[name].js', chunkFileNames: 'assets/[name].js', assetFileNames: 'assets/[name][extname]' },
     },
   },
