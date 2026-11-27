@@ -311,7 +311,7 @@
       "status": "published"
     },
     "narrativeBlock.TragediaElixe": {
-      "text": "A la vora del foc de la llar, un vell cec anomenat Ximún murmura versos en basc antic mentre agita un estrany escapulari entre els dits tremolosos. 'No hi haurà pau fins que la sang d'Elixe s'alliberi'.",
+      "text": "A la vora del foc de la llar, en Ximún, un gegant d'1'95 m de mirada perduda, es balanceja agitat i repeteix sense parar uns versos en basc. Els veïns s'hi miren amb por: «Abans no era així», murmura algú. «Era un mosso eixerit i valent, fins que va anar al bosc a matar la bruixa Elixe».",
       "why": "Descobreix la tragèdia d'Elixe i l'escapulari sagrat.",
       "published": true,
       "actions": [
@@ -322,7 +322,7 @@
       ],
       "status": "published",
       "active": false,
-      "title": "La Profecia de Ximún el Cec i el Malefici"
+      "title": "La Profecia de Ximún i el Malefici"
     },
     "narrativeBlock.EsclauFidel": {
       "text": "A l'alba del 30 d'octubre, els quinze gossos domèstics del poble embogeixen simultàniament i ataquen amb ràbia mortal els seus amos a les masies.",
@@ -739,8 +739,8 @@
           "y": -40
         },
         "narrativeBlock.VigilanciaEstables.Barricada": {
-          "x": 1362,
-          "y": 360
+          "x": 4328,
+          "y": 712
         }
       }
     },
@@ -880,10 +880,7 @@
       "section": "narrativeBlock",
       "title": "1. Arribada a Burgui",
       "intro": "La primera nit a l'hostal de Burgui: l'arribada sota la nevada i la separació de PJs entre els estables (Bernat) i la cambra fúnebre (Clara).",
-      "entities": [
-        "narrativeBlock.ArribadaBurgui*",
-        "narrativeBlock.NitABurgui*"
-      ],
+      "entities": ["narrativeBlock.ArribadaBurgui*", "narrativeBlock.NitABurgui*"],
       "positions": {
         "narrativeBlock.ArribadaBurgui": {
           "x": 0,
@@ -961,7 +958,6 @@
       "title": "2. Cadenes Blanques",
       "intro": "El 29 d'octubre la tempesta de neu aïlla Burgui: primer vers profètic, «presos per cadenes blanques».",
       "entities": [
-
         "narrativeBlock.NitABurgui*",
         "narrativeBlock.VigilanciaEstables*",
         "narrativeBlock.HerbesCambraFunebre*",
@@ -974,6 +970,54 @@
         "narrativeBlock.CadenesBlanques": {
           "x": 0,
           "y": 0
+        },
+        "narrativeBlock.VigilanciaEstables": {
+          "x": -112,
+          "y": -18
+        },
+        "narrativeBlock.HerbesCambraFunebre": {
+          "x": 206,
+          "y": -23
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarBagul": {
+          "x": 281,
+          "y": 135
+        },
+        "narrativeBlock.VigilanciaEstables.Barricada": {
+          "x": -532,
+          "y": 955
+        },
+        "playerAction.VigilanciaEstables.BernatDAran.opt_barricada": {
+          "x": -371,
+          "y": 165
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta": {
+          "x": 753,
+          "y": 138
+        },
+        "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_olor": {
+          "x": 1237,
+          "y": 175
+        },
+        "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_carta": {
+          "x": 1548,
+          "y": 185
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas": {
+          "x": 647,
+          "y": 538
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit": {
+          "x": 996,
+          "y": 538
+        },
+        "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Exit": {
+          "x": -57,
+          "y": 518
+        },
+        "playerAction.HerbesCambraFunebre.ExaminarCarta.Exit.ClaraDeYesa.a38": {
+          "x": 452,
+          "y": 797
         }
       }
     },
@@ -981,7 +1025,7 @@
       "id": "nb-3-historia-ximun",
       "section": "narrativeBlock",
       "title": "3. La Història de Ximún",
-      "intro": "El vell Ximún murmura versos en basc antic: la tragèdia d'Elixe i l'escapulari sagrat.",
+      "intro": "En Ximún repeteix versos en basc i els veïns expliquen la tragèdia d'Elixe i l'escapulari sagrat.",
       "entities": ["narrativeBlock.TragediaElixe*", "playerAction.TragediaElixe.*"],
       "positions": {
         "narrativeBlock.TragediaElixe": {
