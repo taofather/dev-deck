@@ -3,5 +3,7 @@
 {{- /* Agent run status (agent-bridge.mjs): local `hugo server` only, never in a build. */ -}}
 {{- if hugo.IsServer }}
   {{- with resources.Get "agent-chat.css" }}<link rel="stylesheet" href="{{ .RelPermalink }}" />{{ end }}
-  {{- with resources.Get "src/agent-status.js" }}<script type="module" src="{{ .RelPermalink }}"></script>{{ end }}
+  {{- /* Hugo serves it unbundled: js.Build swaps process.env.AGENT_BRIDGE_URL for .env's value, as vite.config.js does. */ -}}
+  {{- $bridge := getenv "AGENT_BRIDGE_URL" | default "http://127.0.0.1:5662" }}
+  {{- with resources.Get "src/agent-status.js" | js.Build (dict "format" "esm" "defines" (dict "process.env.AGENT_BRIDGE_URL" ($bridge | jsonify))) }}<script type="module" src="{{ .RelPermalink }}"></script>{{ end }}
 {{- end }}

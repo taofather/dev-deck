@@ -1,6 +1,7 @@
 // Corner status of every agent run on agent-bridge.mjs (GET /runs): WIP notes and SDD orchestrators.
 // Polled, not pushed: agent edits livereload the page, so the bridge is the only state that lasts.
 // Clicking a card replays its run live (GET /stream). Injected only by `hugo server` (head-end.html).
+// Served by Hugo, not Vite: head-end.html builds it with js.Build, which replaces this with .env's value.
 const BRIDGE = process.env.AGENT_BRIDGE_URL;
 const KEY = 'agent-status';
 const POLL_MS = 2000;
