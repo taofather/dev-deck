@@ -297,7 +297,18 @@ html.reactflow-embed .hextra-nav-container { display: none; }
 .reactflow-app .modal-head .focus-toggle { float: none; }
 .reactflow-app .modal-depth { margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--color-neutral-500); }
 .reactflow-app .modal-depth .focus-toggle.on { background: var(--color-dark-green-50); border-color: var(--color-dark-green-600); color: var(--color-dark-green-700); }
-.reactflow-app .modal-canvas { flex: 1; min-height: 0; }
+.reactflow-app .modal-canvas { flex: 1; min-height: 0; position: relative; }
+.reactflow-app .flow-tooltip { position: absolute; z-index: 10; overflow: auto; pointer-events: none; padding: 12px 14px; background: var(--rf-surface);
+  border: 1px solid; border-left-width: 4px; border-radius: 8px; box-shadow: 0 12px 32px rgb(0 0 0 / .25); font-size: 13px; line-height: 1.45; }
+.reactflow-app .flow-tooltip-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.reactflow-app .flow-tooltip-head .badge { margin: 0; }
+.reactflow-app .flow-tooltip h4 { margin: 10px 0 2px; font-size: 13px; }
+.reactflow-app .flow-tooltip h5 { margin: 8px 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--color-neutral-500); }
+.reactflow-app .flow-tooltip p { margin: 0; white-space: pre-wrap; }
+.reactflow-app .flow-tooltip dl { margin: 0; display: grid; gap: 2px; }
+.reactflow-app .flow-tooltip dl div { display: grid; grid-template-columns: 90px 1fr; gap: 8px; }
+.reactflow-app .flow-tooltip dt { color: var(--color-neutral-500); }
+.reactflow-app .flow-tooltip dd { margin: 0; overflow-wrap: anywhere; }
 .reactflow-app .modal-empty { padding: 24px; }
 .reactflow-app .modal.delete-modal { width: min(92vw, 520px); height: auto; }
 .reactflow-app .delete-modal .modal-head .focus-toggle { margin-left: auto; }

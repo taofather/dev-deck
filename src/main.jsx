@@ -336,7 +336,8 @@ const linkLabel = (a, b) => LINK_LABELS.find(([x, y]) => x.test(a.split(/[.-]/)[
 const matches = (doc, n, q) => [n.data.ref, n.data.label, JSON.stringify(doc.raw?.entities?.[n.data.ref] ?? '')]
   .join(' ').toLowerCase().includes(q);
 
-function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }) {
+// onHover(ref, nodeElement) / onHover(null): the flow modal's tooltip.
+function Diagram({ doc, page, entity, hidden, edit, onPick, onHover, zoomTo, query = '' }) {
   const base = useMemo(() => layout(page), [page]);
   const dark = useDark();
   const { fitView, screenToFlowPosition } = useReactFlow();
@@ -426,6 +427,9 @@ function Diagram({ doc, page, entity, hidden, edit, onPick, zoomTo, query = '' }
         }
         if (n.data.ref && (n.type === 'card' || e.target.closest('.lane-label'))) (onPick ?? ((r) => go(doc.id, page.id, r)))(n.data.ref);
       }}
+      onNodeMouseEnter={onHover && ((e, n) => n.type === 'card' && onHover(n.data.ref, e.target.closest('.react-flow__node')))}
+      onNodeMouseLeave={onHover && (() => onHover(null))}
+      onMoveStart={onHover && (() => onHover(null))}
       onEdgeClick={(_, e) => e.data.rel && (onPick ? setPicked((p) => (p === e.data.rel ? null : e.data.rel)) : go(doc.id, page.id, e.data.rel))}
       onPaneClick={() => (linkFrom ? setLinkFrom(null) : onPick ? setPicked(null) : go(doc.id, page.id))}
       // Links are relations, drawn on entity pages; flow pages (nodes + edges) only move.
@@ -950,15 +954,80 @@ function PagesOf({ doc, page, id, edit }) {
   );
 }
 
+// The flow tooltip's properties: every field but text, why and title, readable.
+const SKIP_PROPS = new Set(['text', 'why', 'title', 'doc']);
+const propValue = (v) => {
+  if (Array.isArray(v)) return v.map((x) => (x && typeof x === 'object' ? x.label ?? x.id ?? JSON.stringify(x) : Array.isArray(x) ? x.join(': ') : String(x))).join(' · ');
+  if (v && typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+};
+
+// A big hover card over the flow modal: Text, Why and Properties of the entity, per doc that describes it.
+function NodeTooltip({ id, anchor, box }) {
+  const described = entityDocs(id);
+  const r = anchor.getBoundingClientRect();
+  const b = box.getBoundingClientRect();
+  const W = 420;
+  // Beside the node, on the side with room; clamped inside the canvas.
+  const right = r.right - b.left + 12;
+  const left = right + W <= b.width ? right : Math.max(8, r.left - b.left - W - 12);
+  const top = Math.min(Math.max(8, r.top - b.top), Math.max(8, b.height - 320));
+  return (
+    <div className="flow-tooltip" style={{ left, top, width: W, maxHeight: b.height - top - 8, borderColor: colorOf(id) }}>
+      <div className="flow-tooltip-head">
+        <span className="badge" style={{ background: colorOf(id) }}>{DIMENSIONS[dimOf(id)].label}</span>
+        <strong>{id}</strong>
+      </div>
+      {described.length === 0 && <p className="muted">⚠ Not documented yet.</p>}
+      {described.map(({ doc: d, text, why, ...rest }) => {
+        const props = Object.entries(rest).filter(([k, v]) => !SKIP_PROPS.has(k) && v !== undefined && v !== '' && !(Array.isArray(v) && !v.length));
+        return (
+          <section key={d.id}>
+            {described.length > 1 && <h4>{d.title}</h4>}
+            {text && <><h5>Text</h5><p>{text}</p></>}
+            {why && <><h5>Why</h5><p>{why}</p></>}
+            {props.length > 0 && (
+              <>
+                <h5>Properties</h5>
+                <dl>{props.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{propValue(v)}</dd></div>)}</dl>
+              </>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+// A click on a node re-centres the flow on it (‹ goes back); ↗ Open leaves the modal for the centre node (onPick).
 function FlowModal({ doc, id, hidden, onPick, onClose }) {
   const [depth, setDepth] = useState(1);
-  const up = flowOf(id, depth, 'up');
-  const down = flowOf(id, depth, 'down');
+  const [trail, setTrail] = useState([id]);
+  const center = trail[trail.length - 1];
+  const [hover, setHover] = useState(null);
+  const canvas = useRef(null);
+  const hoverTimer = useRef(null);
+  const onHover = (ref, el) => {
+    clearTimeout(hoverTimer.current);
+    if (!ref) return setHover(null);
+    hoverTimer.current = setTimeout(() => setHover({ id: ref, el }), 250);
+  };
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
+  const recenter = (ref) => {
+    onHover(null);
+    if (ref !== center) setTrail((t) => [...t, ref]);
+  };
+  const back = () => {
+    onHover(null);
+    setTrail((t) => (t.length > 1 ? t.slice(0, -1) : t));
+  };
+  const up = flowOf(center, depth, 'up');
+  const down = flowOf(center, depth, 'down');
   const ids = [...new Set([...up, ...down])];
-  const key = ids.join('|');
+  const key = `${center}|${ids.join('|')}`;
   const page = useMemo(() => ({
-    id: `flow-${id}`, title: `Flow of ${id}`, entities: ids, direction: 'LR', edgeType: 'smoothstep',
-  }), [id, key]); // eslint-disable-line react-hooks/exhaustive-deps
+    id: `flow-${center}`, title: `Flow of ${center}`, entities: ids, direction: 'LR', edgeType: 'smoothstep',
+  }), [key]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const esc = (e) => e.key === 'Escape' && onClose();
     addEventListener('keydown', esc);
@@ -968,8 +1037,10 @@ function FlowModal({ doc, id, hidden, onPick, onClose }) {
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-label={page.title}>
         <div className="modal-head">
-          <strong>⇄ Flow of <span style={{ color: colorOf(id) }}>{id}</span></strong>
+          <button className="focus-toggle" title="Back to the previous centre" disabled={trail.length < 2} onClick={back}>‹</button>
+          <strong>⇄ Flow of <span style={{ color: colorOf(center) }}>{center}</span></strong>
           <span className="muted">{up.length - 1} before · {down.length - 1} after</span>
+          <button className="focus-toggle" title="Close the flow and open this node" onClick={() => onPick(center)}>↗ Open</button>
           <span className="modal-depth">
             Depth {DEPTHS.map(([d, label]) => (
               <button key={label} className={`focus-toggle${depth === d ? ' on' : ''}`} onClick={() => setDepth(d)}>{label}</button>
@@ -977,12 +1048,13 @@ function FlowModal({ doc, id, hidden, onPick, onClose }) {
           </span>
           <button className="focus-toggle" title="Close (Esc)" onClick={onClose}>✕</button>
         </div>
-        <div className="modal-canvas">
+        <div className="modal-canvas" ref={canvas}>
           {ids.length > 1 ? (
             <ReactFlowProvider>
-              <Diagram key={key} doc={doc} page={page} entity={id} hidden={hidden} onPick={onPick} />
+              <Diagram key={key} doc={doc} page={page} entity={center} hidden={hidden} onPick={recenter} onHover={onHover} />
             </ReactFlowProvider>
-          ) : <p className="muted modal-empty">No relations: nothing comes before or after {id}.</p>}
+          ) : <p className="muted modal-empty">No relations: nothing comes before or after {center}.</p>}
+          {hover && hover.el?.isConnected && canvas.current && <NodeTooltip id={hover.id} anchor={hover.el} box={canvas.current} />}
         </div>
       </div>
     </div>
