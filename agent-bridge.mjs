@@ -313,7 +313,7 @@ const server = createServer(async (req, res) => {
           const intro = [
             `[Orchestrator of the Liber Daemonum diagram "${d.title ?? b.file}".`,
             `Its data: ${file}. Follow Liber Daemonum graph and structured rules for LLM agents.`,
-            'Node ID prefixes follow Java-like package nomenclature: controlPoint, narrativeBlock, playerAction, actionSelection, turn, custom, intention, event, demiurge, cosmicStatistic, character, location, item.',
+            'Node ID prefixes follow Java-like package nomenclature: chapter, location, item, situation, narrativeBlock, playerAction, actionSelection, custom, intention, event, demiurge, cosmicStatistic, character.',
             'Edit that file in place: keep "orchestrator" as is, and give every new node a position.',
             `The user watches it live at /diagrams/#/${d.id ?? ''}.]`,
           ].join(' ');

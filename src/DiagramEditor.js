@@ -5,7 +5,10 @@
 export const SDD_BRIDGE = `${process.env.AGENT_BRIDGE_URL}/sdd`;
 // Node kinds created from the diagram toolbar, and their empty value.
 export const NEW_KINDS = {
-  controlPoint: { text: '', why: '' },
+  chapter: { text: '', why: '' },
+  location: { text: '', why: '' },
+  situation: { text: '', why: '' },
+  item: { text: '', why: '' },
   narrativeBlock: { text: '', why: '' },
   playerAction: { text: '', why: '' },
   actionSelection: { text: '', why: '' },

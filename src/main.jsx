@@ -22,14 +22,14 @@ const requireEnvUrl = (name, value) => {
 
 // Liber Daemonum graph dimensions and prefixes
 const DIMENSIONS = {
-  controlPoint: { label: 'Control Point', color: '#e63946', prefixes: ['controlPoint'] },
+  chapter: { label: 'Chapter', color: '#e63946', prefixes: ['chapter'] },
+  situation: { label: 'Situation', color: '#e76f51', prefixes: ['situation'] },
   narrativeBlock: { label: 'Narrative Block', color: '#3a86ff', prefixes: ['narrativeBlock'] },
   playerAction: { label: 'Player Action', color: '#06d6a0', prefixes: ['playerAction'] },
   actionSelection: { label: 'Action Selection', color: '#f77f00', prefixes: ['actionSelection'] },
   turn: { label: 'Turn', color: '#8338ec', prefixes: ['turn'] },
   custom: { label: 'Custom', color: '#457b9d', prefixes: ['custom'] },
   intention: { label: 'Intention', color: '#fb8500', prefixes: ['intention'] },
-  event: { label: 'Event', color: '#e76f51', prefixes: ['event'] },
   demiurge: { label: 'Demiurge', color: '#6a0dad', prefixes: ['demiurge'] },
   cosmicStatistic: { label: 'Cosmic Statistic', color: '#7209b7', prefixes: ['cosmicStatistic'] },
   character: { label: 'Character', color: '#1d3557', prefixes: ['character'] },
@@ -304,18 +304,29 @@ function DiagramTree({ label, docs: inside = docs, level = 0, route }) {
   );
 }
 
-// Suggested label for a new relation, from the skill's spec conventions (sdd-convert-skill.md).
+// Suggested label for a new relation, from the liber-daemonum-narrator skill (chapter, location, situation, item,
+// narrativeBlock) and the labels most used in docs/el-regreso/el-regreso.json.
 const LINK_LABELS = [
-  [/^controlPoint$/, /^actionSelection$/, 'offers'],
+  [/^chapter$/, /^situation$/, 'inicia'],
+  [/^chapter$/, /^location$/, 'descobreix'],
+  [/^chapter$/, /^narrativeBlock$/, 'develops into'],
+  [/^situation$/, /^situation$/, 'condueix a'],
+  [/^situation$/, /^location$/, 'té lloc a'],
+  [/^situation$/, /^narrativeBlock$/, 'develops into'],
+  [/^situation$/, /^item$/, 'revela'],
+  [/^item$/, /^situation$/, 'permet'],
+  [/^item$/, /^narrativeBlock$/, 'develops into'],
+  [/^narrativeBlock$/, /^situation$/, 'desencadena'],
+  [/^narrativeBlock$/, /^narrativeBlock$/, 'condueix a'],
+  [/^narrativeBlock$/, /^playerAction$/, 'tria'],
+  [/^playerAction$/, /^narrativeBlock$/, 'condueix a'],
   [/^actionSelection$/, /^playerAction$/, 'option'],
-  [/^playerAction$/, /^controlPoint$/, 'resolves to'],
-  [/^playerAction$/, /^narrativeBlock$/, 'triggers'],
-  [/^narrativeBlock$/, /^controlPoint$/, 'advances to'],
-  [/^controlPoint$/, /^narrativeBlock$/, 'develops into'],
-  [/^character$/, /^controlPoint$/, 'participates in'],
+  [/^character$/, /^situation$/, 'protagonitza'],
+  [/^character$/, /^intention$/, 'té intenció'],
+  [/^character$/, /^item$/, 'porta'],
   [/^character$/, /^playerAction$/, 'acts'],
-  [/^demiurge$/, /^controlPoint$/, 'influences'],
-  [/^cosmicStatistic$/, /^controlPoint$/, 'modulates'],
+  [/^demiurge$/, /^situation$/, 'influences'],
+  [/^cosmicStatistic$/, /^(situation|character|item)$/, 'mesura'],
 ];
 const linkLabel = (a, b) => LINK_LABELS.find(([x, y]) => x.test(a.split(/[.-]/)[0]) && y.test(b.split(/[.-]/)[0]))?.[2] ?? '';
 
@@ -620,7 +631,7 @@ function EntityEditor({ id, edit }) {
     : draft.actions.some((a) => !String(a.id ?? '').trim() && String(a.label ?? '').trim()) ? 'Accions: cada acció necessita un id'
       : actionIds.length !== new Set(actionIds).size ? 'Accions: ids repetits'
         : actions.some((a) => !a.label) ? 'Accions: cada acció necessita un label' : null;
-  const problem = !ID.test(nextId) ? 'Id: prefix.Name (e.g. controlPoint.Action)' : nextId !== id && edit.raw.entities?.[nextId] !== undefined ? `${nextId} already exists` : actionProblem;
+  const problem = !ID.test(nextId) ? 'Id: prefix.Name (e.g. situation.VeusAlBox)' : nextId !== id && edit.raw.entities?.[nextId] !== undefined ? `${nextId} already exists` : actionProblem;
   const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value });
   const properties = pairs(props);
   const methods = pairs(meths);
@@ -655,8 +666,6 @@ function EntityEditor({ id, edit }) {
     try {
       const relTurn = relations.find(([a, b]) => (a === id && b.startsWith('turn.')) || (b === id && a.startsWith('turn.')));
       const turnLabel = relTurn ? (relTurn[0].startsWith('turn.') ? relTurn[0] : relTurn[1]) : '';
-      const relCp = relations.find(([a, b]) => (a === id && b.startsWith('controlPoint.')) || (b === id && a.startsWith('controlPoint.')));
-      const controlPointLabel = relCp ? (relCp[0].startsWith('controlPoint.') ? relCp[0] : relCp[1]) : '';
 
       const title = entry?.title || titleOf(block.nodeId);
       // Emails → the web's user ids. Always sent: none = the whole campaign (narrative_block_users emptied).
@@ -676,7 +685,6 @@ function EntityEditor({ id, edit }) {
         content: block.text,
         why: block.why || undefined,
         turnLabel: turnLabel || undefined,
-        controlPointLabel: controlPointLabel || undefined,
         // The block's own actions: always sent, so removing them all clears the web's options too.
         actionSelector: block.actions,
         targetUserIds,
