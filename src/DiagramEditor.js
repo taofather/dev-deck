@@ -19,7 +19,8 @@ export const isUml = (entry) => typeof entry === 'object' && entry?.type === 'um
 // Status values offered per kind
 const STATUSES = ['draft', 'published'];
 export const statusesOf = () => STATUSES;
-export const ID = /^[a-zA-Z][\w.-]*$/;
+// Any letter, accented too (chapter.LEsclauMésFidel): \w alone is ASCII-only.
+export const ID = /^\p{L}[\p{L}\p{N}_.-]*$/u;
 // The title a narrative block gets from its id: narrativeBlock.CadenesBlanques -> 'Cadenes Blanques'.
 // A narrativeBlock's `actions`, the options the web offers players (narrative_blocks.action_selector):
 // [{ id, type?, label, excludes?, block_id_on_success?, block_id_on_failure?, block_id_on_critical?, block_id_on_slip? }].
