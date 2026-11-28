@@ -61,7 +61,7 @@
     },
     "character.pj.Viatgers": {
       "type": "uml",
-      "text": "Grup de 3 a 5 viatgers del segle XIV travessant Navarra. Protagonistes de la crònica kàrmica.",
+      "text": "Quatre viatgers cristians de camí a Yesa: Antso Iriarte, Maese Pelayo, Xoana de Mondoñedo i \"Fra Blasco\" (Oria de Jaca). Fitxes a content/el-regreso-pjs.md; trama adaptada a docs/el-regreso/el-regreso-adaptacio.md.",
       "properties": [
         ["Coneixement Màgic", "Especialitat requerida en almenys un PJ"],
         ["Racionalitat / RR", "Variable segons perfil"],
@@ -207,6 +207,15 @@
       "text": "Llogaret navarrès a la vora del riu Esca, format per masies disperses sense posada oficial.",
       "why": "Nucli central d'aïllament i tragèdia de l'aventura."
     },
+
+    "situation.estable.InquietudBestiar": {
+      "text": "Nit a l'estable: Els cavalls i el bestiar estan anormalment inquiets pel temporal que s'apropa, i un gos del paller gruny immòbil mirant cap a la foscor del bosc. Permet detectar el presagi sobre els animals o trobar una falç vella entre la palla.",
+      "why": "Variació menor de to ominós segons la decisió d'allotjament rústic (estable per 2 monedes de plata) a situation.HostalatgeBurgui."
+    },
+    "situation.habitacio.LlarDeFocIXafarderies": {
+      "text": "Nit a l'habitació: La família amfitriona comparteix escudella calenta vora la llar de foc i xafarderies rurals, esmentant de passada el dol de Ximún per la mort de Mariñe fa mig any. Atorga +5% d'empatia social amb els veïns l'endemà.",
+      "why": "Variació menor de to costumista segons la decisió d'allotjament còmode (habitació per 1 moneda d'or) a situation.HostalatgeBurgui."
+    },
     "location.BoscElixe": {
       "text": "Espessa i fosca forest a 45 minuts de Burgui, plena de senderons cecs, petjades demoníques i silenci sepulcral d'ocells.",
       "why": "Regne sobrenatural de la bruixa on les lleis de la raó s'esvaeixen."
@@ -239,57 +248,66 @@
       "text": "Retall de tela brodat amb fils d'or i el símbol del sol que immunitza contra les baixes temperatures.",
       "why": "Recompensa crucial per vèncer la neu i el temporal."
     },
-    "controlPoint.HostalatgeBurgui": {
-      "text": "PC1: Arribada a Burgui el vespre del 28 d'octubre. Elecció de descans: pagar 2 monedes de plata per l'estable o 1 d'or per habitació.",
+    "chapter.ArribadaABurgui": {
+      "text": "Arribada a Burgui.",
       "why": "Fixa les condicions físiques i financeres inicials dels PJs."
     },
-    "controlPoint.ProfeciaXimun": {
-      "text": "PC2: Matí del 29 d'octubre amb la gran nevada. Investigació de la cantinela de Ximún amb tirada d'Elocució o Mando.",
+    "location.28oct": {
+      "text": "Vespre del 28 d'octubre."
+    },
+    "situation.HostalatgeBurgui": {
+      "text": "Elecció de descans: pagar 2 monedes de plata per l'estable o 1 d'or per habitació.",
+      "why": "Fixa les condicions físiques i financeres inicials dels PJs."
+    },
+    "location.29oct.mati": {
+      "text": "Matí del 29 d'octubre."
+    },
+    "item.ProfeciaXimun": {
+      "text": "Investigació de la cantinela de Ximún amb tirada d'Elocució o Mando.",
       "why": "Descobreix la tragèdia d'Elixe, Mariñe i l'escapulari de Leire."
     },
-    "controlPoint.MisteriEscapulari": {
+    "item.MisteriEscapulari": {
       "text": "PC3: Tirada de Coneixement Màgic o Llegendes davant la narració dels vilatans.",
       "why": "Permet comprendre la regla teològica: cal arrencar l'escapulari del cadàver per enviar Elixe a l'Infern."
     },
-    "controlPoint.DefensaGossos": {
-      "text": "PC4: Alba del 30 d'octubre: combat sobtat contra 5 gossos enfollits per defensar el poble.",
+    "location.30oct.matinada": {
+      "text": "Matinada del 30 d'octubre."
+    },
+    "chapter.LEsclauMésFidel": {
+      "text": "La profecía dels gossos, ataquen als vilatans.",
       "why": "La rapidesa d'acció determina si moren 15 o 25 vilatans innocents."
     },
-    "controlPoint.DilemaSalvatierra": {
-      "text": "PC5: Gran bifurcació moral: fugir cap a Salvatierra de Esca sota perill de congelació o acceptar la súplica i anar al Bosc d'Elixe.",
+    "situation.DefensaGossos": {
+      "text": "Combat sobtat contra 5 gossos enfollits per defensar el poble.",
+      "why": "La rapidesa d'acció determina si moren 15 o 25 vilatans innocents."
+    },
+    "item.DilemaSalvatierra": {
+      "text": "Gran bifurcació moral: fugir cap a Salvatierra de Esca sota perill de congelació o acceptar la súplica i anar al Bosc d'Elixe.",
       "why": "Mesura la pulsió de por vs la pulsió de solidaritat kàrmica."
     },
-    "controlPoint.VeusDelBosc": {
-      "text": "PC6: Entrada al bosc i assalt de les Veus. Tirada de Racionalitat (-25%) llevat que es tapin les orelles amb cera o pa mastegat.",
+    "situation.VeusDelBosc": {
+      "text": "Entrada al bosc i assalt de les Veus. Tirada de Racionalitat (-25%) llevat que es tapin les orelles amb cera o pa mastegat.",
       "why": "Un fracàs redueix les competències a la meitat i perd la iniciativa; una pífia redueix el personatge a un guiñapo tremolós."
     },
-    "controlPoint.TrobadesBosc": {
-      "text": "PC7: Superació d'encontres aleatoris al bosc: diplomàcia o combat amb sàtirs, alerta davant la mandràgora nena o respecte a les fades.",
+    "situationTrobadesBosc": {
+      "text": "Superació d'encontres aleatoris al bosc: diplomàcia o combat amb sàtirs, alerta davant la mandràgora nena o respecte a les fades.",
       "why": "Condiciona l'obtenció d'ajut màgic (Sort de les fades) o pèrdua de vitalitat."
     },
-    "controlPoint.EnganyIditxa": {
-      "text": "PC8: Arribada a la cabana i diàleg amb la falsa anciana. Tirada de Rastrear (petjades de bèstia) i tirada de RR contra la poció.",
+    "chapter.EnganyIditxa": {
+      "text": "Arribada a la cabana i diàleg amb la falsa anciana. Tirada de Rastrear (petjades de bèstia) i tirada de RR contra la poció.",
       "why": "Desemmascarar el dimoni Iditxa o caure sota la seva dominació abans del combat a mort."
     },
-    "controlPoint.LlindarPossessio": {
+    "situation.LlindarPossessio": {
       "text": "PC9: Entrada a la cabana i atac anímic d'Elixe. Tirada de Resistència a la Màgia (RR) per evitar ser posseït.",
       "why": "Si falla, l'ànima d'Elixe usurpa el cos del PJ i intenta fugir lluny."
     },
-    "controlPoint.DeslliurarEscapulari": {
+    "situation.DeslliurarEscapulari": {
       "text": "PC10: Desenterrament del cadàver d'Elixe i extracció de l'escapulari sagrat. Tirada de RR (-40%) si no es resa o es duu una relíquia.",
       "why": "Elixe obre els ulls podrits i intenta arrossegar el PJ amb ella cap a l'abisme infernal."
     },
-    "controlPoint.DesenllacTotsSants": {
+    "situation.DesenllacTotsSants": {
       "text": "PC11: Resolució final: Si Elixe cau a l'Infern, cessa la tempesta i les veus. Si els PJs fallen, Mariñe alça els morts per venjar el poble.",
       "why": "Desenllaç i recompensa: 35 punts d'aprenentatge per acabar, +20 punts per precipitar Elixe a l'Infern."
-    },
-    "event.estable.InquietudBestiar": {
-      "text": "Nit a l'estable: Els cavalls i el bestiar estan anormalment inquiets pel temporal que s'apropa, i un gos del paller gruny immòbil mirant cap a la foscor del bosc. Permet detectar el presagi sobre els animals o trobar una falç vella entre la palla.",
-      "why": "Variació menor de to ominós segons la decisió d'allotjament rústic (estable per 2 monedes de plata) a controlPoint.HostalatgeBurgui."
-    },
-    "event.habitacio.LlarDeFocIXafarderies": {
-      "text": "Nit a l'habitació: La família amfitriona comparteix escudella calenta vora la llar de foc i xafarderies rurals, esmentant de passada el dol de Ximún per la mort de Mariñe fa mig any. Atorga +5% d'empatia social amb els veïns l'endemà.",
-      "why": "Variació menor de to costumista segons la decisió d'allotjament còmode (habitació per 1 moneda d'or) a controlPoint.HostalatgeBurgui."
     },
     "narrativeBlock.ArribadaBurgui": {
       "text": "La nevada s'intensifica mentre el sol cau rere les crestes pirinenques. Arribeu sangglaçats a la petita vila de Burgui. La taverna de l'hostal desprèn olor de caliu, fusta humida i guisat d'olla.",
@@ -306,9 +324,32 @@
       "title": "Arribada a l'Hostalatge de Burgui"
     },
     "narrativeBlock.CadenesBlanques": {
-      "text": "El matí del 29 d'octubre una tempesta sobtada de neu espessa bloqueja completament Burgui. El foll Ximún recorre els carrers balbucejant profecies en basc.",
-      "why": "Desenvolupa el primer vers profètic ('presos per cadenes blanques') i aïlla físicament el poble.",
-      "status": "published"
+      "title": "Cadenes Blanques",
+      "text": "Us desperta el silenci. Durant la nit, la neu ha colgat Burgui fins als ampits de les finestres, i el vent l'arrossega pels carrers com farina. El camí de Yesa ha desaparegut sota una paret blanca.\n\nA la cuina, els amfitrions parlen baix: mai no havia nevat així abans de Sant Martí. Quan el fill gran surt a buscar llenya, la tempesta s'alça amb un udol i el torna cap a dins a empentes, blanc de cap a peus.\n\nPel carrer, enmig de la torba, passa una figura enorme que crida en basc, sempre les mateixes paraules.",
+      "why": "29 d'octubre. Primer vers: «presos per cadenes blanques».\n\n- La tempesta es fa més forta cada vegada que surt a fora un nadiu de Burgui. Amb els forasters no passa, però amb Antso s'alça a mitges, perquè té sang de Burgui. Es nota amb una tirada de Percepció × 3.\n- La figura és Ximún. Seguir-lo porta a la seva història i, si hi va Antso, a la conversa entre cosins (situation.CosiXimun).\n- Aquest matí la tia Gaxuxa demana a Fra Blasco que digui missa pels difunts: primera prova de Por per a Oria.",
+      "actions": [
+        {
+          "id": "opt_seguir",
+          "type": "option",
+          "label": "Sortir darrere la figura que crida en basc",
+          "block_id_on_success": "narrativeBlock.CadenesBlanques.SeguirXimun"
+        },
+        {
+          "id": "opt_llenya",
+          "type": "option",
+          "label": "Ajudar el fill dels amfitrions a portar la llenya",
+          "block_id_on_success": "narrativeBlock.CadenesBlanques.PortarLlenya"
+        },
+        {
+          "id": "opt_cami",
+          "type": "option",
+          "label": "Mirar si el camí de Yesa és transitable",
+          "block_id_on_success": "narrativeBlock.CadenesBlanques.CamiYesa"
+        }
+      ],
+      "status": "published",
+      "published": true,
+      "active": false
     },
     "narrativeBlock.TragediaElixe": {
       "text": "A la vora del foc de la llar, en Ximún, un gegant d'1'95 m de mirada perduda, es balanceja agitat i repeteix sense parar uns versos en basc. Els veïns s'hi miren amb por: «Abans no era així», murmura algú. «Era un mosso eixerit i valent, fins que va anar al bosc a matar la bruixa Elixe».",
@@ -325,30 +366,138 @@
       "title": "La Profecia de Ximún i el Malefici"
     },
     "narrativeBlock.EsclauFidel": {
-      "text": "A l'alba del 30 d'octubre, els quinze gossos domèstics del poble embogeixen simultàniament i ataquen amb ràbia mortal els seus amos a les masies.",
-      "why": "Desenvolupa el segon vers profètic ('traïts pel vostre esclau més fidel') i força els personatges a actuar."
+      "title": "L'Esclau més Fidel",
+      "text": "Abans de l'alba us desperta un udol. Després un altre, i un altre, de masia en masia, fins que tot Burgui udola. Després vénen els crits.\n\nA l'estable, la Doña Urraca s'ha enfilat a la biga. Té el pèl eriçat i les dents a l'aire, i no mira cap a fora: mira en Pelayo.\n\nA la neu del carrer, un mastí arrossega un home pel braç cap al riu.",
+      "why": "30 d'octubre. Segon vers: «traïts pel vostre esclau més fidel».\n\n- Uns quinze gossos enfolleixen alhora. Els PJs s'enfronten a cinc, menys els que Xoana hagi adormit la nit abans (item.CarnAdormidora).\n- Víctimes del poble: 25, menys 1 per cada gos adormit i menys 1 per cada assalt que els PJs s'estalviïn reaccionant aviat (mínim 5).\n- Doña Urraca també embogeix (situation.UrracaEmbogeix). Si Pelayo la mata, perd la sortida de la mona a la cabana.\n- Ximún surt miraculosament indemne i continua recitant.",
+      "actions": [
+        {
+          "id": "opt_defensar",
+          "type": "roll",
+          "label": "Sortir amb armes a defensar els veïns"
+        },
+        {
+          "id": "opt_urraca",
+          "type": "option",
+          "label": "Calmar o retenir Doña Urraca abans que salti"
+        },
+        {
+          "id": "opt_barrar",
+          "type": "option",
+          "label": "Barrar la porta i esperar que passi"
+        }
+      ],
+      "status": "published",
+      "published": true,
+      "active": false
     },
     "narrativeBlock.SuplicaVilatans": {
       "text": "Davant la carnisseria i la certesa que el temporal només immobilitza els naturals de Burgui, la comunitat suplica als viatgers que penetrin al Bosc d'Elixe.",
       "why": "Planteja el dilema moral entre la fugida egoista cap a Salvatierra i la intervenció solidària al bosc."
     },
     "narrativeBlock.BoscTenebros": {
-      "text": "Travessia pel tenebrós Bosc d'Elixe, on la vegetació malaltissa i un cor esfereïdor de veus d'ànimes turmentades posen a prova el seny dels herois.",
-      "why": "Transició al territori demoníac on les regles de la realitat i la Racionalitat s'esquerden."
+      "title": "El Bosc d'Elixe",
+      "text": "A tres quarts d'hora de Burgui, els arbres es tanquen de cop. Són roures i faigs retorçats, amb les branques entortolligades com dits. La neu no hi arriba del tot, i sota els peus cruix una fullaraca negra.\n\nNo canta cap ocell. No hi ha rastre de llebre ni de guineu. Només, al fang, unes petjades: unes de partides, com de cabra gegant, i unes altres que no són de cap bèstia que conegueu.\n\nLluny, molt lluny, sembla que algú xiuxiueja els vostres noms.",
+      "why": "31 d'octubre, de dia.\n\n- El xiuxiueig és l'avís de les Veus: qui es tapi les orelles ara, amb cera, molla de pa mastegada o tela, en queda exempt.\n- Ningú del grup té punts a Rastrear (Antso 15 %, Xoana 17 %). Les petjades monstruoses porten a la cabana.\n- Tres encontres de la taula original (Veus, sàtirs, mandràgores, fades). Les Veus parlen a cada PJ de la seva pulsió.\n- Si Fra Blasco canta el Réquiem, les Veus callen una hora, però pot delatar que és dona (situation.RequiemVeus).",
+      "actions": [
+        {
+          "id": "opt_orelles",
+          "type": "option",
+          "label": "Tapar-se les orelles amb cera o molla de pa"
+        },
+        {
+          "id": "opt_petjades",
+          "type": "roll",
+          "label": "Seguir les petjades monstruoses (Rastrear)"
+        },
+        {
+          "id": "opt_requiem",
+          "type": "roll",
+          "label": "Fra Blasco: entonar el Réquiem"
+        }
+      ],
+      "status": "published",
+      "published": true,
+      "active": false
     },
     "narrativeBlock.CabanaIditxa": {
-      "text": "Arribada a la cabana aïllada amb fum blanc a la xemeneia. L'Iditxa, sota la disfressa d'una àvia càlida, intenta enverinar i sotmetre els viatgers.",
-      "why": "Desenvolupa l'emboscada de la serventa d'Elixe i el combat previ a l'exorcisme."
+      "title": "La Vella del Clar",
+      "text": "El sender mor en un clar. Al mig hi ha una cabana de troncs i pedra, i pel forat del sostre en surt un fil de fum blanc.\n\nA la porta, en un banc, dormisqueja una vella amb un mocador negre i les mans plegades a la falda. Abans que pugueu fer cap soroll, obre els ulls i somriu.\n\n—Ja era hora, criatures. Entreu, que se us glaçaran els peus. Tinc una cosa calenta al foc.",
+      "why": "La vella és l'Iditxa. Els ha vist venir amb Visión del Futuro i sap què vol cadascun.\n\n- Vol que entrin: el primer que travessi el llindar s'exposa a la possessió d'Elixe (situation.LlindarPossessio).\n- Ofereix la poció de Dominació «per sortir del bosc sense perill». Xoana la reconeix amb Conocimiento Vegetal o Degustar.\n- La poció només domina els homes: Oria és immune i l'Iditxa ho farà saber (situation.OriaImmune).\n- Rastrear revela que el clar és ple de petjades de monstre.",
+      "actions": [
+        {
+          "id": "opt_acceptar",
+          "type": "option",
+          "label": "Acceptar l'hospitalitat de la vella"
+        },
+        {
+          "id": "opt_preguntar",
+          "type": "roll",
+          "label": "Preguntar-li qui és i què hi fa, sola al bosc (Empatía)"
+        },
+        {
+          "id": "opt_rastrejar",
+          "type": "roll",
+          "label": "Examinar el clar abans d'acostar-s'hi (Rastrear)"
+        }
+      ],
+      "status": "published",
+      "published": true,
+      "active": false
     },
     "narrativeBlock.ExorcismeEscapulari": {
-      "text": "Desenterrament del cos putrefacte d'Elixe sota el terra de la cabana i arrencada de l'escapulari sagrat que reté la seva ànima damnada a la terra.",
-      "why": "Clímax de l'aventura on l'esperit d'Elixe lluita per arrossegar els viatgers a la condemnació eterna."
+      "title": "L'Anella sota la Terra Batuda",
+      "text": "Dins la cabana fa olor de cendra freda i de carn passada. La pols cobreix l'olla, el jaç i les ampolles: fa gairebé un any que ningú no hi viu.\n\nAl mig del terra hi ha un bony allargat, com un llit mal fet. A la llum de l'espelma, alguna cosa hi fa un reflex rogenc. És la corba d'una anella de ferro rovellat que sobresurt de la terra, prou ampla per cenyir un coll.\n\nEn gratar-hi al voltant, la terra cedeix massa fàcilment. A sota hi ha una cara de cuir negre, amb els llavis retirats sobre les dents. Al coll li penja un escapulari de llana bruna amb una creu brodada, tancat amb l'anella reblada a cops de martell. Quan la llum li toca la cara, els dits del cadàver es tensen.",
+      "why": "Clímax: arrencar l'escapulari envia Elixe a l'Infern.\n\n- Veure el bony i l'anella: tirada de Descubrir. Antso té un 60 %; Xoana, curta de vista, hi té un −25 %. Si ningú no en surt, el terra s'enfonsa sota el peu de qui hi trepitgi i l'anella queda a la vista.\n- L'anella és la que va forjar Ximún a la farga de Burgui. No es pot treure estirant: cal obrir-la amb les eines de Leire (Antso, Artesanía (Herrería) 80 %, 1 assalt), amb la Bendición de San Nuño (Xoana, 1 assalt) o a cops (1D6 assalts).\n- Qui toqui el cadàver per arrencar l'escapulari ha de passar una RR −40 %, o Elixe s'endú la seva ànima. El malus desapareix si Fra Blasco resa sincerament en llatí o si qui l'arrenca porta un objecte sagrat.\n- Si Doña Urraca és viva, un cop oberta l'anella s'obre la sortida de la mona (narrativeBlock.ExorcismeEscapulari.Urraca).",
+      "actions": [
+        {
+          "id": "opt_eines",
+          "type": "roll",
+          "label": "Obrir l'anella amb les tenalles i el cisell de Leire (Artesanía (Herrería))"
+        },
+        {
+          "id": "opt_talisma",
+          "type": "option",
+          "label": "Fregar l'anella amb la Bendición de San Nuño"
+        },
+        {
+          "id": "opt_cops",
+          "type": "option",
+          "label": "Rebentar l'anella a cops de martell (1D6 assalts)"
+        },
+        {
+          "id": "opt_resar",
+          "type": "option",
+          "label": "Demanar a Fra Blasco que comenci a resar en llatí"
+        }
+      ],
+      "status": "published",
+      "published": true,
+      "active": false
     },
     "narrativeBlock.ResolucioTotsSants": {
-      "text": "Resolució la nit de Tots Sants: la tempesta s'esvaeix i Burgui recobra la calma, o bé els morts liderats per Mariñe s'alcen per venjar el seu destí.",
-      "why": "Desenllaç de la crònica kàrmica segons el desenllaç de les accions dels personatges.",
-      "published": false,
-      "status": "draft"
+      "title": "La Nit de Tots Sants",
+      "text": "Al capvespre del 31, les dones de Burgui pugen al cementiri amb espelmes i pa de difunts, com cada any. Les flames tremolen sobre les tombes, i la de Mariñe en té més que cap altra.\n\nEn Ximún s'hi asseu al costat, a la neu, amb les mans grosses sobre els genolls. No recita res. Per primer cop en mig any, calla.\n\nQuan la campana toca mitjanit, aixeca el cap i mira cap al bosc.",
+      "why": "Desenllaç. El text serveix per a les dues branques.\n\n- Si Elixe ha caigut a l'Infern: la tempesta ha parat i les Veus han callat. Ximún diu el nom d'Antso i recupera el seny a poc a poc. A l'alba, Fra Blasco ha de dir la missa de difunts.\n- Si no: Elixe arriba del bosc amb el seu cadàver o amb el cos que hagi posseït, i alça els morts. Guiats per Mariñe, els morts de Burgui l'esquarteren a ella i a l'Iditxa.\n- Si Elixe és dins Antso, els morts dubten i és Ximún qui l'abraça fins que tots dos cauen a la neu. Si és dins Xoana, fuig cap a Galícia.\n- El Réquiem d'Oria abans de mitjanit fa que cap veí viu no prengui mal.",
+      "actions": [
+        {
+          "id": "opt_requiem",
+          "type": "roll",
+          "label": "Fra Blasco: cantar el Réquiem al cementiri"
+        },
+        {
+          "id": "opt_cosi",
+          "type": "option",
+          "label": "Antso: seure al costat de Ximún"
+        },
+        {
+          "id": "opt_vetllar",
+          "type": "option",
+          "label": "Vetllar a la porta del cementiri amb les armes a punt"
+        }
+      ],
+      "status": "published",
+      "published": true,
+      "active": false
     },
     "narrativeBlock.VigilanciaEstables": {
       "text": "Bernat s'ha separat de la sala principal per revisar els cavalls als estables posteriors. Rere el torb de la tempesta, una presència demoníaca i un grup de gossos feréstecs amb ulls de sofre envolten la quadra.\n\nEl cavall renilla amb terror i la fusta de la porta comença a cedir davant les urpes.",
@@ -564,64 +713,301 @@
       "published": true,
       "active": true,
       "title": "La Biga de Roure i el Silenci"
+    },
+    "character.pj.Antso": {
+      "type": "uml",
+      "text": "Ferrer basc de 18 anys, tort, cosí germà de Ximún i sang de Burgui. Porta les eines encarregades pels monjos de Leire.",
+      "properties": [
+        ["Paper decisiu", "Parla amb Ximún (Euskera 100) i talla l'anella de l'escapulari (Herrería 80)"],
+        ["Pulsió", "Ira: venjar el cosí"],
+        ["Destí terrible", "Les Veus el converteixen en un segon Ximún"],
+        ["Vincle Elixe", "La tempesta el reconeix a mitges; cos desitjat per Elixe"]
+      ]
+    },
+    "character.pj.Pelayo": {
+      "type": "uml",
+      "text": "\"Maese Pelayo\", embaucador asturlleonès de 21 anys, venedor de remeis falsos, marit de Xoana i amo de la mona Doña Urraca.",
+      "properties": [
+        ["Paper decisiu", "Fa parlar el poble i les fades (Elocuencia 85); la mona pot arrencar l'escapulari"],
+        ["Pulsió", "Luxúria i Traïció: fidelitat de llautó"],
+        ["Destí terrible", "Dominat per la poció, nou esclau més fidel de l'Iditxa"]
+      ]
+    },
+    "character.pj.Xoana": {
+      "type": "uml",
+      "text": "Cuinera gallega de 21 anys, filla bastarda d'un monjo i neta d'una meiga. Sap què hi ha a cada ampolla del carro.",
+      "properties": [
+        ["Paper decisiu", "Entén l'escapulari (C. Mágico 50), reconeix la poció i pot adormir els gossos"],
+        ["Encanteris", "Bendición de San Nuño (obre panys), Bebedizo de Sueños (8 dosis)"],
+        ["Pulsió", "Supèrbia i rancúnia envers Pelayo"],
+        ["Destí terrible", "Accepta el pacte d'Elixe i esdevé la nova bruixa del Roncal"]
+      ]
+    },
+    "character.pj.Oria": {
+      "type": "uml",
+      "text": "Oria de Jaca, goliard manca de 26 anys disfressada de \"Fra Blasco\". Sap llatí i els rituals de Primus Ordo. Amaga que és dona i que estima dones.",
+      "properties": [
+        [
+          "Paper decisiu",
+          "Immune a la poció de Dominació; resa en llatí mentre s'arrenca l'escapulari; Réquiem contra les Veus"
+        ],
+        ["Pulsió", "Por: ser descoberta"],
+        ["Destí terrible", "Fuig sola cap a Salvatierra o acaba a la foguera"]
+      ]
+    },
+    "character.creature.DonaUrraca": {
+      "type": "uml",
+      "text": "Mona de Pelayo. Obeeix ordres senzilles. El 30 d'octubre també embogeix com els gossos.",
+      "properties": [
+        ["Paper decisiu", "Pot arrencar l'escapulari i ser arrossegada a l'Infern en lloc d'un PJ"],
+        ["Cost", "Si mor, Pelayo no guanya PAp de mascota"]
+      ]
+    },
+    "intention.pj.AntsoProtegirCosi": {
+      "text": "Antso vol tornar el seny al seu cosí Ximún, o venjar-lo.",
+      "why": "Lligam de sang que el fa el pont entre els forasters i Burgui."
+    },
+    "intention.pj.PelayoSortirIntacte": {
+      "text": "Pelayo vol sortir de Burgui amb el carro, la panxa i la bossa intactes, i si pot, amb algun guany.",
+      "why": "La seva llengua d'or és útil; la seva fidelitat de llautó, un perill."
+    },
+    "intention.pj.XoanaSaber": {
+      "text": "Xoana vol entendre el malefici i, sense dir-ho, fer pagar al marit la malaltia que li ha encomanat.",
+      "why": "El saber de l'àvia meiga la fa imprescindible i vulnerable al pacte d'Elixe."
+    },
+    "intention.pj.OriaAmagar": {
+      "text": "Oria vol que ningú no descobreixi qui és, però el poble necessita un capellà.",
+      "why": "La impostura la posa al centre de la fe del poble i de la seva salvació."
+    },
+    "item.AnellaFerro": {
+      "text": "Anella de ferro de la farga de Burgui amb què Ximún va reblar l'escapulari al coll d'Elixe. No es pot treure estirant.",
+      "why": "Fa necessaris les eines d'Antso, el talismà de Xoana o diversos assalts de cops amb la mà sobre el cadàver."
+    },
+    "item.EinesLeire": {
+      "text": "Tenalles, llimes i cisell de tall en fred encarregats pels monjos de Leire, al carro d'Antso.",
+      "why": "Obren l'anella de l'escapulari en 1 assalt."
+    },
+    "item.BendicioSantNuno": {
+      "text": "Talismà de ferro embolicat en pell de serp de Xoana. Obre qualsevol pany si s'hi frega.",
+      "why": "Alternativa per obrir l'anella de l'escapulari."
+    },
+    "item.BebedizoSuenos": {
+      "text": "Poció de son de Xoana, 8 dosis. Cada dosi barrejada amb carn adorm dos gossos.",
+      "why": "Redueix les víctimes de l'Esclau Fidel o allibera Pelayo de la dominació."
+    },
+    "situation.CosiXimun": {
+      "text": "Antso parla en basc amb Ximún (Empatia o Memòria). Si en surt, Ximún revela l'anella de ferro i que sent Elixe.",
+      "why": "Moment decisiu d'Antso. Pista que permet preparar l'arrencada de l'escapulari."
+    },
+    "item.CarnAdormidora": {
+      "text": "La nit del 29, Xoana prepara carn amb Bebedizo de Sueños i la reparteix d'amagat per les masies.",
+      "why": "Moment decisiu de Xoana. Cada gos adormit és una víctima menys a l'alba."
+    },
+    "situation.UrracaEmbogeix": {
+      "text": "PC4b: A l'alba del 30 la mona de Pelayo també embogeix. Matar-la o retenir-la.",
+      "why": "Si sobreviu, és clau per arrencar l'escapulari."
+    },
+    "situation.RequiemVeus": {
+      "text": "Oria canta el Réquiem al bosc i fa callar les Veus una hora, a risc de delatar-se.",
+      "why": "Moment decisiu d'Oria al bosc; marca Por."
+    },
+    "situation.OriaImmune": {
+      "text": "La poció de Dominació no afecta Oria. L'Iditxa revela que és dona. Si Pelayo o Antso són dominats, Oria i Xoana han d'actuar.",
+      "why": "Moment decisiu d'Oria i Xoana a la cabana."
+    },
+    "situation.PacteXoana": {
+      "text": "Elixe ofereix a Xoana un pacte a cau d'orella: venjança contra el marit a canvi del seu cos.",
+      "why": "Destí terrible de Xoana si accepta."
+    },
+    "situation.TreientEscapulariDeLAmagatall": {
+      "text": "PC10b: Obrir l'anella (Antso, Xoana o a cops), resar en llatí (Oria) i arrencar l'escapulari (un PJ o Doña Urraca).",
+      "why": "Clímax coral: cada PJ hi aporta una peça."
+    },
+    "narrativeBlock.ExorcismeEscapulari.Urraca": {
+      "title": "La Mona i l'Escapulari",
+      "text": "L'anella de ferro cedeix amb un grinyol. Ningú no gosa posar la mà sobre el coll podrit: tothom ha vist tremolar els dits morts del cadàver.\n\nDoña Urraca s'enfila a l'espatlla d'en Pelayo. Té els ulls clavats a la cinta brodada de l'escapulari, que llueix a la llum de l'espelma com una joguina. En Pelayo només ha de dir una paraula.",
+      "why": "Per què la mona és clau:\n\n- Qui arrenca l'escapulari sense resar ni dur cap objecte sagrat ha de passar una RR −40 %: Antso i Oria hi tenen un 20 %, Pelayo un 10 % i Xoana un 5 %. Si falla, Elixe s'emporta la seva ànima a l'Infern.\n- Elixe s'aferra a qui la toca per arrossegar-ne l'ànima. Una bèstia no té ànima immortal: Elixe no troba res a què agafar-se i cau sola.\n- Les urpes del cadàver esclafen la mona. Pelayo perd els PAp de la mascota.\n- Només és possible si Urraca va sobreviure a l'Esclau Fidel i l'anella ja és oberta (eines d'Antso o talismà de Xoana).\n- És un pla B: si l'oració d'Oria és sincera, el malus desapareix i la mona no cal.",
+      "actions": [
+        {
+          "id": "opt_agafa",
+          "type": "option",
+          "label": "Ordenar a Doña Urraca: «Agafa!»"
+        },
+        {
+          "id": "opt_mans",
+          "type": "roll",
+          "label": "Arrencar l'escapulari amb les pròpies mans (RR −40 %)"
+        },
+        {
+          "id": "opt_resar",
+          "type": "option",
+          "label": "Esperar que Fra Blasco comenci a resar en llatí"
+        }
+      ],
+      "status": "draft"
+    },
+    "narrativeBlock.CadenesBlanques.SeguirXimun": {
+      "title": "La Farga Freda",
+      "text": "Seguiu la figura enmig de la torba. La neu us arriba als genolls, però el vent, estranyament, us deixa passar. Ximún no gira el cap ni una vegada.\n\nS'atura davant d'una farga tancada, al final del carrer. La porta està mig enfonsada per la neu. A dins, el foc fa mesos que és mort. Ximún posa les mans grosses sobre l'enclusa i hi recita els versos, en veu baixa, com qui resa.\n\nSobre l'enclusa hi ha unes tenalles rovellades i un tros de barra de ferro doblegat en forma d'anella, a mig acabar.",
+      "why": "Prefigura l'anella de ferro de l'escapulari (item.AnellaFerro).\n\n- Antso, Artesanía (Herrería) 80 %: reconeix l'anella a mig fer. Algú hi ha reblat una peça bessona, i no fa gaire.\n- Si Antso el crida pel nom en basc: tirada d'Empatía (25 %) o Memòria (45 %) per obrir la conversa entre cosins (situation.CosiXimun).\n- Al cap d'una estona arriba un veí: «Deixeu-lo estar, pobre Ximún». Amb Elocuencia, Pelayo el fa parlar i comença la història d'Elixe (narrativeBlock.TragediaElixe).",
+      "props": [
+        ["Opció", "opt_seguir"],
+        ["Bloc", "narrativeBlock.CadenesBlanques"]
+      ],
+      "actions": [
+        {
+          "id": "opt_cosi",
+          "type": "roll",
+          "label": "Antso: cridar-lo pel nom, en basc (Empatía o Memòria)"
+        },
+        {
+          "id": "opt_anella",
+          "type": "roll",
+          "label": "Examinar l'anella a mig fer (Artesanía (Herrería))"
+        },
+        {
+          "id": "opt_vei",
+          "type": "roll",
+          "label": "Fer parlar el veí que s'acosta (Elocuencia)",
+          "block_id_on_success": "narrativeBlock.TragediaElixe"
+        }
+      ],
+      "status": "published",
+      "published": true,
+      "active": false
+    },
+    "narrativeBlock.CadenesBlanques.PortarLlenya": {
+      "title": "El Vent que Tria",
+      "text": "La llenya és sota un porxo, a vint passes de la porta. En Peru, el fill gran dels amfitrions, s'embolica amb una manta i surt el primer. Al primer pas, el vent s'alça com una bèstia i el fa caure de genolls.\n\nVosaltres sortiu darrere seu. Al vostre voltant la neu cau gairebé dreta, mansa, com en una nit de Nadal. Davant vostre, a dues passes, en Peru no pot obrir els ulls.\n\nQuan torneu a dins amb els braços plens, en Peru tremola i us mira com si fóssiu bruixots.",
+      "why": "La tempesta castiga només els nadius de Burgui.\n\n- Tirada de Percepció × 3 per adonar-se'n del tot: el vent puja cada vegada que surt algú del poble, i amb els forasters no passa.\n- Si Antso és al grup, el vent s'alça a mitges al seu voltant: té sang de Burgui. Ho nota qui passi la tirada.\n- En Peru ho explicarà a tothom. Al poble començaran a mirar els forasters amb esperança, i també amb recel.",
+      "props": [
+        ["Opció", "opt_llenya"],
+        ["Bloc", "narrativeBlock.CadenesBlanques"]
+      ],
+      "actions": [
+        {
+          "id": "opt_observar",
+          "type": "roll",
+          "label": "Fer sortir en Peru un altre cop i observar el vent (Percepció × 3)"
+        },
+        {
+          "id": "opt_explicar",
+          "type": "option",
+          "label": "Explicar-ho als amfitrions a la llar de foc"
+        }
+      ],
+      "status": "published",
+      "published": true,
+      "active": false
+    },
+    "narrativeBlock.CadenesBlanques.CamiYesa": {
+      "title": "El Camí Colgat",
+      "text": "A la sortida del poble, el camí de Yesa s'enfonsa sota congestes més altes que un home. La mula de Pelayo s'hi nega en sec: planta les potes i bufa, amb els ulls en blanc.\n\nA peu podríeu avançar, potser. Vall avall, entre les rafegues, sembla que el cel s'aclareix, com si la tempesta tingués una vora.\n\nQuan us gireu per tornar, hi ha un gos negre assegut a la neu, a la vora del camí. No borda. Us mira. Quan feu un pas cap a ell, se'n va trotant cap a les cases.",
+      "why": "El carro no pot sortir de Burgui.\n\n- A peu es pot avançar, però amb fred cada 15 minuts (capítol 6 del manual). Salvatierra de Esca és a dues hores de neu, i allà s'acaba la tempesta.\n- El gos negre anuncia l'Esclau Fidel de l'endemà.\n- Si el grup insisteix a marxar ara, salteu al dilema de Salvatierra (item.DilemaSalvatierra). Encara no saben res de la profecia, i sentir-ne parlar al poble pot fer-los tornar.",
+      "props": [
+        ["Opció", "opt_cami"],
+        ["Bloc", "narrativeBlock.CadenesBlanques"]
+      ],
+      "actions": [
+        {
+          "id": "opt_insistir",
+          "type": "roll",
+          "label": "Insistir a peu, vall avall (RES × 4)"
+        },
+        {
+          "id": "opt_gos",
+          "type": "option",
+          "label": "Seguir el gos negre fins a les cases"
+        },
+        {
+          "id": "opt_tornar",
+          "type": "option",
+          "label": "Tornar al poble abans no es faci fosc"
+        }
+      ],
+      "status": "published",
+      "published": true,
+      "active": false
+    },
+    "narrativeBlock.Sobretaula": {
+      "title": "La Sobretaula",
+      "text": "Al migdia dineu escudella i pa negre vora el foc. A fora, el vent no para. La conversa s'apaga aviat i només se sent el crepitar de la llenya i, de tant en tant, un sospir de la mestressa.\n\nQuan la Garazi recull les escudelles, la mestressa us demana un favor: la llenya seca és a les golfes, i per pujar-hi s'ha de passar per la cambra on van vetllar la Mariñe. Ningú de la casa no hi vol entrar des d'aleshores.\n\nAbans que pugueu respondre, des dels estables arriba un renill espantat i un cop sec contra la fusta.",
+      "why": "Tarda del 29. Separació de PJs: cada jugador tria on va, i el grup es pot dividir.\n\n- La cambra fúnebre porta al bagul d'herbes i a la carta de cera vermella (narrativeBlock.HerbesCambraFunebre). Xoana hi té molt a dir.\n- Els estables porten a l'assalt dels gossos feréstecs (narrativeBlock.VigilanciaEstables). Antso, Pelayo i la mona hi tenen més a dir.\n- Qui va escriure la carta és una pregunta oberta: algú de Burgui sap més del que diu.",
+      "actions": [
+        {
+          "id": "opt_cambra",
+          "type": "option",
+          "label": "Pujar a la cambra fúnebre a buscar la llenya",
+          "block_id_on_success": "narrativeBlock.HerbesCambraFunebre"
+        },
+        {
+          "id": "opt_estables",
+          "type": "option",
+          "label": "Baixar als estables a veure què passa",
+          "block_id_on_success": "narrativeBlock.VigilanciaEstables"
+        }
+      ],
+      "status": "published",
+      "published": true,
+      "active": false
     }
   },
   "relations": [
     ["character.pj.Viatgers", "intention.pj.DePas", "té intenció"],
-    ["character.pj.Viatgers", "controlPoint.HostalatgeBurgui", "participa a"],
+    ["character.pj.Viatgers", "situation.HostalatgeBurgui", "participa a"],
     ["event.dia1.CadenesBlanques", "location.Burgui", "aïlla"],
     ["character.npc.Ximun", "intention.npc.XimunAvisar", "expressa"],
-    ["character.npc.Ximun", "controlPoint.ProfeciaXimun", "protagonitza"],
-    ["controlPoint.ProfeciaXimun", "controlPoint.MisteriEscapulari", "revela"],
+    ["character.npc.Ximun", "item.ProfeciaXimun", "protagonitza"],
+    ["item.ProfeciaXimun", "item.MisteriEscapulari", "revela"],
     ["character.npc.MonjosLeire", "item.EscapulariSagrat", "van lliurar"],
     ["character.creature.Gossos", "event.dia2.EsclauFidel", "executen"],
-    ["event.dia2.EsclauFidel", "controlPoint.DefensaGossos", "exigeix"],
-    ["controlPoint.DefensaGossos", "character.npc.AldeansBurgui", "protegeix"],
-    ["controlPoint.DefensaGossos", "controlPoint.DilemaSalvatierra", "condueix al"],
+    ["event.dia2.EsclauFidel", "situation.DefensaGossos", "exigeix"],
+    ["situation.DefensaGossos", "character.npc.AldeansBurgui", "protegeix"],
+    ["situation.DefensaGossos", "item.DilemaSalvatierra", "condueix al"],
     ["character.npc.AldeansBurgui", "intention.npc.AldeansDemanaAjuda", "manifiesten"],
-    ["intention.npc.AldeansDemanaAjuda", "controlPoint.DilemaSalvatierra", "suplica"],
-    ["controlPoint.DilemaSalvatierra", "location.SalvatierraEsca", "opció fugida"],
+    ["intention.npc.AldeansDemanaAjuda", "item.DilemaSalvatierra", "suplica"],
+    ["item.DilemaSalvatierra", "location.SalvatierraEsca", "opció fugida"],
     ["location.BoscElixe", "event.bosc.VeusEmbogidores", "ressona amb"],
-    ["event.bosc.VeusEmbogidores", "controlPoint.VeusDelBosc", "posa a prova a"],
-    ["controlPoint.VeusDelBosc", "controlPoint.TrobadesBosc", "superat porta a"],
-    ["controlPoint.TrobadesBosc", "event.bosc.TrobadaSobrenatural", "desencadena"],
+    ["event.bosc.VeusEmbogidores", "situation.VeusDelBosc", "posa a prova a"],
+    ["situation.VeusDelBosc", "situationTrobadesBosc", "superat porta a"],
+    ["situationTrobadesBosc", "event.bosc.TrobadaSobrenatural", "desencadena"],
     ["event.bosc.TrobadaSobrenatural", "character.creature.Satirs", "pot trobar"],
     ["event.bosc.TrobadaSobrenatural", "character.creature.Mandragores", "pot trobar"],
     ["event.bosc.TrobadaSobrenatural", "character.creature.Hades", "pot trobar"],
     ["character.npc.Iditxa", "intention.npc.IditxaEngany", "actua segons"],
-    ["character.npc.Iditxa", "controlPoint.EnganyIditxa", "intenta enganyar a"],
-    ["item.PocioDominacio", "controlPoint.EnganyIditxa", "utilitzada per"],
+    ["character.npc.Iditxa", "chapter.EnganyIditxa", "intenta enganyar a"],
+    ["item.PocioDominacio", "chapter.EnganyIditxa", "utilitzada per"],
     ["character.npc.ElixeAnima", "intention.npc.ElixeVenjanca", "impulsada per"],
-    ["character.npc.ElixeAnima", "controlPoint.LlindarPossessio", "intenta possessió a"],
-    ["controlPoint.LlindarPossessio", "controlPoint.DeslliurarEscapulari", "permet accedir a"],
+    ["character.npc.ElixeAnima", "situation.LlindarPossessio", "intenta possessió a"],
+    ["situation.LlindarPossessio", "situation.DeslliurarEscapulari", "permet accedir a"],
     ["character.npc.ElixeCadaver", "item.EscapulariSagrat", "porta al coll"],
-    ["controlPoint.DeslliurarEscapulari", "item.EscapulariSagrat", "arrenca"],
-    ["controlPoint.DeslliurarEscapulari", "controlPoint.DesenllacTotsSants", "fracàs o inacció activa"],
-    ["event.dia3.NitTotsSants", "controlPoint.DesenllacTotsSants", "marca el termini de"],
-    ["character.creature.MortsBurgui", "controlPoint.DesenllacTotsSants", "s'alcen a"],
+    ["situation.DeslliurarEscapulari", "item.EscapulariSagrat", "arrenca"],
+    ["situation.DeslliurarEscapulari", "situation.DesenllacTotsSants", "fracàs o inacció activa"],
+    ["event.dia3.NitTotsSants", "situation.DesenllacTotsSants", "marca el termini de"],
+    ["character.creature.MortsBurgui", "situation.DesenllacTotsSants", "s'alcen a"],
     ["character.npc.Marine", "intention.npc.MarineProteccio", "exerceix"],
     ["character.npc.Marine", "character.creature.MortsBurgui", "lidera"],
     ["character.creature.MortsBurgui", "character.npc.ElixeAnima", "destrueixen a"],
     ["character.npc.Ximun", "location.CementiriBurgui", "mor en pau sobre Mariñe a"],
-    ["cosmicStatistic.KarmicMatrix", "controlPoint.DefensaGossos", "mesura Ira i Traïció"],
-    ["cosmicStatistic.KarmicMatrix", "controlPoint.DilemaSalvatierra", "mesura Por i Supèrbia"],
-    ["cosmicStatistic.KarmicMatrix", "controlPoint.TrobadesBosc", "mesura Luxúria"],
-    ["cosmicStatistic.KarmicMatrix", "controlPoint.LlindarPossessio", "modifica Racionalitat i Irracionalitat"],
-    ["cosmicStatistic.KarmicMatrix", "controlPoint.DeslliurarEscapulari", "determina el destí kàrmic"],
-    ["controlPoint.HostalatgeBurgui", "event.estable.InquietudBestiar", "opció estable"],
-    ["controlPoint.HostalatgeBurgui", "event.habitacio.LlarDeFocIXafarderies", "opció habitació"],
-    ["event.habitacio.LlarDeFocIXafarderies", "character.npc.Marine", "introdueix record de"],
-    ["event.habitacio.LlarDeFocIXafarderies", "controlPoint.ProfeciaXimun", "facilita diàleg a"],
-    ["controlPoint.HostalatgeBurgui", "location.Burgui", "té lloc a"],
-    ["controlPoint.HostalatgeBurgui", "controlPoint.ProfeciaXimun", "condueix a"],
-    ["event.dia1.CadenesBlanques", "controlPoint.ProfeciaXimun", "emmarca"],
-    ["controlPoint.MisteriEscapulari", "controlPoint.DefensaGossos", "avança cap a"],
-    ["controlPoint.DilemaSalvatierra", "controlPoint.VeusDelBosc", "opció bosc condueix a"],
-    ["controlPoint.TrobadesBosc", "controlPoint.EnganyIditxa", "avança a"],
-    ["controlPoint.EnganyIditxa", "location.CabanaBruixa", "descobreix"],
-    ["controlPoint.EnganyIditxa", "controlPoint.LlindarPossessio", "derrota obre accés a"],
-    ["event.estable.InquietudBestiar", "controlPoint.HostalatgeBurgui", "transcorre a l'opció estable de"],
-    ["event.habitacio.LlarDeFocIXafarderies", "controlPoint.HostalatgeBurgui", "transcorre a l'opció habitació de"],
+    ["cosmicStatistic.KarmicMatrix", "situation.DefensaGossos", "mesura Ira i Traïció"],
+    ["cosmicStatistic.KarmicMatrix", "item.DilemaSalvatierra", "mesura Por i Supèrbia"],
+    ["cosmicStatistic.KarmicMatrix", "situationTrobadesBosc", "mesura Luxúria"],
+    ["cosmicStatistic.KarmicMatrix", "situation.LlindarPossessio", "modifica Racionalitat i Irracionalitat"],
+    ["cosmicStatistic.KarmicMatrix", "situation.DeslliurarEscapulari", "determina el destí kàrmic"],
+    ["situation.HostalatgeBurgui", "situation.estable.InquietudBestiar", "opció estable"],
+    ["situation.HostalatgeBurgui", "situation.habitacio.LlarDeFocIXafarderies", "opció habitació"],
+    ["situation.habitacio.LlarDeFocIXafarderies", "character.npc.Marine", "introdueix record de"],
+    ["situation.habitacio.LlarDeFocIXafarderies", "item.ProfeciaXimun", "facilita diàleg a"],
+    ["situation.HostalatgeBurgui", "location.Burgui", "té lloc a"],
+    ["situation.HostalatgeBurgui", "item.ProfeciaXimun", "condueix a"],
+    ["event.dia1.CadenesBlanques", "item.ProfeciaXimun", "emmarca"],
+    ["item.MisteriEscapulari", "situation.DefensaGossos", "avança cap a"],
+    ["item.DilemaSalvatierra", "situation.VeusDelBosc", "opció bosc condueix a"],
+    ["situationTrobadesBosc", "chapter.EnganyIditxa", "avança a"],
+    ["chapter.EnganyIditxa", "location.CabanaBruixa", "descobreix"],
+    ["chapter.EnganyIditxa", "situation.LlindarPossessio", "derrota obre accés a"],
+    ["situation.estable.InquietudBestiar", "situation.HostalatgeBurgui", "transcorre a l'opció estable de"],
+    ["situation.habitacio.LlarDeFocIXafarderies", "situation.HostalatgeBurgui", "transcorre a l'opció habitació de"],
     ["narrativeBlock.CadenesBlanques", "narrativeBlock.TragediaElixe", "revela"],
     ["narrativeBlock.TragediaElixe", "narrativeBlock.EsclauFidel", "precedeix"],
     ["narrativeBlock.EsclauFidel", "narrativeBlock.SuplicaVilatans", "provoca"],
@@ -629,15 +1015,15 @@
     ["narrativeBlock.BoscTenebros", "narrativeBlock.CabanaIditxa", "desemboca a"],
     ["narrativeBlock.CabanaIditxa", "narrativeBlock.ExorcismeEscapulari", "enfronta a"],
     ["narrativeBlock.ExorcismeEscapulari", "narrativeBlock.ResolucioTotsSants", "culmina a"],
-    ["controlPoint.HostalatgeBurgui", "narrativeBlock.ArribadaBurgui", "develops into"],
-    ["controlPoint.ProfeciaXimun", "narrativeBlock.CadenesBlanques", "develops into"],
-    ["controlPoint.MisteriEscapulari", "narrativeBlock.TragediaElixe", "develops into"],
-    ["controlPoint.DefensaGossos", "narrativeBlock.EsclauFidel", "develops into"],
-    ["controlPoint.DilemaSalvatierra", "narrativeBlock.SuplicaVilatans", "develops into"],
-    ["controlPoint.VeusDelBosc", "narrativeBlock.BoscTenebros", "develops into"],
-    ["controlPoint.EnganyIditxa", "narrativeBlock.CabanaIditxa", "develops into"],
-    ["controlPoint.DeslliurarEscapulari", "narrativeBlock.ExorcismeEscapulari", "develops into"],
-    ["controlPoint.DesenllacTotsSants", "narrativeBlock.ResolucioTotsSants", "develops into"],
+    ["situation.HostalatgeBurgui", "narrativeBlock.ArribadaBurgui", "develops into"],
+    ["item.ProfeciaXimun", "narrativeBlock.CadenesBlanques", "develops into"],
+    ["item.MisteriEscapulari", "narrativeBlock.TragediaElixe", "develops into"],
+    ["situation.DefensaGossos", "narrativeBlock.EsclauFidel", "develops into"],
+    ["item.DilemaSalvatierra", "narrativeBlock.SuplicaVilatans", "develops into"],
+    ["situation.VeusDelBosc", "narrativeBlock.BoscTenebros", "develops into"],
+    ["chapter.EnganyIditxa", "narrativeBlock.CabanaIditxa", "develops into"],
+    ["situation.DeslliurarEscapulari", "narrativeBlock.ExorcismeEscapulari", "develops into"],
+    ["situation.DesenllacTotsSants", "narrativeBlock.ResolucioTotsSants", "develops into"],
     ["narrativeBlock.HerbesCambraFunebre", "narrativeBlock.HerbesCambraFunebre.ExaminarBagul", "ofereix"],
     ["narrativeBlock.HerbesCambraFunebre.ExaminarCarta", "item.EscapulariSagrat", "revela"],
     [
@@ -656,7 +1042,7 @@
       "fracàs"
     ],
     ["narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Exit", "item.PocioDominacio", "identifica"],
-    ["narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Fracas", "controlPoint.EnganyIditxa", "afavoreix"],
+    ["narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Fracas", "chapter.EnganyIditxa", "afavoreix"],
     ["narrativeBlock.HerbesCambraFunebre", "narrativeBlock.HerbesCambraFunebre.ExaminarCarta", "a"],
     ["narrativeBlock.HerbesCambraFunebre.ExaminarCarta", "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit", "èxit"],
     [
@@ -664,8 +1050,8 @@
       "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas",
       "fracàs"
     ],
-    ["narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit", "controlPoint.DeslliurarEscapulari", "prepara"],
-    ["narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas", "controlPoint.LlindarPossessio", "exposa a"],
+    ["narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit", "situation.DeslliurarEscapulari", "prepara"],
+    ["narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas", "situation.LlindarPossessio", "exposa a"],
     ["narrativeBlock.TragediaElixe", "playerAction.TragediaElixe.ClaraDeYesa.opt_escoltar", "tria"],
     ["narrativeBlock.HerbesCambraFunebre", "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_olor", "tria"],
     ["narrativeBlock.HerbesCambraFunebre", "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_carta", "tria"],
@@ -696,7 +1082,75 @@
       "condueix a"
     ],
     ["narrativeBlock.VigilanciaEstables.Barricada", "character.creature.Gossos", "fa callar"],
-    ["narrativeBlock.VigilanciaEstables.Barricada", "narrativeBlock.EsclauFidel", "anticipa"]
+    ["narrativeBlock.VigilanciaEstables.Barricada", "narrativeBlock.EsclauFidel", "anticipa"],
+    ["character.pj.Viatgers", "character.pj.Antso", "inclou"],
+    ["character.pj.Viatgers", "character.pj.Pelayo", "inclou"],
+    ["character.pj.Viatgers", "character.pj.Xoana", "inclou"],
+    ["character.pj.Viatgers", "character.pj.Oria", "inclou"],
+    ["character.pj.Antso", "character.npc.Ximun", "cosí germà de"],
+    ["character.pj.Pelayo", "character.pj.Xoana", "marit de"],
+    ["character.pj.Pelayo", "character.creature.DonaUrraca", "amo de"],
+    ["character.pj.Antso", "intention.pj.AntsoProtegirCosi", "té intenció"],
+    ["character.pj.Pelayo", "intention.pj.PelayoSortirIntacte", "té intenció"],
+    ["character.pj.Xoana", "intention.pj.XoanaSaber", "té intenció"],
+    ["character.pj.Oria", "intention.pj.OriaAmagar", "té intenció"],
+    ["character.pj.Antso", "item.EinesLeire", "porta"],
+    ["character.pj.Xoana", "item.BendicioSantNuno", "porta"],
+    ["character.pj.Xoana", "item.BebedizoSuenos", "porta"],
+    ["character.npc.Ximun", "item.AnellaFerro", "va reblar"],
+    ["item.AnellaFerro", "item.EscapulariSagrat", "subjecta"],
+    ["character.npc.MonjosLeire", "item.EinesLeire", "van encarregar"],
+    ["item.ProfeciaXimun", "situation.CosiXimun", "permet"],
+    ["character.pj.Antso", "situation.CosiXimun", "protagonitza"],
+    ["situation.CosiXimun", "item.AnellaFerro", "revela"],
+    ["character.pj.Pelayo", "item.ProfeciaXimun", "fa parlar el poble a"],
+    ["character.pj.Xoana", "item.MisteriEscapulari", "resol"],
+    ["item.MisteriEscapulari", "item.CarnAdormidora", "permet"],
+    ["character.pj.Xoana", "item.CarnAdormidora", "protagonitza"],
+    ["item.BebedizoSuenos", "item.CarnAdormidora", "utilitzat a"],
+    ["item.CarnAdormidora", "situation.DefensaGossos", "redueix víctimes a"],
+    ["event.dia2.EsclauFidel", "situation.UrracaEmbogeix", "inclou"],
+    ["character.creature.DonaUrraca", "situation.UrracaEmbogeix", "protagonitza"],
+    ["character.pj.Oria", "situation.RequiemVeus", "protagonitza"],
+    ["situation.RequiemVeus", "event.bosc.VeusEmbogidores", "silencia"],
+    ["character.pj.Oria", "situation.OriaImmune", "protagonitza"],
+    ["chapter.EnganyIditxa", "situation.OriaImmune", "pot revelar"],
+    ["item.PocioDominacio", "character.pj.Pelayo", "pot dominar"],
+    ["character.npc.ElixeAnima", "situation.PacteXoana", "ofereix"],
+    ["character.pj.Xoana", "situation.PacteXoana", "decideix a"],
+    ["situation.LlindarPossessio", "situation.PacteXoana", "pot esdevenir"],
+    ["situation.DeslliurarEscapulari", "situation.TreientEscapulariDeLAmagatall", "requereix"],
+    ["item.EinesLeire", "situation.TreientEscapulariDeLAmagatall", "obre l'anella a"],
+    ["item.BendicioSantNuno", "situation.TreientEscapulariDeLAmagatall", "obre l'anella a"],
+    ["character.pj.Oria", "situation.TreientEscapulariDeLAmagatall", "resa a"],
+    ["character.creature.DonaUrraca", "situation.TreientEscapulariDeLAmagatall", "pot arrencar l'escapulari a"],
+    ["situation.UrracaEmbogeix", "situation.TreientEscapulariDeLAmagatall", "condiciona"],
+    ["cosmicStatistic.KarmicMatrix", "character.pj.Antso", "mesura Ira"],
+    ["cosmicStatistic.KarmicMatrix", "character.pj.Pelayo", "mesura Luxúria i Traïció"],
+    ["cosmicStatistic.KarmicMatrix", "character.pj.Xoana", "mesura Supèrbia"],
+    ["cosmicStatistic.KarmicMatrix", "character.pj.Oria", "mesura Por"],
+    ["narrativeBlock.ExorcismeEscapulari", "narrativeBlock.ExorcismeEscapulari.Urraca", "ofereix"],
+    ["situation.TreientEscapulariDeLAmagatall", "narrativeBlock.ExorcismeEscapulari.Urraca", "develops into"],
+    ["character.creature.DonaUrraca", "narrativeBlock.ExorcismeEscapulari.Urraca", "protagonitza"],
+    ["situation.UrracaEmbogeix", "narrativeBlock.ExorcismeEscapulari.Urraca", "fa possible"],
+    ["narrativeBlock.ExorcismeEscapulari.Urraca", "item.EscapulariSagrat", "arrenca"],
+    ["situation.UrracaEmbogeix", "narrativeBlock.EsclauFidel", "develops into"],
+    ["situation.RequiemVeus", "narrativeBlock.BoscTenebros", "develops into"],
+    ["situation.OriaImmune", "narrativeBlock.CabanaIditxa", "develops into"],
+    ["narrativeBlock.CadenesBlanques", "narrativeBlock.CadenesBlanques.SeguirXimun", "ofereix"],
+    ["narrativeBlock.CadenesBlanques", "narrativeBlock.CadenesBlanques.PortarLlenya", "ofereix"],
+    ["narrativeBlock.CadenesBlanques", "narrativeBlock.CadenesBlanques.CamiYesa", "ofereix"],
+    ["narrativeBlock.CadenesBlanques.SeguirXimun", "situation.CosiXimun", "permet"],
+    ["narrativeBlock.CadenesBlanques.SeguirXimun", "item.AnellaFerro", "prefigura"],
+    ["narrativeBlock.CadenesBlanques.SeguirXimun", "narrativeBlock.TragediaElixe", "condueix a"],
+    ["narrativeBlock.CadenesBlanques.PortarLlenya", "event.dia1.CadenesBlanques", "revela"],
+    ["narrativeBlock.CadenesBlanques.CamiYesa", "item.DilemaSalvatierra", "pot avançar"],
+    ["narrativeBlock.CadenesBlanques.CamiYesa", "narrativeBlock.EsclauFidel", "anticipa"],
+    ["narrativeBlock.CadenesBlanques.SeguirXimun", "narrativeBlock.Sobretaula", "condueix a"],
+    ["narrativeBlock.CadenesBlanques.PortarLlenya", "narrativeBlock.Sobretaula", "condueix a"],
+    ["narrativeBlock.CadenesBlanques.CamiYesa", "narrativeBlock.Sobretaula", "condueix a"],
+    ["narrativeBlock.Sobretaula", "narrativeBlock.HerbesCambraFunebre", "ofereix"],
+    ["narrativeBlock.Sobretaula", "narrativeBlock.VigilanciaEstables", "ofereix"]
   ],
   "pages": [
     {
@@ -741,8 +1195,36 @@
         "narrativeBlock.VigilanciaEstables.Barricada": {
           "x": 4328,
           "y": 712
+        },
+        "narrativeBlock.CadenesBlanques.CamiYesa": {
+          "x": 4813,
+          "y": 836
         }
       }
+    },
+    {
+      "id": "pjs",
+      "section": "Personatges",
+      "title": "Els Quatre Viatgers",
+      "intro": "Antso, Pelayo, Xoana i Oria: on és decisiu cadascun i quina pulsió l'amenaça.",
+      "entities": [
+        "character.pj.*",
+        "character.creature.DonaUrraca",
+        "intention.pj.*",
+        "item.AnellaFerro",
+        "item.EinesLeire",
+        "item.BendicioSantNuno",
+        "item.BebedizoSuenos",
+        "situation.CosiXimun",
+        "item.CarnAdormidora",
+        "situation.UrracaEmbogeix",
+        "situation.RequiemVeus",
+        "situation.OriaImmune",
+        "situation.PacteXoana",
+        "situation.TreientEscapulariDeLAmagatall",
+        "character.npc.Ximun",
+        "item.EscapulariSagrat"
+      ]
     },
     {
       "id": "blocs-narratius",
@@ -861,6 +1343,14 @@
         "narrativeBlock.VigilanciaEstables.Barricada": {
           "x": 1456,
           "y": 1050
+        },
+        "narrativeBlock.ExorcismeEscapulari.Urraca": {
+          "x": 581,
+          "y": 1060
+        },
+        "narrativeBlock.Sobretaula": {
+          "x": -250,
+          "y": 360
         }
       },
       "sides": {
@@ -958,6 +1448,9 @@
       "title": "2. Cadenes Blanques",
       "intro": "El 29 d'octubre la tempesta de neu aïlla Burgui: primer vers profètic, «presos per cadenes blanques».",
       "entities": [
+        "narrativeBlock.CadenesBlanques*",
+        "narrativeBlock.Sobretaula",
+        "playerAction.CadenesBlanques.*",
         "narrativeBlock.NitABurgui*",
         "narrativeBlock.VigilanciaEstables*",
         "narrativeBlock.HerbesCambraFunebre*",
@@ -973,51 +1466,67 @@
         },
         "narrativeBlock.VigilanciaEstables": {
           "x": -112,
-          "y": -18
+          "y": 782
         },
         "narrativeBlock.HerbesCambraFunebre": {
           "x": 206,
-          "y": -23
+          "y": 777
         },
         "narrativeBlock.HerbesCambraFunebre.ExaminarBagul": {
           "x": 281,
-          "y": 135
+          "y": 935
         },
         "narrativeBlock.VigilanciaEstables.Barricada": {
           "x": -532,
-          "y": 955
+          "y": 1755
         },
         "playerAction.VigilanciaEstables.BernatDAran.opt_barricada": {
           "x": -371,
-          "y": 165
+          "y": 965
         },
         "narrativeBlock.HerbesCambraFunebre.ExaminarCarta": {
           "x": 753,
-          "y": 138
+          "y": 938
         },
         "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_olor": {
           "x": 1237,
-          "y": 175
+          "y": 975
         },
         "playerAction.HerbesCambraFunebre.ClaraDeYesa.opt_carta": {
           "x": 1548,
-          "y": 185
+          "y": 985
         },
         "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Fracas": {
           "x": 647,
-          "y": 538
+          "y": 1338
         },
         "narrativeBlock.HerbesCambraFunebre.ExaminarCarta.Exit": {
           "x": 996,
-          "y": 538
+          "y": 1338
         },
         "narrativeBlock.HerbesCambraFunebre.ExaminarBagul.Exit": {
           "x": -57,
-          "y": 518
+          "y": 1318
         },
         "playerAction.HerbesCambraFunebre.ExaminarCarta.Exit.ClaraDeYesa.a38": {
           "x": 452,
-          "y": 797
+          "y": 1597
+        },
+        "narrativeBlock.CadenesBlanques.SeguirXimun": {
+          "x": -560,
+          "y": 220
+        },
+        "narrativeBlock.CadenesBlanques.PortarLlenya": {
+          "x": 0,
+          "y": 220
+        },
+        "narrativeBlock.CadenesBlanques.CamiYesa": {
+          "x": 560,
+          "y": 220
+        },
+        "narrativeBlock.Sobretaula": {
+          "x": 0,
+          "y": 480
         }
       }
     },
@@ -1096,6 +1605,10 @@
         "narrativeBlock.ExorcismeEscapulari": {
           "x": 0,
           "y": 0
+        },
+        "narrativeBlock.ExorcismeEscapulari.Urraca": {
+          "x": 0,
+          "y": 160
         }
       }
     },
